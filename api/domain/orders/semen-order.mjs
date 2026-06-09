@@ -481,7 +481,10 @@ export function buildSemenOrderProofHook(input) {
     triggerRef: Object.freeze({
       targetType: "SemenOrder",
       targetId: input.order.id,
+      semenOrderId: input.order.id,
       orderNumber: input.order.orderNumber,
+      breederOrganizationId: input.order.breederOrganizationId,
+      breedingStationOrganizationId: input.order.breedingStationOrganizationId,
       statusHistoryId: input.statusHistory.id,
       fromStatus: input.statusHistory.fromStatus,
       toStatus: input.statusHistory.toStatus,

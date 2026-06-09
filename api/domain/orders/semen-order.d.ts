@@ -148,7 +148,10 @@ export interface SemenOrderProofHook {
   triggerRef: {
     targetType: "SemenOrder";
     targetId: string | null;
+    semenOrderId: string | null;
     orderNumber: string;
+    breederOrganizationId: string;
+    breedingStationOrganizationId: string;
     statusHistoryId: string | null;
     fromStatus: SemenOrderStatus | null;
     toStatus: SemenOrderStatus;

@@ -12,6 +12,7 @@ tickets.
 | `migrations/20260609_0103_semen_order_status_history.sql` | 1.3 | Creates `semen_orders`, status history, order-number generation and finite order-status constraints. |
 | `migrations/20260609_0104_shipment_tracking_event.sql` | 1.4 | Creates `shipments` and append-only shipment tracking events linked to confirmed semen orders. |
 | `migrations/20260609_0105_document_evidence_attachment.sql` | 1.5 | Creates document metadata, object-storage reference fields, mandatory access classification and proof-event evidence attachments. |
+| `migrations/20260609_0106_proof_event_v1.sql` | 1.6 | Creates append-only `proof_events`, proof-event enums, proof-event document/evidence foreign keys and delete protection. |
 
 The Ticket 1.1 migration is PostgreSQL-oriented and uses CoriTech-owned records
 linked to managed authentication identities. It does not add custom
@@ -39,5 +40,5 @@ column. Uploads and controlled viewing must call the document evidence helper so
 `DOCUMENT_UPLOADED`, `DOCUMENT_VIEWED` and `EVIDENCE_ATTACHMENT_CREATED` audit
 hooks can be forwarded to the future AuditLog table introduced by Ticket 1.8.
 
-`evidence_attachments.proof_event_id` is prepared for Ticket 1.6. The foreign
-key should be added when the durable `proof_events` table exists.
+Ticket 1.6 adds the durable `proof_events` table and foreign keys from
+`documents.proof_event_id` and `evidence_attachments.proof_event_id`.

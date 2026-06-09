@@ -21,8 +21,8 @@ the remaining entities are still conceptual placeholders.
 | ShipmentTrackingEvent | Milestone, carrier update or manual tracking note | Implemented by Ticket 1.4; linked to shipment, actor context and normalized source |
 | Document | Metadata and object-storage references for uploaded evidence documents | Implemented by Ticket 1.5; linked to order, shipment or proof event |
 | EvidenceAttachment | Relation between a document and a proof event | Implemented by Ticket 1.5; supports proof event documentation without creating proof events automatically |
-| ProofEvent | Workflow-generated proof record | Links trigger, documentation, signature, verification level and audit trail |
-| VerificationLevel | Reviewable trust level applied to proof events | Used by proof event and reporting surfaces |
+| ProofEvent | Workflow-generated proof record | Implemented by Ticket 1.6; links trigger, documentation, signature placeholder, verification level and audit-hook context |
+| VerificationLevel | Reviewable trust level applied to proof events | Used by proof event and reporting surfaces; formal taxonomy remains Ticket 1.7 |
 | AuditLog | Immutable operational audit entry | Links actor, action, target object and timestamp |
 | AccessPermission | Controlled document or workflow access grant | Links subject, resource and permission |
 | Amendment | Controlled correction record | Links original record, reason, approver and audit evidence |
@@ -129,9 +129,11 @@ Platform-admin access is retained for support and oversight. Future buyer
 access remains unavailable in Phase 1.
 
 Every prepared order status change emits a `SEMEN_ORDER_STATUS_CHANGE` audit
-hook and a `PROOF_EVENT_REQUEST` hook. These hooks are integration points only;
-durable AuditLog and ProofEvent persistence remain owned by Tickets 1.8 and
-1.6 respectively.
+hook and a `PROOF_EVENT_REQUEST` hook. Ticket 1.6 can materialize approved
+order milestones from those hooks through the explicit ProofEvent service.
+Automatic proof-event generation from every relevant order action, duplicate
+prevention and durable AuditLog persistence remain owned by Tickets 7.1 and
+1.8.
 
 ## Implemented Shipment Tracking Foundation
 
@@ -164,10 +166,11 @@ read-only for shipments linked to their own orders. Future buyer access remains
 unavailable in Phase 1.
 
 Every prepared shipment creation or status update emits a
-`SHIPMENT_TRACKING_EVENT` audit hook and a `PROOF_EVENT_REQUEST` hook. These
-hooks are integration points only; durable AuditLog and ProofEvent persistence
-remain owned by Tickets 1.8 and 1.6, while automated shipment proof generation
-from shipment actions remains owned by Ticket 7.2.
+`SHIPMENT_TRACKING_EVENT` audit hook and a `PROOF_EVENT_REQUEST` hook. Ticket
+1.6 can materialize shipment-created, shipment-updated and
+shipment-confirmed proof events from those hooks through the explicit
+ProofEvent service. Durable AuditLog persistence remains Ticket 1.8, while
+automated shipment proof generation from shipment actions remains Ticket 7.2.
 
 The model stores optional `provider_name`, `provider_tracking_id`,
 `tracking_url`, `source_event_id` and `provider_status` fields so future
@@ -211,6 +214,41 @@ shipment, and attaching documents to proof events. Uploads and views emit
 hook. Durable AuditLog persistence remains owned by Ticket 1.8, object-storage
 provider integration remains owned by Ticket 6.1, and automatic proof-event
 generation from document uploads remains owned by Ticket 7.3.
+
+## Implemented Proof Event Foundation
+
+Ticket 1.6 adds the durable ProofEvent record:
+
+`api/db/migrations/20260609_0106_proof_event_v1.sql`
+
+Implemented tables:
+
+| Table | Purpose |
+| --- | --- |
+| `proof_events` | Append-only workflow proof records linked to order, shipment and optional future horse context with actor, role, organization, lifecycle stage, verification level, signature placeholder and audit-hook reference. |
+
+Implemented proof event values:
+
+| Enum | Values |
+| --- | --- |
+| `coritech_proof_event_type` | `SEMEN_ORDER_CREATED`, `SUBMITTED`, `CONFIRMED`, `REJECTED`, `SHIPMENT_CREATED`, `SHIPMENT_STATUS_UPDATED`, `SHIPMENT_CONFIRMED`, `DOCUMENT_UPLOADED`, `ORDER_COMPLETED`, `ADMIN_CORRECTION_CREATED` |
+| `coritech_proof_event_source` | `ORDER_STATUS_CHANGE`, `SHIPMENT_TRACKING_EVENT`, `DOCUMENT_UPLOAD`, `ADMIN_CORRECTION` |
+| `coritech_proof_event_status` | `RECORDED`, `VOIDED` |
+
+Proof events require actor user, role, organization, timestamp and a
+non-blank `verification_level`. Ticket 1.6 uses the starter
+`WORKFLOW_RECORDED` value when no verification level is supplied; Ticket 1.7
+owns the formal verification-level taxonomy and derivation rules.
+
+The ProofEvent API helper materializes proof events only through explicit
+service calls from existing workflow proof hooks. It does not automatically
+create proof events on every order, shipment or document action. Those
+automation rules remain in Tickets 7.1, 7.2 and 7.3.
+
+The table blocks direct deletes with a database trigger. Later corrections must
+use approved amendment/admin-correction workflows instead of silently deleting
+proof records. The nullable `audit_log_id` field is reserved for Ticket 1.8;
+until then, each proof event stores the originating `audit_hook_ref`.
 
 ## Data Ownership Principle
 

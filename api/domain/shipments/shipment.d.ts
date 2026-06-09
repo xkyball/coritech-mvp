@@ -173,6 +173,8 @@ export interface ShipmentProofHook {
     targetId: string | null;
     semenOrderId: string;
     orderNumber: string;
+    breederOrganizationId: string;
+    breedingStationOrganizationId: string;
     trackingEventId: string | null;
     fromStatus: ShipmentStatus | null;
     toStatus: ShipmentStatus;

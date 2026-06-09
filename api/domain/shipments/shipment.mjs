@@ -425,6 +425,8 @@ export function buildShipmentProofHook(input) {
       targetId: input.shipment.id,
       semenOrderId: input.shipment.semenOrderId,
       orderNumber: input.shipment.orderNumber,
+      breederOrganizationId: input.shipment.breederOrganizationId,
+      breedingStationOrganizationId: input.shipment.breedingStationOrganizationId,
       trackingEventId: input.trackingEvent.id,
       fromStatus: input.trackingEvent.fromStatus,
       toStatus: input.trackingEvent.toStatus,

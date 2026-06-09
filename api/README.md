@@ -19,10 +19,14 @@ tickets.
 - `domain/documents/` contains the Ticket 1.5 document metadata and evidence
   attachment model, endpoint contracts, object-storage reference validation,
   classification-aware access checks and upload/view audit hooks.
+- `domain/proof/` contains the Ticket 1.6 ProofEvent model, hook-to-proof
+  preparation service, explicit persistence helper, append-only deletion policy
+  and proof-event creation audit hook.
 
 No custom authentication, authorization middleware, payment handling, logistics
-provider adapter, object-storage provider integration, durable proof-event
-generation, AI behavior or blockchain logic is implemented here yet.
+provider adapter, object-storage provider integration, automatic proof-event
+generation, verification-level derivation, durable AuditLog persistence, AI
+behavior or blockchain logic is implemented here yet.
 
 Future API code must be introduced by an approved Phase 1 ticket and must keep
 configuration, auditability and ownership boundaries explicit.

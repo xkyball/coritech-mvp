@@ -11,39 +11,62 @@ Core logic:
 Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 ```
 
-## Starter Fields
+## Implemented Fields
 
 | Field | Purpose | Status |
 | --- | --- | --- |
-| `id` | Unique proof event identifier | `[PENDING_DATA_MODEL]` |
-| `trigger_type` | Workflow action that created the proof event | `[PENDING_TICKET_01_06]` |
-| `trigger_ref` | Linked order, shipment, document or amendment record | `[PENDING_TICKET_01_06]` |
-| `documentation_refs` | Evidence documents supporting the event | Implemented as Ticket 1.5 `evidence_attachments`; durable proof event table remains `[PENDING_TICKET_01_06]` |
-| `actor_ref` | User or organization responsible for the trigger | `[PENDING_TICKET_01_01]` |
-| `signature_ref` | Confirmation, attestation or managed identity evidence | `[PENDING_ARCHITECTURE_DECISION]` |
-| `verification_level` | Simple reviewable proof level | `[PENDING_TICKET_01_07]` |
-| `audit_log_ref` | Audit entry for creation or amendment | `[PENDING_TICKET_01_08]` |
-| `created_at` | Event creation timestamp | `[PENDING_DATA_MODEL]` |
+| `id` | Unique proof event identifier | Implemented by Ticket 1.6 |
+| `event_type` | Ticket 1.6 proof event type enum | Implemented by Ticket 1.6 |
+| `source` | Workflow source that requested proof creation | Implemented by Ticket 1.6 |
+| `trigger_type` | Workflow action that created the proof event request | Implemented by Ticket 1.6 |
+| `trigger_ref` | JSON reference to the originating order, shipment, document or correction context | Implemented by Ticket 1.6 |
+| `semen_order_id` | Optional order link | Implemented by Ticket 1.6 |
+| `shipment_id` | Optional shipment link | Implemented by Ticket 1.6 |
+| `horse_id` | Optional future horse/passport link | Prepared by Ticket 1.6 without federation or studbook automation |
+| `documentation_refs` | Evidence document references supporting the event | Implemented by Ticket 1.6 as JSON references; Ticket 1.5 `evidence_attachments` stores durable document attachment rows |
+| `actor_user_id` | User responsible for the trigger | Implemented by Ticket 1.6 |
+| `actor_role_code` | Role context for the trigger | Implemented by Ticket 1.6 |
+| `actor_organization_id` | Organization context for the trigger | Implemented by Ticket 1.6 |
+| `lifecycle_stage` | Reviewable lifecycle stage derived from the event type | Implemented by Ticket 1.6 |
+| `signature_ref` | Managed-auth signature or future attestation reference | Placeholder implemented by Ticket 1.6 |
+| `attestation_refs` | Future attestation slots | Placeholder implemented by Ticket 1.6 |
+| `verification_level` | Required starter proof level | Implemented by Ticket 1.6 as `WORKFLOW_RECORDED`; taxonomy and derivation remain Ticket 1.7 |
+| `audit_log_id` | Durable audit-log link | Reserved nullable field for Ticket 1.8 |
+| `audit_hook_ref` | Originating workflow audit hook reference | Implemented by Ticket 1.6 |
+| `status` | Proof event lifecycle status | Implemented by Ticket 1.6 as `RECORDED` or `VOIDED` |
+| `occurred_at` | Workflow event timestamp | Implemented by Ticket 1.6 |
+| `created_at` | Proof event creation timestamp | Implemented by Ticket 1.6 |
+| `updated_at` | Proof event update timestamp | Implemented by Ticket 1.6 |
+
+Migration:
+
+`api/db/migrations/20260609_0106_proof_event_v1.sql`
 
 ## Phase 1 Event Sources
 
-| Source | Example proof event |
+| Source | Ticket 1.6 event types |
 | --- | --- |
-| Order action | Breeder placed order or station confirmed order |
-| Shipment action | Shipment created, dispatched or delivered |
-| Document upload | Required evidence document attached to order or shipment |
-| Admin amendment | Corrected record with reason and approver |
+| `ORDER_STATUS_CHANGE` | `SEMEN_ORDER_CREATED`, `SUBMITTED`, `CONFIRMED`, `REJECTED`, `ORDER_COMPLETED` |
+| `SHIPMENT_TRACKING_EVENT` | `SHIPMENT_CREATED`, `SHIPMENT_STATUS_UPDATED`, `SHIPMENT_CONFIRMED` |
+| `DOCUMENT_UPLOAD` | `DOCUMENT_UPLOADED` |
+| `ADMIN_CORRECTION` | `ADMIN_CORRECTION_CREATED` |
 
 ## Documentation Attachment Foundation
 
 Ticket 1.5 introduces `documents` and `evidence_attachments` so a proof event
-can be supported by one or more evidence documents once Ticket 1.6 adds durable
-proof-event persistence. A document upload does not automatically create a proof
-event or assign a high verification level in Ticket 1.5.
+can be supported by one or more evidence documents. Ticket 1.6 adds the durable
+`proof_events` target and foreign keys for proof-linked documents and evidence
+attachments.
+
+A document upload does not automatically create a proof event or assign a high
+verification level in Tickets 1.5 or 1.6. Automatic proof events from document
+uploads remain Ticket 7.3.
 
 ## Verification Level Placeholder
 
-Final labels are owned by later Phase 1 tickets. The starter intent is:
+Ticket 1.6 requires a non-blank `verification_level` and uses
+`WORKFLOW_RECORDED` as the default starter value. Final labels and derivation
+rules are owned by Ticket 1.7. The starter intent remains:
 
 | Level | Meaning |
 | --- | --- |
@@ -51,6 +74,21 @@ Final labels are owned by later Phase 1 tickets. The starter intent is:
 | `[LEVEL_1_PLACEHOLDER]` | Event linked to supporting documentation |
 | `[LEVEL_2_PLACEHOLDER]` | Event linked to documentation and actor confirmation |
 | `[LEVEL_3_PLACEHOLDER]` | Event reviewed or verified under approved CoriTech rules |
+
+## Deletion And Amendment Policy
+
+Proof events are append-only in Ticket 1.6. The database migration adds a
+delete-blocking trigger for `proof_events`, and the API helper exposes no normal
+delete path. Later corrections should be represented through approved
+amendment/admin-correction workflows rather than silent deletion.
+
+## Automation Boundary
+
+Ticket 1.6 provides the ProofEvent model and an explicit hook-to-proof service.
+It does not automatically create proof events on every order, shipment or
+document action, prevent duplicates across those workflows, derive stronger
+verification levels, or persist full AuditLog entries. Those concerns remain in
+Tickets 7.1, 7.2, 7.3, 1.7 and 1.8.
 
 ## Delayed Technology Note
 
