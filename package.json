@@ -1,0 +1,32 @@
+{
+  "name": "coritech",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.11.1",
+  "description": "CoriTech Phase 1 MVP foundation.",
+  "workspaces": [
+    "apps/web",
+    "packages/config",
+    "packages/domain",
+    "packages/database"
+  ],
+  "scripts": {
+    "dev": "npm --workspace @coritech/web run dev",
+    "build": "npm --workspace @coritech/database run db:generate && npm --workspace @coritech/web run build",
+    "test": "npm run test:domain && npm run test:config && npm run test:web",
+    "test:domain": "npm --workspace @coritech/domain test",
+    "test:config": "npm --workspace @coritech/config test",
+    "test:web": "npm --workspace @coritech/web test",
+    "db:generate": "npm --workspace @coritech/database run db:generate",
+    "db:migrate": "npm --workspace @coritech/database run db:migrate",
+    "db:seed": "npm --workspace @coritech/database run db:seed",
+    "db:reset": "npm --workspace @coritech/database run db:reset",
+    "db:studio": "npm --workspace @coritech/database run db:studio",
+    "docker:up": "node scripts/docker-compose.mjs up --build",
+    "docker:down": "node scripts/docker-compose.mjs down",
+    "docker:reset": "node scripts/docker-compose.mjs down -v --remove-orphans"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

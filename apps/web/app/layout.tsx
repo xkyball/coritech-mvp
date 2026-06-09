@@ -1,0 +1,20 @@
+import type { Metadata } from "next";
+import "./globals.css";
+import "../features/breeder-dashboard/breeder-dashboard.css";
+
+export const metadata: Metadata = {
+  title: "CoriTech MVP",
+  description: "Phase 1 semen ordering, tracking and documentation foundation.",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}

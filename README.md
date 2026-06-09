@@ -1,62 +1,195 @@
-# CoriTech Phase 1 MVP Repository
+# CoriTech Phase 1 MVP
 
-This repository is the CoriTech-controlled technical ownership base for the
-Phase 1 MVP wedge.
+CoriTech is a Verified Horse Passport and Equine Data Space for the equine
+market. Phase 1 focuses on the operational semen-ordering wedge:
 
-Phase 1 focuses on the operational semen-ordering workflow and the evidence
-foundation needed for the Proof Chain. Product functionality is implemented only
-through approved Phase 1 tickets.
+```text
+Breeder -> Semen Listing -> Semen Order -> Station Confirmation -> Shipment Tracking -> Documentation -> Basic Proof Event -> Audit Log
+```
+
+Core proof logic:
 
 ```text
 Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 ```
 
+## Standard Development Stack
+
+This repository uses:
+- Next.js
+- TypeScript
+- PostgreSQL
+- Prisma ORM
+- Docker Compose
+
+All future development tasks should build on this foundation unless explicitly instructed otherwise.
+
+## Product Guardrails
+
+Do not introduce:
+- blockchain/token logic
+- AI claims or AI features
+- full marketplace automation
+- custom authentication
+- payment-card storage
+- federation automation
+- sensor/wearable ingestion
+
+unless explicitly requested in a later phase.
+
+## What Existed Before This Standardization
+
+The repository already contained useful Phase 1 domain work:
+
+- Framework-neutral JavaScript domain helpers under `packages/domain/src/`.
+- PostgreSQL-oriented raw SQL model migrations under `packages/database/legacy-sql/migrations/`.
+- Environment validation helpers under `packages/config/src/`.
+- A breeder dashboard view-model and renderer under `apps/web/features/breeder-dashboard/`.
+- Product, architecture, data-model, security, ticket and ownership docs under `docs/`.
+
+There was no package manifest, package manager lockfile, Next.js runtime,
+TypeScript application setup, Prisma schema, seed script, Dockerfile or Docker
+Compose stack.
+
+The detailed pre-migration inspection lives in
+`docs/current-implementation-status.md`.
+
+## What Changed
+
+- Added an npm workspace foundation.
+- Added a Next.js App Router app at `apps/web`.
+- Added a Prisma/PostgreSQL database package at `packages/database`.
+- Adapted the existing raw SQL migration intent into the first Prisma-managed
+  migration.
+- Added idempotent local seed data for roles, organizations, users, catalog,
+  order, shipment, document metadata, proof events, audit logs, access
+  permission and amendment evidence.
+- Added Docker Compose services for PostgreSQL, the web app, migration/seed and
+  Adminer.
+- Updated local environment defaults and stack documentation.
+
 ## Repository Structure
 
-- `app/` - Placeholder for the future application frontend.
-- `api/` - Placeholder for the future application API.
-- `infra/` - Placeholder for future infrastructure configuration.
-- `docs/` - Ticket backlog, ownership records, and due-diligence materials.
+```text
+apps/web/                 Next.js App Router frontend
+apps/web/features/        Migrated frontend feature modules
+packages/config/          Environment contract and validation helper
+packages/domain/          Framework-neutral CoriTech domain rules
+packages/database/        Prisma schema, migration and seed data
+docs/                     Product, architecture, data, proof, RBAC and Docker docs
+docker-compose.yml        Local development stack
+Dockerfile                Node.js app image for web and migrate-seed services
+```
 
-Implementation is introduced only through approved tickets. Managed
-authentication contracts, core data models and proof/audit helpers now live
-under `api/`; user interfaces, payments, logistics adapters, AI, blockchain and
-marketplace logic remain outside the implemented scope unless a later ticket
-explicitly approves them.
+## Run Locally
 
-## Start Here
+Install dependencies:
 
-Open the Phase 1 ticket index:
+```bash
+npm install
+```
 
-`docs/tickets/phase-1/README.md`
+Copy local environment defaults:
 
-Implement one ticket at a time. The first repository setup ticket is:
+```bash
+cp .env.example .env
+```
 
-`docs/tickets/phase-1/00-01-repository-setup.md`
+Start the full local stack:
 
-## Ownership Controls
+```bash
+npm run docker:up
+```
 
-Repository ownership and branch-control evidence is tracked in:
+Open:
 
-- `docs/source-control/repository-ownership.md`
-- `docs/source-control/branch-protection.md`
-- `docs/vendor-ip/account-ownership-checklist.md`
-- `docs/vendor-ip/ip-assignment-handover-checklist.md`
+- Web app: `http://localhost:3000`
+- Adminer: `http://localhost:8080`
 
-Before this repository is used for production-critical work, the source-control
-organization, repository administrators, backup administrator, branch protection,
-required pull-request workflow, production-critical account ownership and vendor
-IP handover controls must be confirmed in those documents.
+Adminer connection values:
 
-## Baseline Rules
+- System: `PostgreSQL`
+- Server: `db`
+- Username: `coritech`
+- Password: `coritech_dev_password`
+- Database: `coritech_mvp`
 
-- Do not commit secrets or local `.env` files.
-- Do not store product code only in personal or agency-owned repositories.
-- Do not add future-phase technology claims or vendor assumptions without an
-  approved ticket.
-- Keep documentation, ownership, and transferability evidence current.
+## Database Commands
 
-## Phase 1 Principle
+Run migrations:
 
-Build the operational semen-ordering wedge as proof-chain-ready infrastructure:
-workflow, roles, events, verification level v1, audit trail, controlled document access and clean ownership from day one.
+```bash
+npm run db:migrate
+```
+
+Seed the database:
+
+```bash
+npm run db:seed
+```
+
+Reset the database:
+
+```bash
+npm run db:reset
+```
+
+Open Prisma Studio:
+
+```bash
+npm run db:studio
+```
+
+For host-side Prisma commands, set `DATABASE_URL` to a host-reachable database
+URL such as:
+
+```bash
+DATABASE_URL="postgresql://coritech:coritech_dev_password@localhost:5432/coritech_mvp?schema=public"
+```
+
+## Stable Root Scripts
+
+```bash
+npm run dev
+npm run build
+npm run db:migrate
+npm run db:seed
+npm run db:reset
+npm run db:studio
+npm run docker:up
+npm run docker:down
+npm run docker:reset
+```
+
+## Phase 1 Includes
+
+- Organization-scoped roles for Breeder, Breeding Station and Platform Admin.
+- Prepared future roles for Vet / Clinic, Federation / Studbook, Sales Venue and Buyer.
+- Stallion and semen listing records.
+- Semen orders and status history.
+- Shipments and tracking events.
+- Document metadata and evidence attachment records.
+- Verification level taxonomy.
+- Proof events.
+- Audit logs.
+- Access permissions.
+- Corrections and amendments.
+
+## Intentionally Excluded
+
+- Blockchain, tokens, wallets or digital assets.
+- AI features, scoring or generated claims.
+- Full marketplace automation.
+- Custom authentication and password handling.
+- Payment-card storage or payment processing.
+- Federation automation.
+- Sensor or wearable ingestion.
+- Complex microservices.
+
+## Future Task Baseline
+
+Future Codex tasks should assume this repository already uses:
+
+```text
+Next.js + TypeScript + PostgreSQL + Prisma ORM + Docker Compose
+```

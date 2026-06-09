@@ -40,9 +40,9 @@ Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 
 Migration:
 
-`api/db/migrations/20260609_0106_proof_event_v1.sql`
+`packages/database/legacy-sql/migrations/20260609_0106_proof_event_v1.sql`
 
-`api/db/migrations/20260609_0107_verification_level_taxonomy.sql`
+`packages/database/legacy-sql/migrations/20260609_0107_verification_level_taxonomy.sql`
 
 ## Phase 1 Event Sources
 

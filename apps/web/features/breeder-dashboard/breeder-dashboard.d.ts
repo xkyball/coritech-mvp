@@ -1,19 +1,19 @@
-import type { UserOrganizationRoleLike } from "../../api/domain/identity/role-model.d.ts";
+import type { UserOrganizationRoleLike } from "@coritech/domain/identity/role-model.d.ts";
 import type {
   SemenListingRecord,
   SemenListingLike,
   SemenAvailabilityStatus,
-} from "../../api/domain/catalog/semen-catalog.d.ts";
+} from "@coritech/domain/catalog/semen-catalog.d.ts";
 import type {
   OrderStatusHistory,
   SemenOrderLike as ApiSemenOrderLike,
   SemenOrderStatus,
-} from "../../api/domain/orders/semen-order.d.ts";
+} from "@coritech/domain/orders/semen-order.d.ts";
 import type {
   DocumentAccessClassification,
   DocumentLike as ApiDocumentLike,
   DocumentLinkTargetType,
-} from "../../api/domain/documents/document-evidence.d.ts";
+} from "@coritech/domain/documents/document-evidence.d.ts";
 
 export type BreederDashboardViewState = "LOADING" | "READY" | "ERROR";
 

@@ -9,7 +9,7 @@ email verification delivery, MFA challenge flows and hosted authentication UI.
 
 ## Phase 1 Provider Contract
 
-The API contract in `api/domain/auth/managed-auth-provider.mjs` assumes an
+The API contract in `packages/domain/src/auth/managed-auth-provider.mjs` assumes an
 OIDC-compatible managed provider with CoriTech-controlled tenant ownership.
 
 | Flow | CoriTech route | Provider responsibility | CoriTech responsibility |

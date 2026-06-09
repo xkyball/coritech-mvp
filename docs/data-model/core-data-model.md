@@ -32,7 +32,7 @@ the remaining entities are still conceptual placeholders.
 
 Ticket 1.1 introduces the first concrete data-model migration:
 
-`api/db/migrations/20260609_0101_user_organization_role_model.sql`
+`packages/database/legacy-sql/migrations/20260609_0101_user_organization_role_model.sql`
 
 Implemented tables:
 
@@ -60,7 +60,7 @@ an audit-aware repository.
 
 Ticket 1.2 adds the station-owned semen catalog model:
 
-`api/db/migrations/20260609_0102_stallion_semen_listing_model.sql`
+`packages/database/legacy-sql/migrations/20260609_0102_stallion_semen_listing_model.sql`
 
 Implemented tables:
 
@@ -94,7 +94,7 @@ orders.
 
 Ticket 1.3 adds the central semen-order transaction model:
 
-`api/db/migrations/20260609_0103_semen_order_status_history.sql`
+`packages/database/legacy-sql/migrations/20260609_0103_semen_order_status_history.sql`
 
 Implemented tables:
 
@@ -141,7 +141,7 @@ prevention remain owned by Ticket 7.1.
 
 Ticket 1.4 adds the semen-order shipment and normalized tracking-event model:
 
-`api/db/migrations/20260609_0104_shipment_tracking_event.sql`
+`packages/database/legacy-sql/migrations/20260609_0104_shipment_tracking_event.sql`
 
 Implemented tables:
 
@@ -185,7 +185,7 @@ automation; that remains owned by Ticket 5.2.
 
 Ticket 1.5 adds document metadata and proof-event evidence attachment records:
 
-`api/db/migrations/20260609_0105_document_evidence_attachment.sql`
+`packages/database/legacy-sql/migrations/20260609_0105_document_evidence_attachment.sql`
 
 Implemented tables:
 
@@ -224,9 +224,9 @@ owned by Ticket 7.3.
 Ticket 1.6 adds the durable ProofEvent record. Ticket 1.7 formalizes the
 verification-level taxonomy used by those records:
 
-`api/db/migrations/20260609_0106_proof_event_v1.sql`
+`packages/database/legacy-sql/migrations/20260609_0106_proof_event_v1.sql`
 
-`api/db/migrations/20260609_0107_verification_level_taxonomy.sql`
+`packages/database/legacy-sql/migrations/20260609_0107_verification_level_taxonomy.sql`
 
 Implemented tables:
 
@@ -276,7 +276,7 @@ proof event also stores the originating `audit_hook_ref`.
 
 Ticket 1.8 adds the durable AuditLog record:
 
-`api/db/migrations/20260609_0108_audit_log_v1.sql`
+`packages/database/legacy-sql/migrations/20260609_0108_audit_log_v1.sql`
 
 Implemented tables:
 
@@ -309,7 +309,7 @@ deletes with triggers.
 
 Ticket 2.3 adds the object-level AccessPermission grant model:
 
-`api/db/migrations/20260609_0203_access_permission_v1.sql`
+`packages/database/legacy-sql/migrations/20260609_0203_access_permission_v1.sql`
 
 Implemented tables:
 
@@ -346,7 +346,7 @@ object-level grant is required.
 
 Ticket 1.9 adds the controlled Correction/Amendment record:
 
-`api/db/migrations/20260609_0109_amendment_v1.sql`
+`packages/database/legacy-sql/migrations/20260609_0109_amendment_v1.sql`
 
 Implemented tables:
 

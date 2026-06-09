@@ -1,0 +1,13 @@
+{
+  "name": "@coritech/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./environment": "./src/environment.mjs",
+    "./environment.d.ts": "./src/environment.d.ts"
+  },
+  "scripts": {
+    "test": "node --test src/environment.test.mjs"
+  }
+}

@@ -1,0 +1,59 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-coritech}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-coritech_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-coritech_mvp}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - coritech_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate-seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      sh -c "npm run db:migrate &&
+      npm run db:seed"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-coritech}:${POSTGRES_PASSWORD:-coritech_dev_password}@db:5432/${POSTGRES_DB:-coritech_mvp}?schema=public
+      NODE_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm --workspace @coritech/web run dev -- --hostname 0.0.0.0 --port 3000
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-coritech}:${POSTGRES_PASSWORD:-coritech_dev_password}@db:5432/${POSTGRES_DB:-coritech_mvp}?schema=public
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-CoriTech MVP}
+      NODE_ENV: development
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate-seed:
+        condition: service_completed_successfully
+
+  adminer:
+    image: adminer:4
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  coritech_postgres_data:

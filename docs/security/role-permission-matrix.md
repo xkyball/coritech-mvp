@@ -21,11 +21,11 @@ document classification helpers.
 
 | Control | Phase 1 source | Due-diligence note |
 | --- | --- | --- |
-| Role catalogue | `api/domain/identity/role-model.mjs` | Only `BREEDER`, `BREEDING_STATION` and `PLATFORM_ADMIN` are assignable in Phase 1. |
-| Route-level RBAC | `api/domain/auth/rbac-middleware.mjs` | Protected routes check role, organization and object context before handlers run. |
-| Object-level grants | `api/domain/access/access-permission.mjs` | Grants are explicit, scoped, revocable, optionally expiring and audit logged. They do not create broad marketplace, buyer or data-space access. |
-| Document visibility | `api/domain/documents/document-evidence.mjs` | Documents are filtered by classification and object participation. No public unrestricted document links are created. |
-| Audit evidence | `api/domain/audit/audit-log.mjs` and proof hooks | Denied RBAC decisions, elevated admin access and permission changes can be retained as review evidence. |
+| Role catalogue | `packages/domain/src/identity/role-model.mjs` | Only `BREEDER`, `BREEDING_STATION` and `PLATFORM_ADMIN` are assignable in Phase 1. |
+| Route-level RBAC | `packages/domain/src/auth/rbac-middleware.mjs` | Protected routes check role, organization and object context before handlers run. |
+| Object-level grants | `packages/domain/src/access/access-permission.mjs` | Grants are explicit, scoped, revocable, optionally expiring and audit logged. They do not create broad marketplace, buyer or data-space access. |
+| Document visibility | `packages/domain/src/documents/document-evidence.mjs` | Documents are filtered by classification and object participation. No public unrestricted document links are created. |
+| Audit evidence | `packages/domain/src/audit/audit-log.mjs` and proof hooks | Denied RBAC decisions, elevated admin access and permission changes can be retained as review evidence. |
 
 ## Role Readiness
 

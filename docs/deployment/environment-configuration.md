@@ -26,8 +26,8 @@ real vendors or committing secrets.
 | `.env.local.example` | Developer-machine example with safe local defaults |
 | `.env.staging.example` | Staging variable names and placeholder structure |
 | `.env.production.example` | Production variable names and placeholder structure |
-| `api/config/environment.mjs` | Reusable runtime validation for future API/app startup |
-| `api/config/environment.d.ts` | Type definitions for future TypeScript consumers |
+| `packages/config/src/environment.mjs` | Reusable runtime validation for future API/app startup |
+| `packages/config/src/environment.d.ts` | Type definitions for future TypeScript consumers |
 
 Real `.env`, `.env.local`, `.env.staging` and `.env.production` files are
 ignored by git and must stay outside version control.
@@ -70,7 +70,7 @@ ignored by git and must stay outside version control.
 
 ## Validation Behavior
 
-The reusable loader in `api/config/environment.mjs` is intentionally small and
+The reusable loader in `packages/config/src/environment.mjs` is intentionally small and
 has no provider SDK dependencies.
 
 It validates that:

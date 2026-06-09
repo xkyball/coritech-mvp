@@ -21,6 +21,9 @@ node_modules/
 vendor/
 
 # Build and coverage output
+.next/
+apps/web/.next/
+packages/database/src/generated/
 dist/
 build/
 coverage/

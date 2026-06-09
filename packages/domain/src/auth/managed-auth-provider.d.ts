@@ -1,7 +1,7 @@
 import type {
   CoriTechConfig,
   CoriTechEnvironment,
-} from "../../config/environment.d.ts";
+} from "@coritech/config/environment.d.ts";
 import type {
   OrganizationRoleMembership,
   UserOrganizationRoleLike,

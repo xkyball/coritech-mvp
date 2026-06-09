@@ -1,0 +1,24 @@
+{
+  "name": "@coritech/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./access/*": "./src/access/*",
+    "./amendments/*": "./src/amendments/*",
+    "./audit/*": "./src/audit/*",
+    "./auth/*": "./src/auth/*",
+    "./catalog/*": "./src/catalog/*",
+    "./documents/*": "./src/documents/*",
+    "./identity/*": "./src/identity/*",
+    "./orders/*": "./src/orders/*",
+    "./proof/*": "./src/proof/*",
+    "./shipments/*": "./src/shipments/*"
+  },
+  "dependencies": {
+    "@coritech/config": "0.1.0"
+  },
+  "scripts": {
+    "test": "node --test \"src/**/*.test.mjs\""
+  }
+}

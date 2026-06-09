@@ -1,0 +1,573 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+
+  @@map("coritech_user_status")
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  DISABLED
+
+  @@map("coritech_organization_status")
+}
+
+enum OrganizationType {
+  BREEDER
+  BREEDING_STATION
+  PLATFORM
+
+  @@map("coritech_organization_type")
+}
+
+enum RolePhase {
+  PHASE_1
+  FUTURE_PREPARED
+
+  @@map("coritech_role_phase")
+}
+
+enum RoleCode {
+  BREEDER
+  BREEDING_STATION
+  PLATFORM_ADMIN
+  VET
+  FEDERATION
+  SALES_VENUE
+  BUYER
+  TECH_SUPPORT
+
+  @@map("coritech_role_code")
+}
+
+enum StallionStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("coritech_stallion_status")
+}
+
+enum SemenAvailabilityStatus {
+  AVAILABLE
+  LIMITED
+  UNAVAILABLE
+
+  @@map("coritech_semen_availability_status")
+}
+
+enum SemenListingStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("coritech_semen_listing_status")
+}
+
+enum SemenOrderStatus {
+  DRAFT
+  SUBMITTED
+  RECEIVED
+  CONFIRMED
+  REJECTED
+  IN_FULFILMENT
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+
+  @@map("coritech_semen_order_status")
+}
+
+enum ShipmentStatus {
+  PREPARED
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  DELAYED
+  FAILED
+  CANCELLED
+
+  @@map("coritech_shipment_status")
+}
+
+enum ShipmentTrackingEventSource {
+  MANUAL
+  LOGISTICS_PROVIDER
+  SYSTEM
+
+  @@map("coritech_shipment_tracking_event_source")
+}
+
+enum DocumentAccessClassification {
+  INTERNAL
+  ORDER_PARTICIPANTS
+  RESTRICTED
+  BUYER_VIEW_ELIGIBLE
+  ADMIN_ONLY
+
+  @@map("coritech_document_access_classification")
+}
+
+enum DocumentLinkTargetType {
+  SemenOrder
+  Shipment
+  ProofEvent
+
+  @@map("coritech_document_link_target_type")
+}
+
+enum ProofEventType {
+  SEMEN_ORDER_CREATED
+  SUBMITTED
+  CONFIRMED
+  REJECTED
+  SHIPMENT_CREATED
+  SHIPMENT_STATUS_UPDATED
+  SHIPMENT_CONFIRMED
+  DOCUMENT_UPLOADED
+  ORDER_COMPLETED
+  ADMIN_CORRECTION_CREATED
+
+  @@map("coritech_proof_event_type")
+}
+
+enum ProofEventSource {
+  ORDER_STATUS_CHANGE
+  SHIPMENT_TRACKING_EVENT
+  DOCUMENT_UPLOAD
+  ADMIN_CORRECTION
+
+  @@map("coritech_proof_event_source")
+}
+
+enum ProofEventStatus {
+  RECORDED
+  VOIDED
+
+  @@map("coritech_proof_event_status")
+}
+
+enum VerificationLevelCode {
+  SELF_REPORTED
+  SYSTEM_RECORDED
+  STATION_CONFIRMED
+  ADMIN_REVIEWED
+  VET_SIGNED
+  FEDERATION_ATTESTED
+  VERIFIED_FOR_TRANSACTION
+
+  @@map("coritech_verification_level")
+}
+
+enum AuditLogAction {
+  CREATE
+  UPDATE
+  STATUS_CHANGE
+  UPLOAD_DOCUMENT
+  VIEW_DOCUMENT
+  CREATE_PROOF_EVENT
+  CHANGE_PERMISSION
+  ADMIN_EDIT
+  CREATE_AMENDMENT
+  LOGIN
+  LOGOUT
+
+  @@map("coritech_audit_log_action")
+}
+
+enum AmendmentStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+
+  @@map("coritech_amendment_status")
+}
+
+enum AmendmentTargetType {
+  SemenOrder
+  OrderStatusHistory
+  Shipment
+  ShipmentTrackingEvent
+  Document
+  EvidenceAttachment
+  ProofEvent
+
+  @@map("coritech_amendment_target_type")
+}
+
+enum AccessPermissionScope {
+  VIEW
+  CREATE
+  UPDATE
+  CONFIRM
+  UPLOAD_DOCUMENT
+  VIEW_DOCUMENT
+  ADMIN_SUPPORT
+  BUYER_VIEW
+
+  @@map("coritech_access_permission_scope")
+}
+
+model User {
+  id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  managedAuthSubject String     @unique @map("managed_auth_subject")
+  email              String     @unique
+  displayName        String     @map("display_name")
+  status             UserStatus @default(ACTIVE)
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("users")
+}
+
+model Organization {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  organizationType OrganizationType   @map("organization_type")
+  status           OrganizationStatus @default(ACTIVE)
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("organizations")
+}
+
+model Role {
+  code                 RoleCode  @id
+  phase                RolePhase
+  displayName          String    @map("display_name")
+  description          String
+  isAssignableInPhase1 Boolean   @default(false) @map("is_assignable_in_phase_1")
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("roles")
+}
+
+model VerificationLevel {
+  code             VerificationLevelCode @id
+  displayName      String                @map("display_name")
+  description      String
+  isActiveInPhase1 Boolean               @default(false) @map("is_active_in_phase_1")
+  sortOrder        Int                   @map("sort_order")
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("verification_levels")
+}
+
+model UserOrganizationRole {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String    @map("user_id") @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  roleCode           RoleCode  @map("role_code")
+  assignedByUserId   String    @map("assigned_by_user_id") @db.Uuid
+  assignmentReason   String?   @map("assignment_reason")
+  effectiveAt        DateTime  @default(now()) @map("effective_at") @db.Timestamptz(6)
+  revokedAt          DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedByUserId    String?   @map("revoked_by_user_id") @db.Uuid
+  revocationReason   String?   @map("revocation_reason")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId, organizationId], map: "user_organization_roles_user_lookup")
+  @@index([organizationId, roleCode], map: "user_organization_roles_organization_lookup")
+  @@index([assignedByUserId, createdAt], map: "user_organization_roles_assigned_by_lookup")
+  @@map("user_organization_roles")
+}
+
+model Stallion {
+  id                                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  breedingStationOrganizationId       String         @map("breeding_station_organization_id") @db.Uuid
+  breedingStationOrganizationType     OrganizationType @default(BREEDING_STATION) @map("breeding_station_organization_type")
+  name                                String
+  breed                               String
+  ueln                                String?
+  microchipNumber                     String?        @map("microchip_number")
+  status                              StallionStatus @default(ACTIVE)
+  createdByUserId                     String         @map("created_by_user_id") @db.Uuid
+  updatedByUserId                     String         @map("updated_by_user_id") @db.Uuid
+  createdAt                           DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                           DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([id, breedingStationOrganizationId], map: "stallions_id_station_unique")
+  @@index([breedingStationOrganizationId, status], map: "stallions_station_lookup")
+  @@map("stallions")
+}
+
+model SemenListing {
+  id                            String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stallionId                    String                  @map("stallion_id") @db.Uuid
+  breedingStationOrganizationId String                  @map("breeding_station_organization_id") @db.Uuid
+  availabilityStatus            SemenAvailabilityStatus @default(AVAILABLE) @map("availability_status")
+  listingStatus                 SemenListingStatus      @default(ACTIVE) @map("listing_status")
+  termsSummary                  String?                 @map("terms_summary")
+  createdByUserId               String                  @map("created_by_user_id") @db.Uuid
+  updatedByUserId               String                  @map("updated_by_user_id") @db.Uuid
+  createdAt                     DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([id, breedingStationOrganizationId], map: "semen_listings_id_station_unique")
+  @@index([breedingStationOrganizationId, listingStatus, availabilityStatus], map: "semen_listings_station_lookup")
+  @@index([stallionId, listingStatus], map: "semen_listings_stallion_lookup")
+  @@map("semen_listings")
+}
+
+model SemenOrder {
+  id                              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderNumber                     String           @unique @default(dbgenerated("generate_semen_order_number()")) @map("order_number")
+  semenListingId                  String           @map("semen_listing_id") @db.Uuid
+  breederOrganizationId           String           @map("breeder_organization_id") @db.Uuid
+  breederOrganizationType         OrganizationType @default(BREEDER) @map("breeder_organization_type")
+  breedingStationOrganizationId   String           @map("breeding_station_organization_id") @db.Uuid
+  breedingStationOrganizationType OrganizationType @default(BREEDING_STATION) @map("breeding_station_organization_type")
+  status                          SemenOrderStatus @default(DRAFT)
+  createdByUserId                 String           @map("created_by_user_id") @db.Uuid
+  updatedByUserId                 String           @map("updated_by_user_id") @db.Uuid
+  createdAt                       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([id, orderNumber], map: "semen_orders_id_order_number_unique")
+  @@unique([id, orderNumber, breederOrganizationId, breedingStationOrganizationId], map: "semen_orders_shipment_reference_unique")
+  @@index([breederOrganizationId, status, createdAt], map: "semen_orders_breeder_lookup")
+  @@index([breedingStationOrganizationId, status, createdAt], map: "semen_orders_station_lookup")
+  @@index([semenListingId, status], map: "semen_orders_listing_lookup")
+  @@map("semen_orders")
+}
+
+model OrderStatusHistory {
+  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  semenOrderId          String            @map("semen_order_id") @db.Uuid
+  orderNumber           String            @map("order_number")
+  fromStatus            SemenOrderStatus? @map("from_status")
+  toStatus              SemenOrderStatus  @map("to_status")
+  actorUserId           String            @map("actor_user_id") @db.Uuid
+  actorRoleCode         RoleCode          @map("actor_role_code")
+  actorOrganizationId   String            @map("actor_organization_id") @db.Uuid
+  reason                String?
+  changedAt             DateTime          @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  @@index([semenOrderId, changedAt, id], map: "order_status_history_order_timeline")
+  @@index([actorUserId, changedAt], map: "order_status_history_actor_lookup")
+  @@map("order_status_history")
+}
+
+model Shipment {
+  id                            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  semenOrderId                  String         @map("semen_order_id") @db.Uuid
+  orderNumber                   String         @map("order_number")
+  breederOrganizationId         String         @map("breeder_organization_id") @db.Uuid
+  breedingStationOrganizationId String         @map("breeding_station_organization_id") @db.Uuid
+  status                        ShipmentStatus @default(PREPARED)
+  providerName                  String?        @map("provider_name")
+  providerTrackingId            String?        @map("provider_tracking_id")
+  trackingUrl                   String?        @map("tracking_url")
+  createdByUserId               String         @map("created_by_user_id") @db.Uuid
+  updatedByUserId               String         @map("updated_by_user_id") @db.Uuid
+  createdAt                     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([id, semenOrderId, orderNumber], map: "shipments_id_order_number_unique")
+  @@index([semenOrderId, createdAt], map: "shipments_order_lookup")
+  @@index([breedingStationOrganizationId, status, updatedAt], map: "shipments_station_status_lookup")
+  @@index([breederOrganizationId, updatedAt], map: "shipments_breeder_lookup")
+  @@map("shipments")
+}
+
+model ShipmentTrackingEvent {
+  id                    String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shipmentId            String                      @map("shipment_id") @db.Uuid
+  semenOrderId          String                      @map("semen_order_id") @db.Uuid
+  orderNumber           String                      @map("order_number")
+  fromStatus            ShipmentStatus?             @map("from_status")
+  toStatus              ShipmentStatus              @map("to_status")
+  eventSource           ShipmentTrackingEventSource @default(MANUAL) @map("event_source")
+  sourceEventId         String?                     @map("source_event_id")
+  providerStatus        String?                     @map("provider_status")
+  location              String?
+  notes                 String?
+  actorUserId           String                      @map("actor_user_id") @db.Uuid
+  actorRoleCode         RoleCode                    @map("actor_role_code")
+  actorOrganizationId   String                      @map("actor_organization_id") @db.Uuid
+  occurredAt            DateTime                    @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  recordedAt            DateTime                    @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  @@index([shipmentId, occurredAt, id], map: "shipment_tracking_events_timeline")
+  @@index([semenOrderId, occurredAt], map: "shipment_tracking_events_order_lookup")
+  @@index([eventSource, occurredAt], map: "shipment_tracking_events_source_lookup")
+  @@map("shipment_tracking_events")
+}
+
+model Document {
+  id                            String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentType                  String                       @map("document_type")
+  description                   String?
+  targetType                    DocumentLinkTargetType       @map("target_type")
+  targetId                      String                       @map("target_id") @db.Uuid
+  semenOrderId                  String?                      @map("semen_order_id") @db.Uuid
+  shipmentId                    String?                      @map("shipment_id") @db.Uuid
+  proofEventId                  String?                      @map("proof_event_id") @db.Uuid
+  orderNumber                   String?                      @map("order_number")
+  breederOrganizationId         String?                      @map("breeder_organization_id") @db.Uuid
+  breedingStationOrganizationId String?                      @map("breeding_station_organization_id") @db.Uuid
+  originalFileName              String                       @map("original_file_name")
+  contentType                   String                       @map("content_type")
+  fileSizeBytes                 BigInt                       @map("file_size_bytes")
+  checksumSha256                String?                      @map("checksum_sha256")
+  storageProvider               String                       @map("storage_provider")
+  storageBucket                 String                       @map("storage_bucket")
+  storageObjectKey              String                       @map("storage_object_key")
+  storageRegion                 String?                      @map("storage_region")
+  storageVersionId              String?                      @map("storage_version_id")
+  accessClassification          DocumentAccessClassification @map("access_classification")
+  uploadedByUserId              String                       @map("uploaded_by_user_id") @db.Uuid
+  uploaderRoleCode              RoleCode                     @map("uploader_role_code")
+  uploaderOrganizationId        String                       @map("uploader_organization_id") @db.Uuid
+  createdAt                     DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([id, targetType, targetId], map: "documents_id_target_unique")
+  @@index([accessClassification, createdAt], map: "documents_access_lookup")
+  @@index([storageProvider, storageBucket, storageObjectKey], map: "documents_storage_reference_lookup")
+  @@map("documents")
+}
+
+model EvidenceAttachment {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  proofEventId          String                 @map("proof_event_id") @db.Uuid
+  documentId            String                 @map("document_id") @db.Uuid
+  documentTargetType    DocumentLinkTargetType @map("document_target_type")
+  documentTargetId      String                 @map("document_target_id") @db.Uuid
+  attachedByUserId      String                 @map("attached_by_user_id") @db.Uuid
+  actorRoleCode         RoleCode               @map("actor_role_code")
+  actorOrganizationId   String                 @map("actor_organization_id") @db.Uuid
+  attachedAt            DateTime               @default(now()) @map("attached_at") @db.Timestamptz(6)
+
+  @@unique([proofEventId, documentId], map: "evidence_attachments_unique_document_per_proof_event")
+  @@index([proofEventId, attachedAt, id], map: "evidence_attachments_proof_event_lookup")
+  @@index([documentId, attachedAt], map: "evidence_attachments_document_lookup")
+  @@map("evidence_attachments")
+}
+
+model ProofEvent {
+  id                            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventType                     ProofEventType        @map("event_type")
+  source                        ProofEventSource
+  triggerType                   String                @map("trigger_type")
+  triggerRef                    Json                  @map("trigger_ref")
+  semenOrderId                  String?               @map("semen_order_id") @db.Uuid
+  shipmentId                    String?               @map("shipment_id") @db.Uuid
+  horseId                       String?               @map("horse_id") @db.Uuid
+  orderNumber                   String?               @map("order_number")
+  breederOrganizationId         String?               @map("breeder_organization_id") @db.Uuid
+  breedingStationOrganizationId String?               @map("breeding_station_organization_id") @db.Uuid
+  lifecycleStage                String                @map("lifecycle_stage")
+  verificationLevel             VerificationLevelCode @map("verification_level")
+  status                        ProofEventStatus      @default(RECORDED)
+  actorUserId                   String                @map("actor_user_id") @db.Uuid
+  actorRoleCode                 RoleCode              @map("actor_role_code")
+  actorOrganizationId           String                @map("actor_organization_id") @db.Uuid
+  documentationRefs             Json                  @default("[]") @map("documentation_refs")
+  signatureRef                  Json?                 @map("signature_ref")
+  attestationRefs               Json                  @default("[]") @map("attestation_refs")
+  auditLogId                    String?               @map("audit_log_id") @db.Uuid
+  auditHookRef                  Json                  @map("audit_hook_ref")
+  occurredAt                    DateTime              @map("occurred_at") @db.Timestamptz(6)
+  createdAt                     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([actorUserId, occurredAt], map: "proof_events_actor_lookup")
+  @@index([eventType, occurredAt], map: "proof_events_type_lookup")
+  @@map("proof_events")
+}
+
+model AuditLog {
+  id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorUserId           String         @map("actor_user_id") @db.Uuid
+  actorRoleCode         RoleCode       @map("actor_role_code")
+  actorOrganizationId   String         @map("actor_organization_id") @db.Uuid
+  action                AuditLogAction
+  sourceAction          String?        @map("source_action")
+  objectType            String         @map("object_type")
+  objectId              String         @map("object_id") @db.Uuid
+  objectRef             Json           @default("{}") @map("object_ref")
+  previousValues        Json?          @map("previous_values")
+  newValues             Json?          @map("new_values")
+  reason                String?
+  ipAddress             String?        @map("ip_address") @db.Inet
+  userAgent             String?        @map("user_agent")
+  metadata              Json           @default("{}")
+  occurredAt            DateTime       @map("occurred_at") @db.Timestamptz(6)
+  createdAt             DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([objectType, objectId, occurredAt, id], map: "audit_logs_object_timeline")
+  @@index([actorUserId, occurredAt, id], map: "audit_logs_actor_timeline")
+  @@index([actorOrganizationId, occurredAt, id], map: "audit_logs_organization_timeline")
+  @@index([action, occurredAt, id], map: "audit_logs_action_timeline")
+  @@map("audit_logs")
+}
+
+model AccessPermission {
+  id                      String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                  String?               @map("user_id") @db.Uuid
+  organizationId          String?               @map("organization_id") @db.Uuid
+  roleCode                RoleCode?             @map("role_code")
+  objectType              String                @map("object_type")
+  objectId                String                @map("object_id") @db.Uuid
+  scope                   AccessPermissionScope
+  grantedByUserId         String                @map("granted_by_user_id") @db.Uuid
+  grantorRoleCode         RoleCode              @map("grantor_role_code")
+  grantorOrganizationId   String                @map("grantor_organization_id") @db.Uuid
+  grantReason             String?               @map("grant_reason")
+  effectiveAt             DateTime              @default(now()) @map("effective_at") @db.Timestamptz(6)
+  expiresAt               DateTime?             @map("expires_at") @db.Timestamptz(6)
+  revokedAt               DateTime?             @map("revoked_at") @db.Timestamptz(6)
+  revokedByUserId         String?               @map("revoked_by_user_id") @db.Uuid
+  revocationReason        String?               @map("revocation_reason")
+  createdAt               DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([grantedByUserId, createdAt, id], map: "access_permissions_grantor_timeline")
+  @@map("access_permissions")
+}
+
+model Amendment {
+  id                            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  targetType                    AmendmentTargetType @map("target_type")
+  targetId                      String              @map("target_id") @db.Uuid
+  targetField                   String?             @map("target_field")
+  targetRef                     Json                @default("{}") @map("target_ref")
+  originalValue                 Json                @map("original_value")
+  amendedValue                  Json                @map("amended_value")
+  reason                        String
+  status                        AmendmentStatus     @default(SUBMITTED)
+  actorUserId                   String              @map("actor_user_id") @db.Uuid
+  actorRoleCode                 RoleCode            @map("actor_role_code")
+  actorOrganizationId           String              @map("actor_organization_id") @db.Uuid
+  approverUserId                String?             @map("approver_user_id") @db.Uuid
+  approverRoleCode              RoleCode?           @map("approver_role_code")
+  approverOrganizationId        String?             @map("approver_organization_id") @db.Uuid
+  decidedAt                     DateTime?           @map("decided_at") @db.Timestamptz(6)
+  auditLogId                    String?             @map("audit_log_id") @db.Uuid
+  proofEventId                  String?             @map("proof_event_id") @db.Uuid
+  semenOrderId                  String?             @map("semen_order_id") @db.Uuid
+  shipmentId                    String?             @map("shipment_id") @db.Uuid
+  horseId                       String?             @map("horse_id") @db.Uuid
+  orderNumber                   String?             @map("order_number")
+  breederOrganizationId         String?             @map("breeder_organization_id") @db.Uuid
+  breedingStationOrganizationId String?             @map("breeding_station_organization_id") @db.Uuid
+  occurredAt                    DateTime            @map("occurred_at") @db.Timestamptz(6)
+  createdAt                     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([targetType, targetId, occurredAt, id], map: "amendments_target_timeline")
+  @@index([status, occurredAt, id], map: "amendments_status_timeline")
+  @@map("amendments")
+}

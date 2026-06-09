@@ -1,0 +1,16 @@
+.git
+.next
+node_modules
+apps/web/.next
+packages/database/src/generated
+coverage
+dist
+build
+out
+*.log
+.env
+.env.*
+!.env.example
+!.env.local.example
+!.env.staging.example
+!.env.production.example

@@ -134,7 +134,7 @@ export function isManagedAuthFlow(value) {
 }
 
 /**
- * @param {import("../../config/environment.d.ts").CoriTechConfig} environment
+ * @param {import("@coritech/config/environment.d.ts").CoriTechConfig} environment
  * @returns {string[]}
  */
 export function validateManagedAuthProviderEnvironment(environment) {
@@ -154,7 +154,7 @@ export function validateManagedAuthProviderEnvironment(environment) {
   if (!environmentName) {
     issues.push("CORITECH_ENVIRONMENT is required.");
   } else if (!SUPPORTED_ENVIRONMENTS.includes(
-    /** @type {import("../../config/environment.d.ts").CoriTechEnvironment} */ (
+    /** @type {import("@coritech/config/environment.d.ts").CoriTechEnvironment} */ (
       environmentName
     ),
   )) {
@@ -173,7 +173,7 @@ export function validateManagedAuthProviderEnvironment(environment) {
 }
 
 /**
- * @param {import("../../config/environment.d.ts").CoriTechConfig} environment
+ * @param {import("@coritech/config/environment.d.ts").CoriTechConfig} environment
  * @param {import("./managed-auth-provider.d.ts").ManagedAuthProviderConfigOptions} [options]
  * @returns {import("./managed-auth-provider.d.ts").ManagedAuthProviderConfig}
  */

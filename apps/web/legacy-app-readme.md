@@ -11,7 +11,7 @@ This directory contains Phase 1 frontend modules introduced by approved tickets.
 ## Guardrails
 
 Frontend code in this directory must continue to use managed auth context and
-role-based server contracts from `api/domain/`. It must not add custom
+role-based server contracts from `packages/domain/src/`. It must not add custom
 authentication, public document links, AI claims, blockchain/token logic, full
 marketplace automation, federation automation, sensor ingestion or unrestricted
 buyer access unless a later approved ticket explicitly changes the scope.

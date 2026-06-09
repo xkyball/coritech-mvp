@@ -3,10 +3,10 @@
 import {
   canViewSemenListing,
   isSemenListingOrderable,
-} from "../../api/domain/catalog/semen-catalog.mjs";
-import { canViewDocument } from "../../api/domain/documents/document-evidence.mjs";
-import { isActiveRoleAssignment } from "../../api/domain/identity/role-model.mjs";
-import { SEMEN_ORDER_STATUSES } from "../../api/domain/orders/semen-order.mjs";
+} from "@coritech/domain/catalog/semen-catalog.mjs";
+import { canViewDocument } from "@coritech/domain/documents/document-evidence.mjs";
+import { isActiveRoleAssignment } from "@coritech/domain/identity/role-model.mjs";
+import { SEMEN_ORDER_STATUSES } from "@coritech/domain/orders/semen-order.mjs";
 
 export const BREEDER_DASHBOARD_VIEW_STATES = /** @type {const} */ ([
   "LOADING",
