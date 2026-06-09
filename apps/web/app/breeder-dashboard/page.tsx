@@ -1,19 +1,19 @@
 import { BreederDashboard } from "../../features/breeder-dashboard/BreederDashboard";
-import { breederDashboardDemoInput } from "../../features/breeder-dashboard/demo-data";
+import { getBreederDashboardDemoInput } from "../../features/order-creation/demo-store";
 import {
   createBreederDashboardErrorState,
   createBreederDashboardViewModel,
 } from "../../features/breeder-dashboard/view-model";
 
-export default function BreederDashboardPage() {
-  const viewModel = createViewModel();
+export default async function BreederDashboardPage() {
+  const viewModel = await createViewModel();
 
   return <BreederDashboard viewModel={viewModel} />;
 }
 
-function createViewModel() {
+async function createViewModel() {
   try {
-    return createBreederDashboardViewModel(breederDashboardDemoInput);
+    return createBreederDashboardViewModel(await getBreederDashboardDemoInput());
   } catch (error) {
     return createBreederDashboardErrorState(error);
   }

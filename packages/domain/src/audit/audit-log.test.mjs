@@ -59,6 +59,19 @@ const futureBuyerActor = {
   ],
 };
 
+const completeOrderDetails = {
+  requestedDeliveryDate: "2026-06-12",
+  shippingContactName: "Ava Breeder",
+  shippingContactPhone: "+27 82 555 0101",
+  shippingAddressLine1: "42 Foaling Barn Road",
+  shippingAddressLine2: "Gate 3",
+  shippingCity: "Pretoria",
+  shippingRegion: "Gauteng",
+  shippingPostalCode: "0081",
+  shippingCountry: "South Africa",
+  specialInstructions: "Call before dispatch.",
+};
+
 const draftOrder = {
   id: "order-1",
   orderNumber: "SO-20260609-000001",
@@ -66,6 +79,7 @@ const draftOrder = {
   breederOrganizationId,
   breedingStationOrganizationId: stationOrganizationId,
   status: "DRAFT",
+  ...completeOrderDetails,
   createdByUserId: "user-breeder",
   updatedByUserId: "user-breeder",
   createdAt: timestamp,

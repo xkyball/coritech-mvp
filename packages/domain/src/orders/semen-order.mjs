@@ -228,6 +228,16 @@ export function validateCreateDraftSemenOrderInput(input) {
   validateOptionalNonBlankString(input.orderNumber, "orderNumber", issues);
   validateOptionalNonBlankString(input.statusHistoryId, "statusHistoryId", issues);
   validateOptionalNonBlankString(input.reason, "reason", issues);
+  validateOptionalDateOnly(input.requestedDeliveryDate, "requestedDeliveryDate", issues);
+  validateOptionalNonBlankString(input.shippingContactName, "shippingContactName", issues);
+  validateOptionalNonBlankString(input.shippingContactPhone, "shippingContactPhone", issues);
+  validateOptionalNonBlankString(input.shippingAddressLine1, "shippingAddressLine1", issues);
+  validateOptionalNonBlankString(input.shippingAddressLine2, "shippingAddressLine2", issues);
+  validateOptionalNonBlankString(input.shippingCity, "shippingCity", issues);
+  validateOptionalNonBlankString(input.shippingRegion, "shippingRegion", issues);
+  validateOptionalNonBlankString(input.shippingPostalCode, "shippingPostalCode", issues);
+  validateOptionalNonBlankString(input.shippingCountry, "shippingCountry", issues);
+  validateOptionalNonBlankString(input.specialInstructions, "specialInstructions", issues);
   validateOptionalTimestamp(input.createdAt, "createdAt", issues);
   validateOptionalTimestamp(input.now, "now", issues);
 
@@ -276,6 +286,16 @@ export function prepareCreateDraftSemenOrder(input) {
     breederOrganizationId,
     breedingStationOrganizationId: input.listing.breedingStationOrganizationId.trim(),
     status: /** @type {import("./semen-order.d.ts").SemenOrderStatus} */ ("DRAFT"),
+    requestedDeliveryDate: normalizeOptionalDateOnly(input.requestedDeliveryDate),
+    shippingContactName: normalizeOptionalString(input.shippingContactName),
+    shippingContactPhone: normalizeOptionalString(input.shippingContactPhone),
+    shippingAddressLine1: normalizeOptionalString(input.shippingAddressLine1),
+    shippingAddressLine2: normalizeOptionalString(input.shippingAddressLine2),
+    shippingCity: normalizeOptionalString(input.shippingCity),
+    shippingRegion: normalizeOptionalString(input.shippingRegion),
+    shippingPostalCode: normalizeOptionalString(input.shippingPostalCode),
+    shippingCountry: normalizeOptionalString(input.shippingCountry),
+    specialInstructions: normalizeOptionalString(input.specialInstructions),
     createdByUserId: input.actor.userId.trim(),
     updatedByUserId: input.actor.userId.trim(),
     createdAt: occurredAt,
@@ -307,6 +327,55 @@ export function prepareCreateDraftSemenOrder(input) {
       auditHook,
     }),
   });
+}
+
+/**
+ * @param {import("./semen-order.d.ts").SemenOrderLike} order
+ * @returns {string[]}
+ */
+export function validateSemenOrderSubmissionDetails(order) {
+  const issues = [];
+
+  validateRequiredDateOnly(
+    order?.requestedDeliveryDate,
+    "requestedDeliveryDate",
+    issues,
+  );
+  validateRequiredString(
+    order?.shippingContactName,
+    "shippingContactName",
+    issues,
+  );
+  validateRequiredString(
+    order?.shippingContactPhone,
+    "shippingContactPhone",
+    issues,
+  );
+  validateRequiredString(
+    order?.shippingAddressLine1,
+    "shippingAddressLine1",
+    issues,
+  );
+  validateOptionalNonBlankString(
+    order?.shippingAddressLine2,
+    "shippingAddressLine2",
+    issues,
+  );
+  validateRequiredString(order?.shippingCity, "shippingCity", issues);
+  validateOptionalNonBlankString(order?.shippingRegion, "shippingRegion", issues);
+  validateRequiredString(
+    order?.shippingPostalCode,
+    "shippingPostalCode",
+    issues,
+  );
+  validateRequiredString(order?.shippingCountry, "shippingCountry", issues);
+  validateOptionalNonBlankString(
+    order?.specialInstructions,
+    "specialInstructions",
+    issues,
+  );
+
+  return issues;
 }
 
 /**
@@ -367,13 +436,19 @@ export function validateTransitionSemenOrderStatusInput(input) {
       issues.push(
         `cannot transition semen order from ${input.existingOrder.status} to ${toStatus}.`,
       );
-    } else if (
-      actorIssues.length === 0 &&
-      !findTransitionActorRole(input.actor, input.existingOrder, toStatus)
-    ) {
-      issues.push(
-        "actor is not authorized for this semen order status transition.",
-      );
+    } else {
+      if (toStatus === "SUBMITTED") {
+        issues.push(...validateSemenOrderSubmissionDetails(input.existingOrder));
+      }
+
+      if (
+        actorIssues.length === 0 &&
+        !findTransitionActorRole(input.actor, input.existingOrder, toStatus)
+      ) {
+        issues.push(
+          "actor is not authorized for this semen order status transition.",
+        );
+      }
     }
   }
 
@@ -536,6 +611,16 @@ export async function createDraftSemenOrderEndpoint(request) {
   const orderNumberSequence = await nextSemenOrderNumberSequence();
   const prepared = prepareCreateDraftSemenOrder({
     breederOrganizationId: request.body.breederOrganizationId,
+    requestedDeliveryDate: request.body.requestedDeliveryDate,
+    shippingContactName: request.body.shippingContactName,
+    shippingContactPhone: request.body.shippingContactPhone,
+    shippingAddressLine1: request.body.shippingAddressLine1,
+    shippingAddressLine2: request.body.shippingAddressLine2,
+    shippingCity: request.body.shippingCity,
+    shippingRegion: request.body.shippingRegion,
+    shippingPostalCode: request.body.shippingPostalCode,
+    shippingCountry: request.body.shippingCountry,
+    specialInstructions: request.body.specialInstructions,
     reason: request.body.reason,
     createdAt: request.body.createdAt,
     now: request.body.now,
@@ -804,6 +889,16 @@ function orderAuditValue(order) {
     breederOrganizationId: order.breederOrganizationId,
     breedingStationOrganizationId: order.breedingStationOrganizationId,
     status: order.status,
+    requestedDeliveryDate: normalizeOptionalDateOnly(order.requestedDeliveryDate),
+    shippingContactName: normalizeOptionalString(order.shippingContactName),
+    shippingContactPhone: normalizeOptionalString(order.shippingContactPhone),
+    shippingAddressLine1: normalizeOptionalString(order.shippingAddressLine1),
+    shippingAddressLine2: normalizeOptionalString(order.shippingAddressLine2),
+    shippingCity: normalizeOptionalString(order.shippingCity),
+    shippingRegion: normalizeOptionalString(order.shippingRegion),
+    shippingPostalCode: normalizeOptionalString(order.shippingPostalCode),
+    shippingCountry: normalizeOptionalString(order.shippingCountry),
+    specialInstructions: normalizeOptionalString(order.specialInstructions),
   });
 }
 
@@ -952,6 +1047,28 @@ function normalizeOptionalString(value) {
 
 /**
  * @param {unknown} value
+ * @returns {string | null}
+ */
+function normalizeOptionalDateOnly(value) {
+  const trimmed = normalizeOptionalString(value);
+
+  return trimmed && isDateOnly(trimmed) ? trimmed : null;
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} fieldName
+ * @param {string[]} issues
+ * @returns {void}
+ */
+function validateRequiredString(value, fieldName, issues) {
+  if (!normalizeRequiredString(value)) {
+    issues.push(`${fieldName} is required before submitting semen order.`);
+  }
+}
+
+/**
+ * @param {unknown} value
  * @param {string} fieldName
  * @param {string[]} issues
  * @returns {void}
@@ -964,6 +1081,37 @@ function validateOptionalNonBlankString(value, fieldName, issues) {
   if (typeof value !== "string" || value.trim().length === 0) {
     issues.push(`${fieldName} cannot be blank when provided.`);
   }
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} fieldName
+ * @param {string[]} issues
+ * @returns {void}
+ */
+function validateOptionalDateOnly(value, fieldName, issues) {
+  if (value === undefined || value === null) {
+    return;
+  }
+
+  if (!normalizeOptionalDateOnly(value)) {
+    issues.push(`${fieldName} must be a valid YYYY-MM-DD date.`);
+  }
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} fieldName
+ * @param {string[]} issues
+ * @returns {void}
+ */
+function validateRequiredDateOnly(value, fieldName, issues) {
+  if (!normalizeRequiredString(value)) {
+    issues.push(`${fieldName} is required before submitting semen order.`);
+    return;
+  }
+
+  validateOptionalDateOnly(value, fieldName, issues);
 }
 
 /**
@@ -992,6 +1140,20 @@ function isValidTimestamp(value) {
   }
 
   return !Number.isNaN(new Date(value).getTime());
+}
+
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
+function isDateOnly(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`);
+
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 /**

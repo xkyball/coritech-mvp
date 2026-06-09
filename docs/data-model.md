@@ -17,7 +17,7 @@ traceability.
 | `UserOrganizationRole` | Organization-scoped role assignment and revocation evidence. |
 | `Stallion` | Breeding-station-owned horse record for semen listing context. |
 | `SemenListing` | Station-owned semen availability record. |
-| `SemenOrder` | Breeder-to-station order record. |
+| `SemenOrder` | Breeder-to-station order record with creation delivery and shipping details. |
 | `OrderStatusHistory` | Append-oriented status transition timeline. |
 | `Shipment` | Fulfillment shipment linked to a semen order. |
 | `ShipmentTrackingEvent` | Normalized shipment tracking milestone. |

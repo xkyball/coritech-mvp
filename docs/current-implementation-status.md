@@ -33,6 +33,12 @@ Important app folders:
 The former root `app/breeder-dashboard` module has been migrated to
 `apps/web/features/breeder-dashboard`.
 
+Ticket 3.3 adds `apps/web/features/order-creation` and the
+`/app/orders/new` route for breeder semen order creation. The route uses the
+existing order domain endpoints for draft creation and submission, including
+audit/proof hook emission, and shares the demo order repository with the
+breeder dashboard so newly created demo orders appear in "My orders".
+
 ## 4. Current database setup, if any
 
 PostgreSQL is the local development database. Docker Compose defines a `db`

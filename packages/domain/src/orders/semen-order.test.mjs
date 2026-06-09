@@ -14,6 +14,7 @@ import {
   prepareCreateDraftSemenOrder,
   prepareTransitionSemenOrderStatus,
   transitionSemenOrderStatusEndpoint,
+  validateSemenOrderSubmissionDetails,
 } from "./semen-order.mjs";
 
 const timestamp = "2026-06-09T08:00:00.000Z";
@@ -89,6 +90,19 @@ const activeListing = {
   termsSummary: "Fresh semen available weekdays",
 };
 
+const completeOrderDetails = {
+  requestedDeliveryDate: "2026-06-12",
+  shippingContactName: "Ava Breeder",
+  shippingContactPhone: "+27 82 555 0101",
+  shippingAddressLine1: "42 Foaling Barn Road",
+  shippingAddressLine2: "Gate 3",
+  shippingCity: "Pretoria",
+  shippingRegion: "Gauteng",
+  shippingPostalCode: "0081",
+  shippingCountry: "South Africa",
+  specialInstructions: "Call before dispatch.",
+};
+
 const draftOrder = {
   id: "order-1",
   orderNumber: "SO-20260609-000001",
@@ -96,6 +110,7 @@ const draftOrder = {
   breederOrganizationId,
   breedingStationOrganizationId: stationOrganizationId,
   status: "DRAFT",
+  ...completeOrderDetails,
   createdByUserId: "user-breeder",
   updatedByUserId: "user-breeder",
   createdAt: timestamp,
@@ -142,6 +157,7 @@ test("breeder can create a draft semen order with order number, history, audit a
     listing: activeListing,
     breederOrganizationId,
     orderNumberSequence: 42,
+    ...completeOrderDetails,
     reason: "Mare owner requested fresh semen",
     actor: breederActor,
     createdAt: timestamp,
@@ -154,6 +170,7 @@ test("breeder can create a draft semen order with order number, history, audit a
     breederOrganizationId,
     breedingStationOrganizationId: stationOrganizationId,
     status: "DRAFT",
+    ...completeOrderDetails,
     createdByUserId: "user-breeder",
     updatedByUserId: "user-breeder",
     createdAt: timestamp,
@@ -173,6 +190,7 @@ test("breeder can create a draft semen order with order number, history, audit a
   });
   assert.equal(prepared.auditHook.action, "SEMEN_ORDER_DRAFT_CREATED");
   assert.equal(prepared.auditHook.statusHistoryId, "history-draft");
+  assert.equal(prepared.auditHook.newValue.requestedDeliveryDate, "2026-06-12");
   assert.equal(prepared.proofHook.hookType, "PROOF_EVENT_REQUEST");
   assert.equal(prepared.proofHook.triggerRef.toStatus, "DRAFT");
   assert.deepEqual(prepared.proofHook.documentationRefs, []);
@@ -193,6 +211,47 @@ test("breeder can submit own draft order", () => {
   assert.equal(prepared.statusHistory.actorRoleCode, "BREEDER");
   assert.equal(prepared.auditHook.action, "SEMEN_ORDER_SUBMITTED");
   assert.equal(prepared.proofHook.auditHookRef.action, "SEMEN_ORDER_SUBMITTED");
+});
+
+test("submission requires delivery and shipping details", () => {
+  const incompleteDraft = {
+    ...draftOrder,
+    requestedDeliveryDate: null,
+    shippingContactName: null,
+    shippingContactPhone: null,
+    shippingAddressLine1: null,
+    shippingCity: null,
+    shippingPostalCode: null,
+    shippingCountry: null,
+  };
+
+  assert.deepEqual(
+    validateSemenOrderSubmissionDetails(incompleteDraft),
+    [
+      "requestedDeliveryDate is required before submitting semen order.",
+      "shippingContactName is required before submitting semen order.",
+      "shippingContactPhone is required before submitting semen order.",
+      "shippingAddressLine1 is required before submitting semen order.",
+      "shippingCity is required before submitting semen order.",
+      "shippingPostalCode is required before submitting semen order.",
+      "shippingCountry is required before submitting semen order.",
+    ],
+  );
+
+  assert.throws(
+    () =>
+      prepareTransitionSemenOrderStatus({
+        existingOrder: incompleteDraft,
+        toStatus: "SUBMITTED",
+        actor: breederActor,
+        now: timestamp,
+      }),
+    (error) =>
+      error instanceof SemenOrderValidationError &&
+      error.issues.includes(
+        "requestedDeliveryDate is required before submitting semen order.",
+      ),
+  );
 });
 
 test("breeding station can receive, confirm or reject assigned order", () => {
@@ -328,6 +387,7 @@ test("endpoint handlers persist every status change with refreshed audit and pro
     body: {
       semenListingId: "listing-active",
       breederOrganizationId,
+      ...completeOrderDetails,
       reason: "Initial draft",
       createdAt: timestamp,
     },

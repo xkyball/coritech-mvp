@@ -100,7 +100,7 @@ Implemented tables:
 
 | Table | Purpose |
 | --- | --- |
-| `semen_orders` | Breeder-to-breeding-station order records linked to a semen listing, with unique human-readable order numbers. |
+| `semen_orders` | Breeder-to-breeding-station order records linked to a semen listing, with unique human-readable order numbers and breeder-entered creation details. |
 | `order_status_history` | Append-only status transition records with actor user, role, organization, timestamp and reason. |
 
 Implemented order status values:
@@ -136,6 +136,14 @@ status-change hooks as AuditLog entries. Ticket 1.6 can materialize approved
 order milestones from proof hooks through the explicit ProofEvent service.
 Automatic proof-event generation from every relevant order action and duplicate
 prevention remain owned by Ticket 7.1.
+
+Ticket 3.3 adds Phase 1 order-creation detail fields to `semen_orders`:
+`requested_delivery_date`, shipping contact fields, shipping address fields and
+optional `special_instructions`. Draft orders may be saved before every detail
+is complete. Application validation requires requested delivery date, shipping
+contact, primary address, city, postal code and country before a breeder can
+move the order to `SUBMITTED`. These fields do not create shipment automation,
+logistics-provider integration or unrestricted downstream access.
 
 ## Implemented Shipment Tracking Foundation
 

@@ -329,6 +329,16 @@ model SemenOrder {
   breedingStationOrganizationId   String           @map("breeding_station_organization_id") @db.Uuid
   breedingStationOrganizationType OrganizationType @default(BREEDING_STATION) @map("breeding_station_organization_type")
   status                          SemenOrderStatus @default(DRAFT)
+  requestedDeliveryDate           DateTime?        @map("requested_delivery_date") @db.Date
+  shippingContactName             String?          @map("shipping_contact_name")
+  shippingContactPhone            String?          @map("shipping_contact_phone")
+  shippingAddressLine1            String?          @map("shipping_address_line_1")
+  shippingAddressLine2            String?          @map("shipping_address_line_2")
+  shippingCity                    String?          @map("shipping_city")
+  shippingRegion                  String?          @map("shipping_region")
+  shippingPostalCode              String?          @map("shipping_postal_code")
+  shippingCountry                 String?          @map("shipping_country")
+  specialInstructions             String?          @map("special_instructions")
   createdByUserId                 String           @map("created_by_user_id") @db.Uuid
   updatedByUserId                 String           @map("updated_by_user_id") @db.Uuid
   createdAt                       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)

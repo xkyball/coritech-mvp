@@ -47,6 +47,16 @@ export interface SemenOrder {
   breederOrganizationId: string;
   breedingStationOrganizationId: string;
   status: SemenOrderStatus;
+  requestedDeliveryDate: string | null;
+  shippingContactName: string | null;
+  shippingContactPhone: string | null;
+  shippingAddressLine1: string | null;
+  shippingAddressLine2: string | null;
+  shippingCity: string | null;
+  shippingRegion: string | null;
+  shippingPostalCode: string | null;
+  shippingCountry: string | null;
+  specialInstructions: string | null;
   createdByUserId: string;
   updatedByUserId: string;
   createdAt: string;
@@ -60,6 +70,16 @@ export interface SemenOrderLike {
   breederOrganizationId: string;
   breedingStationOrganizationId: string;
   status: SemenOrderStatus;
+  requestedDeliveryDate?: string | null;
+  shippingContactName?: string | null;
+  shippingContactPhone?: string | null;
+  shippingAddressLine1?: string | null;
+  shippingAddressLine2?: string | null;
+  shippingCity?: string | null;
+  shippingRegion?: string | null;
+  shippingPostalCode?: string | null;
+  shippingCountry?: string | null;
+  specialInstructions?: string | null;
   createdByUserId?: string;
   updatedByUserId?: string;
   createdAt?: string;
@@ -82,6 +102,16 @@ export interface OrderStatusHistory {
 export interface CreateDraftSemenOrderInputBody {
   semenListingId: string;
   breederOrganizationId: string;
+  requestedDeliveryDate?: string | null;
+  shippingContactName?: string | null;
+  shippingContactPhone?: string | null;
+  shippingAddressLine1?: string | null;
+  shippingAddressLine2?: string | null;
+  shippingCity?: string | null;
+  shippingRegion?: string | null;
+  shippingPostalCode?: string | null;
+  shippingCountry?: string | null;
+  specialInstructions?: string | null;
   reason?: string | null;
   createdAt?: string | Date;
   now?: string | Date;
@@ -123,6 +153,16 @@ export interface SemenOrderAuditValue {
   breederOrganizationId: string;
   breedingStationOrganizationId: string;
   status: SemenOrderStatus;
+  requestedDeliveryDate: string | null;
+  shippingContactName: string | null;
+  shippingContactPhone: string | null;
+  shippingAddressLine1: string | null;
+  shippingAddressLine2: string | null;
+  shippingCity: string | null;
+  shippingRegion: string | null;
+  shippingPostalCode: string | null;
+  shippingCountry: string | null;
+  specialInstructions: string | null;
 }
 
 export interface SemenOrderStatusAuditHook {
@@ -282,6 +322,9 @@ export declare function generateSemenOrderNumber(
 ): string;
 export declare function validateCreateDraftSemenOrderInput(
   input: CreateDraftSemenOrderInput,
+): string[];
+export declare function validateSemenOrderSubmissionDetails(
+  order: SemenOrderLike,
 ): string[];
 export declare function prepareCreateDraftSemenOrder(
   input: CreateDraftSemenOrderInput,
