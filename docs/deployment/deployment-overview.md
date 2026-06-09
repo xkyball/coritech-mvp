@@ -5,6 +5,9 @@
 This starter overview defines the expected Phase 1 deployment posture. It does
 not configure infrastructure.
 
+Detailed environment-variable and secret-handling guidance is documented in
+`docs/deployment/environment-configuration.md`.
+
 ## Environments
 
 | Environment | Purpose | Data policy | Status |
@@ -30,6 +33,7 @@ not configure infrastructure.
 | Database provider | `[PENDING_VENDOR_SELECTION]` |
 | Object storage provider | `[PENDING_VENDOR_SELECTION]` |
 | CI/CD provider | `[PENDING_VENDOR_SELECTION]` |
+| Secrets vault / secret manager | `[PENDING_VENDOR_SELECTION]` |
 | Backup schedule | `[PENDING_ARCHITECTURE_DECISION]` |
 | Restore target | `[PENDING_ARCHITECTURE_DECISION]` |
 | Production launch owner | `[PENDING_CONFIRMATION]` |

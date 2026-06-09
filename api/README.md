@@ -8,3 +8,6 @@ blockchain logic is implemented by the repository setup ticket.
 
 Future API code must be introduced by an approved Phase 1 ticket and must keep
 configuration, auditability, and ownership boundaries explicit.
+
+Environment variable structure and fail-fast validation for future API startup
+now live in `api/config/` as part of Ticket 0.3.

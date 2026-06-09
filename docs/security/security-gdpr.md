@@ -21,6 +21,8 @@ due diligence. It is not legal advice.
 - Enforce least-privilege role access.
 - Prevent public unrestricted document links.
 - Store secrets outside version control.
+- Keep staging and production secrets in CoriTech-controlled deployment systems
+  or a future secrets vault.
 - Keep production-critical accounts CoriTech-owned or transferable.
 - Log access and changes to proof-relevant records.
 - Prefer provider controls with exportable audit evidence.

@@ -7,7 +7,8 @@ records, and technical due-diligence placeholders.
 
 - `architecture/` - Architecture overview and build-vs-buy rationale.
 - `data-model/` - Conceptual core data model and proof event model.
-- `deployment/` - Deployment posture and environment placeholders.
+- `deployment/` - Deployment posture, environment configuration, and
+  environment placeholders.
 - `integrations/` - External systems register and vendor diligence fields.
 - `product/` - Phase 1 MVP scope and delayed scope guardrails.
 - `security/` - Security/GDPR note and role/permission starter matrix.

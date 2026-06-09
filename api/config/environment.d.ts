@@ -1,0 +1,34 @@
+export type CoriTechEnvironment = "local" | "staging" | "production";
+
+export interface CoriTechConfig {
+  CORITECH_ENVIRONMENT: CoriTechEnvironment;
+  DATABASE_URL: string;
+  AUTH_PROVIDER_CLIENT_ID: string;
+  AUTH_PROVIDER_CLIENT_SECRET: string;
+  AUTH_PROVIDER_DOMAIN: string;
+  EMAIL_PROVIDER_API_KEY: string;
+  OBJECT_STORAGE_BUCKET: string;
+  OBJECT_STORAGE_ACCESS_KEY: string;
+  OBJECT_STORAGE_SECRET_KEY: string;
+  PAYMENT_PROVIDER_SECRET: string;
+  LOGISTICS_PROVIDER_API_KEY: string;
+  APP_BASE_URL: string;
+  API_BASE_URL: string;
+  AUDIT_LOG_RETENTION_DAYS: number;
+}
+
+export declare const ENVIRONMENT_NAMES: readonly CoriTechEnvironment[];
+export declare const REQUIRED_ENVIRONMENT_KEYS: readonly string[];
+
+export declare class EnvironmentConfigError extends Error {
+  readonly issues: readonly string[];
+  constructor(issues: string[]);
+}
+
+export declare function loadEnvironment(
+  source?: Record<string, string | undefined> | NodeJS.ProcessEnv,
+): CoriTechConfig;
+
+export declare function validateEnvironment(
+  source?: Record<string, string | undefined> | NodeJS.ProcessEnv,
+): void;
