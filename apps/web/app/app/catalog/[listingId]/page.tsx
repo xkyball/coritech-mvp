@@ -1,5 +1,6 @@
 import { SemenCatalog } from "../../../../features/catalog/SemenCatalog";
 import { semenCatalogDemoInput } from "../../../../features/catalog/demo-data";
+import { getSemenCatalogDemoListingRecords } from "../../../../features/listing-management/demo-store";
 import {
   createSemenCatalogDetailViewModel,
   createSemenCatalogErrorState,
@@ -13,15 +14,16 @@ export default async function SemenCatalogDetailPage({
   params: CatalogDetailParams;
 }>) {
   const resolvedParams = await params;
-  const viewModel = createViewModel(resolvedParams.listingId);
+  const viewModel = await createViewModel(resolvedParams.listingId);
 
   return <SemenCatalog viewModel={viewModel} />;
 }
 
-function createViewModel(listingId: string) {
+async function createViewModel(listingId: string) {
   try {
     return createSemenCatalogDetailViewModel({
       ...semenCatalogDemoInput,
+      listingRecords: await getSemenCatalogDemoListingRecords(),
       listingId,
     });
   } catch (error) {

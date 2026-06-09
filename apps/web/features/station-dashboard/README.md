@@ -16,5 +16,6 @@ The dashboard reuses existing domain guards for visibility and action readiness:
 - `canUploadDocument`
 - `canViewDocument`
 
-Full listing management, station order-processing forms, shipment forms and
-document upload flows remain in their own Phase 1 tickets.
+Station order-processing forms, shipment forms and document upload flows remain
+in their own Phase 1 tickets. Listing management is handled separately at
+`/app/station/listings`.

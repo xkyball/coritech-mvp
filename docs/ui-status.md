@@ -17,6 +17,7 @@ Current routes found:
 - `/app/catalog/[listingId]`
 - `/app/orders/new`
 - `/app/orders/[orderId]`
+- `/app/station/listings`
 
 Routes requested for inspection but not currently implemented:
 
@@ -50,6 +51,8 @@ Active app files:
 - `apps/web/app/app/orders/new/loading.tsx` - order creation loading UI.
 - `apps/web/app/app/orders/[orderId]/page.tsx` - breeder order detail page.
 - `apps/web/app/app/orders/[orderId]/loading.tsx` - order detail loading UI.
+- `apps/web/app/app/station/listings/page.tsx` - station listing management page.
+- `apps/web/app/app/station/listings/loading.tsx` - listing management loading UI.
 
 Active feature components:
 
@@ -58,6 +61,7 @@ Active feature components:
 - `apps/web/features/catalog/SemenCatalog.tsx`
 - `apps/web/features/order-creation/SemenOrderCreation.tsx`
 - `apps/web/features/breeder-order-detail/BreederOrderDetail.tsx`
+- `apps/web/features/listing-management/ListingManagement.tsx`
 
 Feature view-model and demo-state modules are already separated from the React
 renderers and should be preserved.
@@ -177,6 +181,11 @@ Implemented after inspection:
 - Migrated `/app/catalog` and `/app/catalog/[listingId]`.
 - Migrated `/app/orders/new`, preserving server actions for draft and submit.
 - Migrated `/app/orders/[orderId]`.
+- Added `/app/station/listings` with station-owned create/edit,
+  activation/deactivation, availability management, required-field validation
+  and audited listing mutations through the existing catalog domain endpoints.
+- Wired the breeder catalog pages to the shared demo listing repository so
+  inactive listings are hidden after station-side deactivation.
 - Preserved feature view-models, demo-state behavior, semantic tables, loading
   states and error states.
 - Did not add preview routes, fake auth flows, backend schema changes or new

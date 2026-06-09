@@ -51,8 +51,14 @@ active station role, scopes active listings and assigned orders to the station
 organization, opens a dashboard order detail panel, and exposes action entry
 points for confirm/reject, shipment updates and controlled document uploads
 only when the existing domain guards make those actions audit/proof ready.
-Full listing management, station order-processing forms, shipment forms and
-document upload flows remain in their dedicated Phase 1 tickets.
+
+Ticket 4.2 adds `apps/web/features/listing-management` and the
+`/app/station/listings` route for breeding stations. The management view
+supports station-owned listing creation, edits, activation/deactivation,
+availability updates, required-field validation and audited mutations through
+the existing catalog domain endpoints. The breeder catalog now reads from the
+same demo listing repository so inactive listings are hidden from
+breeder-visible catalog pages.
 
 ## 4. Current database setup, if any
 

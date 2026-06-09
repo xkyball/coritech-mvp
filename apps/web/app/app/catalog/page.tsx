@@ -1,5 +1,6 @@
 import { SemenCatalog } from "../../../features/catalog/SemenCatalog";
 import { semenCatalogDemoInput } from "../../../features/catalog/demo-data";
+import { getSemenCatalogDemoListingRecords } from "../../../features/listing-management/demo-store";
 import {
   createSemenCatalogErrorState,
   createSemenCatalogViewModel,
@@ -15,15 +16,16 @@ export default async function SemenCatalogPage({
   searchParams?: CatalogSearchParams;
 }>) {
   const resolvedSearchParams = await searchParams;
-  const viewModel = createViewModel(resolvedSearchParams ?? {});
+  const viewModel = await createViewModel(resolvedSearchParams ?? {});
 
   return <SemenCatalog viewModel={viewModel} />;
 }
 
-function createViewModel(searchParams: Record<string, string | string[] | undefined>) {
+async function createViewModel(searchParams: Record<string, string | string[] | undefined>) {
   try {
     return createSemenCatalogViewModel({
       ...semenCatalogDemoInput,
+      listingRecords: await getSemenCatalogDemoListingRecords(),
       filters: {
         stallion: firstSearchParam(searchParams.stallion),
         breed: firstSearchParam(searchParams.breed),
