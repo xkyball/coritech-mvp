@@ -6,11 +6,15 @@ Ticket 3.1 adds a focused Phase 1 breeder dashboard module.
 
 - `breeder-dashboard.mjs` prepares a breeder-scoped view model and renders a
   conservative HTML dashboard.
-- `breeder-dashboard.d.ts` documents the frontend contract for app-shell
-  integration.
+- `view-model.ts` exposes the dashboard state helpers to the Next.js app.
+- `BreederDashboard.tsx` renders ready, loading and error dashboard states.
+- `breeder-dashboard.d.ts` documents the frontend contract for app integration.
 - `breeder-dashboard.css` provides the dashboard layout and states.
 - `breeder-dashboard.test.mjs` covers role scoping, dashboard links and
   loading, empty and error states.
+- `apps/web/app/breeder-dashboard/page.tsx` renders the current demo-backed
+  dashboard route until API/server-action integration is introduced by a later
+  approved ticket.
 
 ## Scope
 

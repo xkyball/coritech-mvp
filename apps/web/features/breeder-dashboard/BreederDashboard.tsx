@@ -2,13 +2,32 @@ import type { ReactNode } from "react";
 import type {
   BreederDashboardActionItem,
   BreederDashboardDocumentRow,
+  BreederDashboardErrorViewModel,
   BreederDashboardListingCard,
+  BreederDashboardLoadingViewModel,
   BreederDashboardOrderRow,
+  BreederDashboardRenderableViewModel,
   BreederDashboardStatusSummaryItem,
   BreederDashboardViewModel,
 } from "./breeder-dashboard.d.ts";
 
 export function BreederDashboard({
+  viewModel,
+}: Readonly<{
+  viewModel: BreederDashboardRenderableViewModel;
+}>) {
+  if (viewModel.state === "LOADING") {
+    return <LoadingState viewModel={viewModel} />;
+  }
+
+  if (viewModel.state === "ERROR") {
+    return <ErrorState viewModel={viewModel} />;
+  }
+
+  return <ReadyDashboard viewModel={viewModel} />;
+}
+
+function ReadyDashboard({
   viewModel,
 }: Readonly<{
   viewModel: BreederDashboardViewModel;
@@ -36,6 +55,37 @@ export function BreederDashboard({
       <DocumentsSection items={sections.recentDocuments.items} emptyMessage={sections.recentDocuments.emptyMessage} title={sections.recentDocuments.title} />
       <ActionRequiredSection items={sections.actionRequired.items} emptyMessage={sections.actionRequired.emptyMessage} title={sections.actionRequired.title} />
     </main>
+  );
+}
+
+function LoadingState({
+  viewModel,
+}: Readonly<{
+  viewModel: BreederDashboardLoadingViewModel;
+}>) {
+  return (
+    <section className="breeder-dashboard breeder-dashboard--loading" aria-busy="true">
+      <h1>{viewModel.title}</h1>
+      <p>{viewModel.message}</p>
+      <div className="breeder-dashboard__skeleton-grid" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+    </section>
+  );
+}
+
+function ErrorState({
+  viewModel,
+}: Readonly<{
+  viewModel: BreederDashboardErrorViewModel;
+}>) {
+  return (
+    <section className="breeder-dashboard breeder-dashboard--error" role="alert">
+      <h1>{viewModel.title}</h1>
+      <p>{viewModel.message}</p>
+    </section>
   );
 }
 
