@@ -1,0 +1,13 @@
+# CoriTech CODEOWNERS placeholder.
+#
+# Replace CORITECH_SOURCE_CONTROL_ORG and team names with the confirmed
+# CoriTech-owned source-control identities before branch protection is enforced.
+
+* @CORITECH_SOURCE_CONTROL_ORG/repository-owners
+
+/app/ @CORITECH_SOURCE_CONTROL_ORG/app-owners
+/api/ @CORITECH_SOURCE_CONTROL_ORG/api-owners
+/infra/ @CORITECH_SOURCE_CONTROL_ORG/infra-owners
+/docs/ @CORITECH_SOURCE_CONTROL_ORG/docs-owners
+/.github/ @CORITECH_SOURCE_CONTROL_ORG/repository-owners
+/CODEOWNERS @CORITECH_SOURCE_CONTROL_ORG/repository-owners
