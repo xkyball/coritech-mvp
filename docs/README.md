@@ -11,7 +11,7 @@ records, and technical due-diligence placeholders.
   environment placeholders.
 - `integrations/` - External systems register and vendor diligence fields.
 - `product/` - Phase 1 MVP scope and delayed scope guardrails.
-- `security/` - Security/GDPR note and role/permission starter matrix.
+- `security/` - Security/GDPR note and role/permission matrix.
 - `vendor-ip/` - IP, vendor and account ownership posture, including the
   account ownership checklist and IP assignment handover checklist.
 - `tickets/phase-1/` - Codex-ready implementation tickets for Phase 1.
