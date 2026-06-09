@@ -17,6 +17,7 @@ tickets.
 | `migrations/20260609_0108_audit_log_v1.sql` | 1.8 | Creates append-only `audit_logs`, normalized audit actions, object-query indexes, proof-event audit-log foreign key and update/delete protection. |
 | `migrations/20260609_0109_amendment_v1.sql` | 1.9 | Creates admin-only `amendments` for selected proof-relevant records, preserving original/amended values, reason, status, audit-log link and optional proof-event link. |
 | `migrations/20260609_0201_managed_auth_provider.sql` | 2.1 | Updates database comments for provider-managed authentication and internal user identity mapping. |
+| `migrations/20260609_0203_access_permission_v1.sql` | 2.3 | Creates object-level `access_permissions`, active permission scopes, reserved inactive `BUYER_VIEW` scope and grant/revocation indexes. |
 
 The Ticket 1.1 migration is PostgreSQL-oriented and uses CoriTech-owned records
 linked to managed authentication identities. It does not add custom
@@ -67,6 +68,18 @@ when the application edge provides them.
 `audit_logs` is append-only. The migration adds triggers that block updates and
 deletes; normal application flows must create later corrective evidence instead
 of editing prior audit rows.
+
+## Access Permission Notes
+
+Ticket 2.3 stores object-level `access_permissions` grants with optional user,
+organization or active Phase 1 role subjects, exact object type/id, scope,
+platform-admin grantor, optional expiry and revocation metadata. The service
+helper must be used for grant/revoke operations so `ACCESS_PERMISSION_GRANTED`
+and `ACCESS_PERMISSION_REVOKED` hooks become `CHANGE_PERMISSION` audit entries.
+
+`BUYER_VIEW` is reserved in the scope enum for migration stability, but the
+Phase 1 migration constraint and service validation prevent granting it. Service
+checks also deny prepared future scopes by default.
 
 ## Amendment Notes
 

@@ -38,6 +38,13 @@ normalized RBAC access-decision event when a route repository exposes
 `recordRbacAccessDecision`. Denied decisions are logged; successful
 `PLATFORM_ADMIN` access is logged by default.
 
+Ticket 2.3 adds `api/domain/access/access-permission.mjs`, an explicit
+object-level grant service for user, organization or Phase 1 role subjects.
+Grants can be time-bounded and revoked, and grant/revocation changes are logged
+as `CHANGE_PERMISSION` audit entries. Route handlers must explicitly call this
+service when a later ticket requires grant-based object access; the RBAC
+middleware remains the route-level guard.
+
 | Capability | `PLATFORM_ADMIN` | `BREEDER` | `BREEDING_STATION` | Logistics Contributor `[PENDING]` | Evidence Reviewer `[PENDING]` | Diligence Viewer `[PENDING]` |
 | --- | --- | --- | --- | --- | --- | --- |
 | Manage users and organizations | Yes | No | Own organization only | No | No | No |
@@ -57,8 +64,10 @@ normalized RBAC access-decision event when a route repository exposes
 - No public unrestricted document links.
 - No vendor-owned production-critical access dependency.
 - Every elevated permission requires a documented owner and review path.
-- The Ticket 2.3 `AccessPermission` grant model is not implemented by the RBAC
-  middleware; object access remains role, organization and order scoped.
+- AccessPermission grants are object-level service checks, not broad role,
+  buyer, marketplace or data-space access.
+- `BUYER_VIEW` is reserved for future controlled buyer-view workflows but is not
+  grantable or active by default in Phase 1.
 
 ## Document Access Classifications
 

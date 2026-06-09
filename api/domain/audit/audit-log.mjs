@@ -444,7 +444,10 @@ function mapHookToAuditAction(sourceAction, actorRoleCode) {
     return sourceAction;
   }
 
-  if (sourceAction === "ROLE_ASSIGNED") {
+  if (
+    sourceAction === "ROLE_ASSIGNED" ||
+    sourceAction.startsWith("ACCESS_PERMISSION_")
+  ) {
     return "CHANGE_PERMISSION";
   }
 

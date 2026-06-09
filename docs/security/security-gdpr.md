@@ -12,6 +12,7 @@ due diligence. It is not legal advice.
 | Account data | User name, email, organization, role | Managed auth and role-based access |
 | Operational data | Listings, orders, shipment references, statuses | Authenticated access only |
 | Evidence documents | Certificates, order documents, shipment evidence | Controlled storage and restricted viewing |
+| Access permission data | User, organization or role grant subject, object target, scope, grantor, expiry and revocation metadata | Object-level least-privilege grants with audit-logged changes |
 | Audit data | Actor, role, organization, timestamp, action, target object, before/after values, reason, IP address and user agent when available | Append-only retention for diligence and operational accountability |
 | Payment reference data | External reference IDs or manual payment notes | No payment processing unless later approved |
 
@@ -40,6 +41,12 @@ boundaries before protected endpoint handlers run. Denied access returns `403`
 and is logged through normalized RBAC access-decision events when the route
 repository exposes `recordRbacAccessDecision`; successful `PLATFORM_ADMIN`
 access is logged by default.
+
+Ticket 2.3 AccessPermission grants add explicit object-level visibility checks
+for later controlled workflows. Grants are user, organization or active Phase 1
+role scoped, may expire, may be revoked, and grant/revocation changes are
+append-only audit logged. The reserved `BUYER_VIEW` scope is not grantable or
+active by default in Phase 1.
 
 ## GDPR and Privacy Placeholders
 

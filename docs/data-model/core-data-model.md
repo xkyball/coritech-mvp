@@ -24,7 +24,7 @@ the remaining entities are still conceptual placeholders.
 | ProofEvent | Workflow-generated proof record | Implemented by Ticket 1.6; links trigger, documentation, signature placeholder, verification level and audit-hook context |
 | VerificationLevel | Reviewable trust level applied to proof events | Implemented by Ticket 1.7; derived from proof event type and actor role |
 | AuditLog | Immutable operational audit entry | Implemented by Ticket 1.8; links actor, role, organization, action, target object, request metadata and timestamp |
-| AccessPermission | Controlled document or workflow access grant | Links subject, resource and permission |
+| AccessPermission | Controlled document or workflow access grant | Implemented by Ticket 2.3; links subject, resource, scope, grantor, expiry and audit evidence |
 | Amendment | Controlled correction record | Implemented by Ticket 1.9; links target record, original/amended values, reason, actor, optional approver, audit evidence and optional proof evidence |
 | PaymentReference | Non-processing payment reference | Links order to external payment evidence when applicable |
 
@@ -304,6 +304,43 @@ unavailable in Phase 1.
 Audit logs are append-only from normal application flows. The domain module
 exposes no update/delete service, and the migration blocks database updates and
 deletes with triggers.
+
+## Implemented Access Permission Foundation
+
+Ticket 2.3 adds the object-level AccessPermission grant model:
+
+`api/db/migrations/20260609_0203_access_permission_v1.sql`
+
+Implemented tables:
+
+| Table | Purpose |
+| --- | --- |
+| `access_permissions` | User, organization or role-scoped object grants with scope, grantor, optional expiry and optional revocation metadata. |
+
+Implemented access permission scopes:
+
+| Scope | Phase 1 meaning |
+| --- | --- |
+| `VIEW` | Controlled object-level read access. |
+| `CREATE` | Controlled object-level create-related access where a later endpoint explicitly checks it. |
+| `UPDATE` | Controlled object-level update access where a later endpoint explicitly checks it. |
+| `CONFIRM` | Controlled object-level confirmation access where a later endpoint explicitly checks it. |
+| `UPLOAD_DOCUMENT` | Controlled document-upload permission for a specific object. |
+| `VIEW_DOCUMENT` | Controlled document-view permission for a specific object. |
+| `ADMIN_SUPPORT` | Explicit platform-admin support grant for a specific object. |
+| `BUYER_VIEW` | Reserved future scope only; blocked by the Phase 1 migration constraint and denied by default in the service. |
+
+The API access helper creates and revokes grants through an audit-aware service.
+Grant and revocation hooks materialize as `CHANGE_PERMISSION` AuditLog entries.
+Service-layer checks require an exact object type/id and scope match, an active
+Phase 1 user/organization/role subject match, an effective time window, and no
+revocation. Future role codes such as `BUYER` are not active grant subjects in
+Phase 1.
+
+Ticket 2.3 does not add route automation, buyer-view generation, full
+marketplace access, public document links or unrestricted buyer access. Later
+endpoint tickets must explicitly opt into the AccessPermission check where an
+object-level grant is required.
 
 ## Implemented Amendment Foundation
 

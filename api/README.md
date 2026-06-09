@@ -29,6 +29,10 @@ tickets.
 - `domain/amendments/` contains the Ticket 1.9 Amendment model, admin-only
   creation service, original/amended value preservation, audit hook and optional
   admin-correction proof hook.
+- `domain/access/` contains the Ticket 2.3 AccessPermission model, object-level
+  grant/revoke helpers, time-bounded service checks and permission-change audit
+  hooks. The future `BUYER_VIEW` scope is reserved but not grantable or active in
+  Phase 1.
 - `domain/auth/` contains the Ticket 2.1 managed authentication provider
   contract, hosted sign-up/login/logout redirects, provider-managed password
   reset and email verification request contracts, internal User mapping,
@@ -37,7 +41,7 @@ tickets.
 No custom password handling, payment handling, logistics provider adapter,
 object-storage provider integration, automatic proof-event generation, admin
 amendment UI/workflow automation, AI behavior, blockchain logic or future
-AccessPermission grant model is implemented here yet.
+buyer-view automation is implemented here yet.
 
 Future API code must be introduced by an approved Phase 1 ticket and must keep
 configuration, auditability and ownership boundaries explicit.
