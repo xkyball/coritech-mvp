@@ -13,10 +13,13 @@ tickets.
 - `domain/orders/` contains the Ticket 1.3 semen order model, status transition
   rules, order status history preparation, endpoint contracts and audit/proof
   hooks.
+- `domain/shipments/` contains the Ticket 1.4 shipment and normalized tracking
+  event model, endpoint contracts, validation, station-scoped write checks and
+  audit/proof hooks.
 
 No custom authentication, authorization middleware, payment handling, logistics
-integration, durable proof-event generation, AI behavior or blockchain logic is
-implemented here yet.
+provider adapter, durable proof-event generation, AI behavior or blockchain
+logic is implemented here yet.
 
 Future API code must be introduced by an approved Phase 1 ticket and must keep
 configuration, auditability and ownership boundaries explicit.

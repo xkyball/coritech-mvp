@@ -17,8 +17,8 @@ the remaining entities are still conceptual placeholders.
 | SemenListing | Offer record for available semen | Implemented by Ticket 1.2; linked to stallion and breeding station |
 | SemenOrder | Operational order between breeder and breeding station | Implemented by Ticket 1.3; links breeder, station and listing |
 | OrderStatusHistory | Ordered record of order state changes | Implemented by Ticket 1.3; linked to semen order and actor context |
-| Shipment | Delivery record for semen order fulfillment | Linked to order and tracking events |
-| ShipmentTrackingEvent | Milestone, carrier update or manual tracking note | Linked to shipment and actor/source |
+| Shipment | Delivery record for semen order fulfillment | Implemented by Ticket 1.4; linked to confirmed semen order and tracking events |
+| ShipmentTrackingEvent | Milestone, carrier update or manual tracking note | Implemented by Ticket 1.4; linked to shipment, actor context and normalized source |
 | EvidenceDocument | Metadata for uploaded proof documents | Linked to order, shipment or proof event |
 | ProofEvent | Workflow-generated proof record | Links trigger, documentation, signature, verification level and audit trail |
 | VerificationLevel | Reviewable trust level applied to proof events | Used by proof event and reporting surfaces |
@@ -131,6 +131,48 @@ Every prepared order status change emits a `SEMEN_ORDER_STATUS_CHANGE` audit
 hook and a `PROOF_EVENT_REQUEST` hook. These hooks are integration points only;
 durable AuditLog and ProofEvent persistence remain owned by Tickets 1.8 and
 1.6 respectively.
+
+## Implemented Shipment Tracking Foundation
+
+Ticket 1.4 adds the semen-order shipment and normalized tracking-event model:
+
+`api/db/migrations/20260609_0104_shipment_tracking_event.sql`
+
+Implemented tables:
+
+| Table | Purpose |
+| --- | --- |
+| `shipments` | Shipment records linked to semen orders, with current normalized shipment status and optional provider reference fields. |
+| `shipment_tracking_events` | Append-only tracking timeline linked to a shipment and actor/source context. |
+
+Implemented shipment status values:
+
+| Enum | Values |
+| --- | --- |
+| `coritech_shipment_status` | `PREPARED`, `DISPATCHED`, `IN_TRANSIT`, `DELIVERED`, `DELAYED`, `FAILED`, `CANCELLED` |
+
+Implemented tracking event sources:
+
+| Enum | Values |
+| --- | --- |
+| `coritech_shipment_tracking_event_source` | `MANUAL`, `LOGISTICS_PROVIDER`, `SYSTEM` |
+
+Shipment creation is application-gated to `CONFIRMED` semen orders and assigned
+breeding-station users, with platform-admin support access. Breeder access is
+read-only for shipments linked to their own orders. Future buyer access remains
+unavailable in Phase 1.
+
+Every prepared shipment creation or status update emits a
+`SHIPMENT_TRACKING_EVENT` audit hook and a `PROOF_EVENT_REQUEST` hook. These
+hooks are integration points only; durable AuditLog and ProofEvent persistence
+remain owned by Tickets 1.8 and 1.6, while automated shipment proof generation
+from shipment actions remains owned by Ticket 7.2.
+
+The model stores optional `provider_name`, `provider_tracking_id`,
+`tracking_url`, `source_event_id` and `provider_status` fields so future
+logistics provider updates can be normalized into the same tracking timeline.
+Ticket 1.4 does not implement a logistics provider adapter or provider
+automation; that remains owned by Ticket 5.2.
 
 ## Data Ownership Principle
 

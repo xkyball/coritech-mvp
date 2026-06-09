@@ -15,7 +15,7 @@ status for Phase 1.
 | Object storage provider | Evidence documents | Uploaded documents and metadata | CoriTech-controlled required | `[PENDING_VENDOR_SELECTION]` |
 | Email provider | Notifications | Email address, template context, delivery metadata | CoriTech-controlled required | `[PENDING_VENDOR_SELECTION]` |
 | Hosting provider | Application and API deployment | Application runtime and logs | CoriTech-controlled required | `[PENDING_VENDOR_SELECTION]` |
-| Logistics provider | Shipment reference or tracking adapter | Shipment references and milestones | `[PENDING_PROVIDER_MODEL]` | `[PENDING_PROVIDER_SELECTION]` |
+| Logistics provider | Shipment reference fields and future normalized tracking source | Shipment references and milestones when later approved | `[PENDING_PROVIDER_MODEL]` | `[STRUCTURAL_REFERENCE_ONLY]` |
 | Payment provider | Future payment processing or reference support | Payment references only in Phase 1 | `[PENDING_PROVIDER_MODEL]` | `[PENDING_FUTURE_TICKET]` |
 | Federation/studbook systems | Future full federation automation | None in Phase 1 | `[NOT_IN_PHASE_1]` | Delayed |
 | AI service | Future insights or automation | None in Phase 1 | `[NOT_IN_PHASE_1]` | Delayed |
