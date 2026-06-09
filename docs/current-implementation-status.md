@@ -45,6 +45,15 @@ requires an active breeder role for the order's breeder organization, displays
 status history, shipment information, permission-filtered linked documents and
 simple proof events, and remains read-only/display-only for Phase 1.
 
+Ticket 4.1 adds `apps/web/features/station-dashboard` and the
+`/station-dashboard` route for breeding stations. The dashboard requires an
+active station role, scopes active listings and assigned orders to the station
+organization, opens a dashboard order detail panel, and exposes action entry
+points for confirm/reject, shipment updates and controlled document uploads
+only when the existing domain guards make those actions audit/proof ready.
+Full listing management, station order-processing forms, shipment forms and
+document upload flows remain in their dedicated Phase 1 tickets.
+
 ## 4. Current database setup, if any
 
 PostgreSQL is the local development database. Docker Compose defines a `db`

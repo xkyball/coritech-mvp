@@ -10,7 +10,7 @@ documentation that generate trustworthy evidence.
 | Capability | Phase 1 intent | Status |
 | --- | --- | --- |
 | Breeder workflow | Search/list semen availability and place controlled orders | Breeder dashboard and semen catalog UI implemented; controlled order creation pending Ticket 3.3 |
-| Breeding station workflow | Manage listings, confirm orders and update fulfillment status | `[PENDING_IMPLEMENTATION]` |
+| Breeding station workflow | Manage listings, confirm orders and update fulfillment status | Station dashboard implemented for scoped operational visibility and action entry points; full management forms remain pending dedicated workflow tickets |
 | Shipment tracking | Record shipment milestones and supporting references | `[PENDING_IMPLEMENTATION]` |
 | Evidence documents | Upload and control access to documents linked to orders, shipments or proof events | `[PENDING_IMPLEMENTATION]` |
 | Proof events | Generate audit-ready proof from workflow actions | `[PENDING_IMPLEMENTATION]` |

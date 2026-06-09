@@ -12,6 +12,7 @@ Current routes found:
 
 - `/`
 - `/breeder-dashboard`
+- `/station-dashboard`
 - `/app/catalog`
 - `/app/catalog/[listingId]`
 - `/app/orders/new`
@@ -39,6 +40,8 @@ Active app files:
 - `apps/web/app/page.tsx` - root MVP status/overview page.
 - `apps/web/app/breeder-dashboard/page.tsx` - breeder dashboard page.
 - `apps/web/app/breeder-dashboard/loading.tsx` - breeder dashboard loading UI.
+- `apps/web/app/station-dashboard/page.tsx` - breeding station dashboard page.
+- `apps/web/app/station-dashboard/loading.tsx` - breeding station dashboard loading UI.
 - `apps/web/app/app/catalog/page.tsx` - semen catalog list page.
 - `apps/web/app/app/catalog/loading.tsx` - catalog loading UI.
 - `apps/web/app/app/catalog/[listingId]/page.tsx` - listing detail page.
@@ -51,6 +54,7 @@ Active app files:
 Active feature components:
 
 - `apps/web/features/breeder-dashboard/BreederDashboard.tsx`
+- `apps/web/features/station-dashboard/StationDashboard.tsx`
 - `apps/web/features/catalog/SemenCatalog.tsx`
 - `apps/web/features/order-creation/SemenOrderCreation.tsx`
 - `apps/web/features/breeder-order-detail/BreederOrderDetail.tsx`
@@ -167,6 +171,9 @@ Implemented after inspection:
   feature-specific CSS files.
 - Migrated `/` to the CoriTech visual language.
 - Migrated `/breeder-dashboard` to the shared dashboard shell and components.
+- Added `/station-dashboard` with station-scoped active listings, assigned
+  incoming orders, action-ready order cards, shipment update entry points,
+  recent documents and notifications.
 - Migrated `/app/catalog` and `/app/catalog/[listingId]`.
 - Migrated `/app/orders/new`, preserving server actions for draft and submit.
 - Migrated `/app/orders/[orderId]`.

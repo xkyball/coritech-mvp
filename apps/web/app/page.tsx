@@ -51,6 +51,9 @@ export default function Home() {
           <ButtonLink href="/breeder-dashboard" variant="primary">
             Open breeder workspace
           </ButtonLink>
+          <ButtonLink href="/station-dashboard" variant="secondary">
+            Open station workspace
+          </ButtonLink>
         </div>
       </section>
 
