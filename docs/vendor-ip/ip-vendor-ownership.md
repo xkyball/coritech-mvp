@@ -31,6 +31,8 @@ CoriTech should own or control:
 ## Required Evidence
 
 - Signed IP assignment or work-for-hire confirmation for contributors.
+- Completed pre-signature IP assignment and handover checklist in
+  `docs/vendor-ip/ip-assignment-handover-checklist.md`.
 - Vendor contracts or statements of work with ownership language.
 - Repository ownership evidence.
 - Admin and backup admin list for production-critical accounts.
@@ -38,8 +40,12 @@ CoriTech should own or control:
 - Data processing agreements where personal data is handled.
 - Account ownership checklist evidence in
   `docs/vendor-ip/account-ownership-checklist.md`.
+- Final handover evidence for source code, documentation, dependencies,
+  design files, deployment knowledge and production secret removal.
 
 ## Explicit Rejection
 
 Production-critical vendor-owned account assumptions are not accepted without a
-documented exception, commercial rationale and transfer path.
+documented exception, commercial rationale and transfer path. Outsourcing
+delivery is acceptable only when CoriTech retains ownership, transferability and
+operational handover control.

@@ -39,11 +39,12 @@ Repository ownership and branch-control evidence is tracked in:
 - `docs/source-control/repository-ownership.md`
 - `docs/source-control/branch-protection.md`
 - `docs/vendor-ip/account-ownership-checklist.md`
+- `docs/vendor-ip/ip-assignment-handover-checklist.md`
 
 Before this repository is used for production-critical work, the source-control
 organization, repository administrators, backup administrator, branch protection,
-required pull-request workflow and production-critical account ownership must be
-confirmed in those documents.
+required pull-request workflow, production-critical account ownership and vendor
+IP handover controls must be confirmed in those documents.
 
 ## Baseline Rules
 
