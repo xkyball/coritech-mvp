@@ -30,7 +30,7 @@ Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 | `lifecycle_stage` | Reviewable lifecycle stage derived from the event type | Implemented by Ticket 1.6 |
 | `signature_ref` | Managed-auth signature or future attestation reference | Placeholder implemented by Ticket 1.6 |
 | `attestation_refs` | Future attestation slots | Placeholder implemented by Ticket 1.6 |
-| `verification_level` | Required starter proof level | Implemented by Ticket 1.6 as `WORKFLOW_RECORDED`; taxonomy and derivation remain Ticket 1.7 |
+| `verification_level` | Required trust-strength level derived from event type and actor role | Implemented by Ticket 1.7 |
 | `audit_log_id` | Durable audit-log link | Reserved nullable field for Ticket 1.8 |
 | `audit_hook_ref` | Originating workflow audit hook reference | Implemented by Ticket 1.6 |
 | `status` | Proof event lifecycle status | Implemented by Ticket 1.6 as `RECORDED` or `VOIDED` |
@@ -41,6 +41,8 @@ Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 Migration:
 
 `api/db/migrations/20260609_0106_proof_event_v1.sql`
+
+`api/db/migrations/20260609_0107_verification_level_taxonomy.sql`
 
 ## Phase 1 Event Sources
 
@@ -62,18 +64,40 @@ A document upload does not automatically create a proof event or assign a high
 verification level in Tickets 1.5 or 1.6. Automatic proof events from document
 uploads remain Ticket 7.3.
 
-## Verification Level Placeholder
+## Verification Level Taxonomy
 
-Ticket 1.6 requires a non-blank `verification_level` and uses
-`WORKFLOW_RECORDED` as the default starter value. Final labels and derivation
-rules are owned by Ticket 1.7. The starter intent remains:
+Ticket 1.7 replaces the Ticket 1.6 placeholder with a formal
+`coritech_verification_level` enum and API taxonomy metadata. Every prepared
+proof event receives a required verification level derived from proof event type
+and actor role. If a caller supplies a level explicitly, it must match the
+derived level.
 
-| Level | Meaning |
+Active Phase 1 levels:
+
+| Level | Meaning | Badge label |
 | --- | --- |
-| `[LEVEL_0_PLACEHOLDER]` | Recorded workflow event without supporting document |
-| `[LEVEL_1_PLACEHOLDER]` | Event linked to supporting documentation |
-| `[LEVEL_2_PLACEHOLDER]` | Event linked to documentation and actor confirmation |
-| `[LEVEL_3_PLACEHOLDER]` | Event reviewed or verified under approved CoriTech rules |
+| `SELF_REPORTED` | Participant-entered workflow fact that has not been station-confirmed or admin-reviewed | Self reported |
+| `SYSTEM_RECORDED` | Workflow event captured by the application from an allowed order, shipment or document action | System recorded |
+| `STATION_CONFIRMED` | Workflow fact confirmed by the breeding station in its assigned operational role | Station confirmed |
+| `ADMIN_REVIEWED` | Platform-admin review or correction recorded through approved support workflows | Admin reviewed |
+
+Reserved future levels:
+
+| Level | Phase 1 status |
+| --- | --- |
+| `VET_SIGNED` | Reserved only; not assignable in Phase 1 |
+| `FEDERATION_ATTESTED` | Reserved only; not assignable in Phase 1 |
+| `VERIFIED_FOR_TRANSACTION` | Reserved only; not assignable in Phase 1 |
+
+Phase 1 derivation rules:
+
+| Actor role | Event types | Derived level |
+| --- | --- | --- |
+| `BREEDER` | `SEMEN_ORDER_CREATED`, `SUBMITTED`, `DOCUMENT_UPLOADED` | `SELF_REPORTED` |
+| `BREEDER` | Other Phase 1 proof event types | `SYSTEM_RECORDED` |
+| `BREEDING_STATION` | `CONFIRMED`, `REJECTED`, `SHIPMENT_CONFIRMED`, `DOCUMENT_UPLOADED` | `STATION_CONFIRMED` |
+| `BREEDING_STATION` | Other Phase 1 proof event types | `SYSTEM_RECORDED` |
+| `PLATFORM_ADMIN` | Any Phase 1 proof event type | `ADMIN_REVIEWED` |
 
 ## Deletion And Amendment Policy
 
@@ -86,9 +110,8 @@ amendment/admin-correction workflows rather than silent deletion.
 
 Ticket 1.6 provides the ProofEvent model and an explicit hook-to-proof service.
 It does not automatically create proof events on every order, shipment or
-document action, prevent duplicates across those workflows, derive stronger
-verification levels, or persist full AuditLog entries. Those concerns remain in
-Tickets 7.1, 7.2, 7.3, 1.7 and 1.8.
+document action, prevent duplicates across those workflows, or persist full
+AuditLog entries. Those concerns remain in Tickets 7.1, 7.2, 7.3 and 1.8.
 
 ## Delayed Technology Note
 

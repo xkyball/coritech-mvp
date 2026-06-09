@@ -1,5 +1,24 @@
 // @ts-check
 
+import {
+  FUTURE_VERIFICATION_LEVELS,
+  VERIFICATION_LEVELS,
+  deriveVerificationLevel,
+  isActivePhase1VerificationLevel,
+  isVerificationLevel,
+} from "./verification-level.mjs";
+
+export {
+  ACTIVE_PHASE_1_VERIFICATION_LEVELS,
+  FUTURE_VERIFICATION_LEVELS,
+  VERIFICATION_LEVEL_METADATA,
+  VERIFICATION_LEVELS,
+  deriveVerificationLevel,
+  isActivePhase1VerificationLevel,
+  isVerificationLevel,
+  verificationLevelMetadataFor,
+} from "./verification-level.mjs";
+
 export const PROOF_EVENT_TYPES = /** @type {const} */ ([
   "SEMEN_ORDER_CREATED",
   "SUBMITTED",
@@ -24,8 +43,6 @@ export const PROOF_EVENT_STATUSES = /** @type {const} */ ([
   "RECORDED",
   "VOIDED",
 ]);
-
-export const DEFAULT_PROOF_EVENT_VERIFICATION_LEVEL = "WORKFLOW_RECORDED";
 
 export const PROOF_EVENT_DELETION_POLICY = Object.freeze({
   supported: false,
@@ -117,8 +134,7 @@ export function validateCreateProofEventInput(input) {
   const eventType = normalizeRequiredString(input.eventType);
   const source = normalizeRequiredString(input.source);
   const status = normalizeRequiredString(input.status) || "RECORDED";
-  const verificationLevel = normalizeRequiredString(input.verificationLevel) ||
-    DEFAULT_PROOF_EVENT_VERIFICATION_LEVEL;
+  const verificationLevel = normalizeOptionalString(input.verificationLevel);
 
   if (!eventType) {
     issues.push("eventType is required.");
@@ -138,14 +154,18 @@ export function validateCreateProofEventInput(input) {
     issues.push(`status must be one of: ${PROOF_EVENT_STATUSES.join(", ")}.`);
   }
 
-  if (!verificationLevel) {
-    issues.push("verificationLevel is required.");
-  }
-
   validateRequiredNonBlankString(input.triggerType, "triggerType", issues);
   validateJsonObject(input.triggerRef, "triggerRef", issues);
   validateRequiredNonBlankString(input.lifecycleStage, "lifecycleStage", issues);
   validateActor(input.actor, issues);
+  validateVerificationLevelForProofEvent(
+    {
+      eventType,
+      actorRoleCode: actorRoleCodeFromInput(input.actor),
+      verificationLevel,
+    },
+    issues,
+  );
   validateJsonObject(input.auditHookRef, "auditHookRef", issues);
   validateOptionalJsonArray(input.documentationRefs, "documentationRefs", issues);
   validateOptionalJsonObject(input.signatureRef, "signatureRef", issues);
@@ -217,8 +237,11 @@ export function prepareCreateProofEvent(input) {
       /** @type {import("./proof-event.d.ts").ProofEventLifecycleStage} */ (
         normalizeRequiredString(input.lifecycleStage)
       ),
-    verificationLevel: normalizeRequiredString(input.verificationLevel) ||
-      DEFAULT_PROOF_EVENT_VERIFICATION_LEVEL,
+    verificationLevel: resolveVerificationLevelForProofEvent({
+      eventType: normalizeRequiredString(input.eventType),
+      actorRoleCode: input.actor.roleCode.trim(),
+      verificationLevel: normalizeOptionalString(input.verificationLevel),
+    }),
     status: /** @type {import("./proof-event.d.ts").ProofEventStatus} */ (
       normalizeRequiredString(input.status) || "RECORDED"
     ),
@@ -645,6 +668,119 @@ function validateActor(actor, issues) {
       `actor.roleCode must be one of: ${PHASE_1_ACTOR_ROLE_CODES.join(", ")}.`,
     );
   }
+}
+
+/**
+ * @param {{
+ *   eventType: string,
+ *   actorRoleCode: string,
+ *   verificationLevel: string | null,
+ * }} input
+ * @param {string[]} issues
+ * @returns {void}
+ */
+function validateVerificationLevelForProofEvent(input, issues) {
+  if (input.verificationLevel && !isVerificationLevel(input.verificationLevel)) {
+    issues.push(
+      `verificationLevel must be one of: ${VERIFICATION_LEVELS.join(", ")}.`,
+    );
+    return;
+  }
+
+  if (
+    input.verificationLevel &&
+    FUTURE_VERIFICATION_LEVELS.includes(
+      /** @type {import("./verification-level.d.ts").FutureVerificationLevel} */ (
+        input.verificationLevel
+      ),
+    )
+  ) {
+    issues.push(
+      `verificationLevel ${input.verificationLevel} is reserved for a future phase and is not active in Phase 1.`,
+    );
+    return;
+  }
+
+  if (!isProofEventType(input.eventType) || !isPhase1ActorRoleCode(input.actorRoleCode)) {
+    return;
+  }
+
+  const derivedVerificationLevel = deriveVerificationLevel({
+    eventType: input.eventType,
+    actorRoleCode: input.actorRoleCode,
+  });
+
+  if (!derivedVerificationLevel) {
+    issues.push("verificationLevel could not be derived from eventType and actor.roleCode.");
+    return;
+  }
+
+  if (
+    input.verificationLevel &&
+    isActivePhase1VerificationLevel(input.verificationLevel) &&
+    input.verificationLevel !== derivedVerificationLevel
+  ) {
+    issues.push(
+      `verificationLevel must be ${derivedVerificationLevel} for ${input.eventType} by ${input.actorRoleCode}.`,
+    );
+  }
+}
+
+/**
+ * @param {{
+ *   eventType: import("./proof-event.d.ts").ProofEventType | string,
+ *   actorRoleCode: import("./proof-event.d.ts").ProofEventActorRoleCode | string,
+ *   verificationLevel: string | null,
+ * }} input
+ * @returns {import("./verification-level.d.ts").ActivePhase1VerificationLevel}
+ */
+function resolveVerificationLevelForProofEvent(input) {
+  const derivedVerificationLevel = deriveVerificationLevel({
+    eventType: input.eventType,
+    actorRoleCode: input.actorRoleCode,
+  });
+
+  if (!derivedVerificationLevel) {
+    throw new ProofEventValidationError([
+      "verificationLevel could not be derived from eventType and actor.roleCode.",
+    ]);
+  }
+
+  if (
+    input.verificationLevel &&
+    input.verificationLevel !== derivedVerificationLevel
+  ) {
+    throw new ProofEventValidationError([
+      `verificationLevel must be ${derivedVerificationLevel} for ${input.eventType} by ${input.actorRoleCode}.`,
+    ]);
+  }
+
+  return derivedVerificationLevel;
+}
+
+/**
+ * @param {unknown} actor
+ * @returns {string}
+ */
+function actorRoleCodeFromInput(actor) {
+  if (!actor || typeof actor !== "object") {
+    return "";
+  }
+
+  return normalizeRequiredString(
+    /** @type {Partial<import("./proof-event.d.ts").ProofEventActorRef>} */ (actor)
+      .roleCode,
+  );
+}
+
+/**
+ * @param {string} value
+ * @returns {value is import("./proof-event.d.ts").ProofEventActorRoleCode}
+ */
+function isPhase1ActorRoleCode(value) {
+  return PHASE_1_ACTOR_ROLE_CODES.includes(
+    /** @type {import("./proof-event.d.ts").ProofEventActorRoleCode} */ (value),
+  );
 }
 
 /**

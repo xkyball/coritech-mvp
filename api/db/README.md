@@ -13,6 +13,7 @@ tickets.
 | `migrations/20260609_0104_shipment_tracking_event.sql` | 1.4 | Creates `shipments` and append-only shipment tracking events linked to confirmed semen orders. |
 | `migrations/20260609_0105_document_evidence_attachment.sql` | 1.5 | Creates document metadata, object-storage reference fields, mandatory access classification and proof-event evidence attachments. |
 | `migrations/20260609_0106_proof_event_v1.sql` | 1.6 | Creates append-only `proof_events`, proof-event enums, proof-event document/evidence foreign keys and delete protection. |
+| `migrations/20260609_0107_verification_level_taxonomy.sql` | 1.7 | Creates the verification-level enum, converts proof events from the placeholder value and blocks future reserved levels from Phase 1 assignment. |
 
 The Ticket 1.1 migration is PostgreSQL-oriented and uses CoriTech-owned records
 linked to managed authentication identities. It does not add custom
@@ -42,3 +43,9 @@ hooks can be forwarded to the future AuditLog table introduced by Ticket 1.8.
 
 Ticket 1.6 adds the durable `proof_events` table and foreign keys from
 `documents.proof_event_id` and `evidence_attachments.proof_event_id`.
+
+Ticket 1.7 formalizes `coritech_verification_level` with active Phase 1 levels
+`SELF_REPORTED`, `SYSTEM_RECORDED`, `STATION_CONFIRMED` and
+`ADMIN_REVIEWED`. `VET_SIGNED`, `FEDERATION_ATTESTED` and
+`VERIFIED_FOR_TRANSACTION` are reserved enum values only; the
+`proof_events` table constraint blocks assigning them in Phase 1.

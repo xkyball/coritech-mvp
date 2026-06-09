@@ -1,5 +1,28 @@
 import type { SemenOrderProofHook, SemenOrderStatus } from "../orders/semen-order.d.ts";
 import type { ShipmentProofHook, ShipmentStatus } from "../shipments/shipment.d.ts";
+import type {
+  ActivePhase1VerificationLevel,
+  VerificationLevel,
+} from "./verification-level.d.ts";
+
+export type {
+  ActivePhase1VerificationLevel,
+  FutureVerificationLevel,
+  VerificationLevel,
+  VerificationLevelBadgeTone,
+  VerificationLevelMetadata,
+} from "./verification-level.d.ts";
+
+export {
+  ACTIVE_PHASE_1_VERIFICATION_LEVELS,
+  FUTURE_VERIFICATION_LEVELS,
+  VERIFICATION_LEVEL_METADATA,
+  VERIFICATION_LEVELS,
+  deriveVerificationLevel,
+  isActivePhase1VerificationLevel,
+  isVerificationLevel,
+  verificationLevelMetadataFor,
+} from "./verification-level.d.ts";
 
 export type ProofEventType =
   | "SEMEN_ORDER_CREATED"
@@ -59,7 +82,7 @@ export interface ProofEvent {
   breederOrganizationId: string | null;
   breedingStationOrganizationId: string | null;
   lifecycleStage: ProofEventLifecycleStage;
-  verificationLevel: string;
+  verificationLevel: ActivePhase1VerificationLevel;
   status: ProofEventStatus;
   actorUserId: string;
   actorRoleCode: ProofEventActorRoleCode;
@@ -87,7 +110,7 @@ export interface CreateProofEventInput {
   breederOrganizationId?: string | null;
   breedingStationOrganizationId?: string | null;
   lifecycleStage: ProofEventLifecycleStage | string;
-  verificationLevel?: string | null;
+  verificationLevel?: VerificationLevel | string | null;
   status?: ProofEventStatus | string;
   actor: ProofEventActorRef;
   documentationRefs?: readonly unknown[];
@@ -103,7 +126,7 @@ export interface CreateProofEventInput {
 export interface CreateProofEventFromHookInput {
   proofHook: ProofEventRequestHook;
   proofEventId?: string | null;
-  verificationLevel?: string | null;
+  verificationLevel?: VerificationLevel | string | null;
   horseId?: string | null;
   auditLogId?: string | null;
   attestationRefs?: readonly unknown[];
@@ -136,7 +159,7 @@ export interface ProofEventCreationAuditHook {
     semenOrderId: string | null;
     shipmentId: string | null;
     horseId: string | null;
-    verificationLevel: string;
+    verificationLevel: ActivePhase1VerificationLevel;
     status: ProofEventStatus;
   };
   reason: null;
@@ -158,7 +181,6 @@ export interface PersistedProofEventChange {
 export declare const PROOF_EVENT_TYPES: readonly ProofEventType[];
 export declare const PROOF_EVENT_SOURCES: readonly ProofEventSource[];
 export declare const PROOF_EVENT_STATUSES: readonly ProofEventStatus[];
-export declare const DEFAULT_PROOF_EVENT_VERIFICATION_LEVEL: "WORKFLOW_RECORDED";
 export declare const PROOF_EVENT_DELETION_POLICY: Readonly<{
   supported: false;
   reason: string;

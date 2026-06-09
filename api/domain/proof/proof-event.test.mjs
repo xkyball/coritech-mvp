@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  DEFAULT_PROOF_EVENT_VERIFICATION_LEVEL,
   PROOF_EVENT_DELETION_POLICY,
   PROOF_EVENT_SOURCES,
   PROOF_EVENT_STATUSES,
@@ -84,7 +83,7 @@ const shipment = {
   updatedAt: timestamp,
 };
 
-test("proof event enums and deletion policy stay inside Ticket 1.6", () => {
+test("proof event enums and deletion policy stay inside Phase 1 scope", () => {
   assert.deepEqual(PROOF_EVENT_TYPES, [
     "SEMEN_ORDER_CREATED",
     "SUBMITTED",
@@ -104,7 +103,6 @@ test("proof event enums and deletion policy stay inside Ticket 1.6", () => {
     "ADMIN_CORRECTION",
   ]);
   assert.deepEqual(PROOF_EVENT_STATUSES, ["RECORDED", "VOIDED"]);
-  assert.equal(DEFAULT_PROOF_EVENT_VERIFICATION_LEVEL, "WORKFLOW_RECORDED");
   assert.equal(PROOF_EVENT_DELETION_POLICY.supported, false);
   assert.equal(canDeleteProofEvent(breederActor, /** @type {never} */ ({})), false);
 });
@@ -120,7 +118,6 @@ test("order action proof hook can be materialized into a proof event", () => {
   const prepared = prepareProofEventFromHook({
     proofHook: orderChange.proofHook,
     proofEventId: "proof-order-submitted",
-    verificationLevel: "WORKFLOW_RECORDED",
     createdAt: timestamp,
   });
 
@@ -139,7 +136,7 @@ test("order action proof hook can be materialized into a proof event", () => {
   assert.equal(prepared.proofEvent.actorRoleCode, "BREEDER");
   assert.equal(prepared.proofEvent.actorOrganizationId, breederOrganizationId);
   assert.equal(prepared.proofEvent.lifecycleStage, "ORDER_SUBMITTED");
-  assert.equal(prepared.proofEvent.verificationLevel, "WORKFLOW_RECORDED");
+  assert.equal(prepared.proofEvent.verificationLevel, "SELF_REPORTED");
   assert.equal(prepared.proofEvent.status, "RECORDED");
   assert.deepEqual(prepared.proofEvent.documentationRefs, []);
   assert.deepEqual(prepared.proofEvent.signatureRef, {
@@ -167,7 +164,6 @@ test("shipment action proof hook can be materialized into a proof event", () => 
   const prepared = prepareProofEventFromHook({
     proofHook: shipmentChange.proofHook,
     proofEventId: "proof-shipment-delivered",
-    verificationLevel: "WORKFLOW_RECORDED",
     createdAt: timestamp,
   });
 
@@ -176,6 +172,7 @@ test("shipment action proof hook can be materialized into a proof event", () => 
   assert.equal(prepared.proofEvent.semenOrderId, "order-1");
   assert.equal(prepared.proofEvent.shipmentId, "shipment-1");
   assert.equal(prepared.proofEvent.lifecycleStage, "SHIPMENT_CONFIRMED");
+  assert.equal(prepared.proofEvent.verificationLevel, "STATION_CONFIRMED");
   assert.equal(prepared.proofEvent.actorRoleCode, "BREEDING_STATION");
   assert.equal(prepared.proofEvent.actorOrganizationId, stationOrganizationId);
   assert.equal(prepared.proofEvent.triggerRef.toStatus, "DELIVERED");
@@ -269,7 +266,7 @@ test("direct proof event model supports later signatures and attestations", () =
     occurredAt: timestamp,
   });
 
-  assert.equal(prepared.proofEvent.verificationLevel, "WORKFLOW_RECORDED");
+  assert.equal(prepared.proofEvent.verificationLevel, "STATION_CONFIRMED");
   assert.deepEqual(prepared.proofEvent.attestationRefs, [
     {
       type: "FUTURE_ATTESTATION_SLOT",
@@ -277,6 +274,38 @@ test("direct proof event model supports later signatures and attestations", () =
   ]);
   assert.equal(Object.isFrozen(prepared.proofEvent.attestationRefs), true);
   assert.equal(prepared.auditHook.targetRef.proofEventType, "DOCUMENT_UPLOADED");
+});
+
+test("proof event creation rejects future verification levels in Phase 1", () => {
+  assert.throws(
+    () =>
+      prepareCreateProofEvent(
+        buildSubmittedOrderProofEventInput({
+          verificationLevel: "VET_SIGNED",
+        }),
+      ),
+    (error) =>
+      error instanceof ProofEventValidationError &&
+      error.issues.includes(
+        "verificationLevel VET_SIGNED is reserved for a future phase and is not active in Phase 1.",
+      ),
+  );
+});
+
+test("proof event creation rejects explicit levels that do not match derivation", () => {
+  assert.throws(
+    () =>
+      prepareCreateProofEvent(
+        buildSubmittedOrderProofEventInput({
+          verificationLevel: "ADMIN_REVIEWED",
+        }),
+      ),
+    (error) =>
+      error instanceof ProofEventValidationError &&
+      error.issues.includes(
+        "verificationLevel must be SELF_REPORTED for SUBMITTED by BREEDER.",
+      ),
+  );
 });
 
 test("createProofEventFromHook persists via an explicit proof service call", async () => {
@@ -294,9 +323,41 @@ test("createProofEventFromHook persists via an explicit proof service call", asy
   });
 
   assert.equal(persisted.proofEvent.id, "proof-event-1");
+  assert.equal(persisted.proofEvent.verificationLevel, "SELF_REPORTED");
   assert.equal(persisted.auditHook.targetId, "proof-event-1");
   assert.equal(persisted.auditHook.targetRef.semenOrderId, "order-1");
 });
+
+function buildSubmittedOrderProofEventInput(overrides = {}) {
+  return {
+    proofEventId: "proof-order-submitted",
+    eventType: "SUBMITTED",
+    source: "ORDER_STATUS_CHANGE",
+    triggerType: "SEMEN_ORDER_STATUS_CHANGE",
+    triggerRef: {
+      targetType: "SemenOrder",
+      targetId: "order-1",
+      toStatus: "SUBMITTED",
+    },
+    semenOrderId: "order-1",
+    orderNumber: "SO-20260609-000001",
+    breederOrganizationId,
+    breedingStationOrganizationId: stationOrganizationId,
+    lifecycleStage: "ORDER_SUBMITTED",
+    actor: {
+      userId: "user-breeder",
+      roleCode: "BREEDER",
+      organizationId: breederOrganizationId,
+    },
+    auditHookRef: {
+      eventType: "SEMEN_ORDER_STATUS_CHANGE",
+      action: "SEMEN_ORDER_SUBMITTED",
+      occurredAt: timestamp,
+    },
+    occurredAt: timestamp,
+    ...overrides,
+  };
+}
 
 function buildRepository() {
   let sequence = 1;

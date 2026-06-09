@@ -22,7 +22,7 @@ the remaining entities are still conceptual placeholders.
 | Document | Metadata and object-storage references for uploaded evidence documents | Implemented by Ticket 1.5; linked to order, shipment or proof event |
 | EvidenceAttachment | Relation between a document and a proof event | Implemented by Ticket 1.5; supports proof event documentation without creating proof events automatically |
 | ProofEvent | Workflow-generated proof record | Implemented by Ticket 1.6; links trigger, documentation, signature placeholder, verification level and audit-hook context |
-| VerificationLevel | Reviewable trust level applied to proof events | Used by proof event and reporting surfaces; formal taxonomy remains Ticket 1.7 |
+| VerificationLevel | Reviewable trust level applied to proof events | Implemented by Ticket 1.7; derived from proof event type and actor role |
 | AuditLog | Immutable operational audit entry | Links actor, action, target object and timestamp |
 | AccessPermission | Controlled document or workflow access grant | Links subject, resource and permission |
 | Amendment | Controlled correction record | Links original record, reason, approver and audit evidence |
@@ -217,9 +217,12 @@ generation from document uploads remains owned by Ticket 7.3.
 
 ## Implemented Proof Event Foundation
 
-Ticket 1.6 adds the durable ProofEvent record:
+Ticket 1.6 adds the durable ProofEvent record. Ticket 1.7 formalizes the
+verification-level taxonomy used by those records:
 
 `api/db/migrations/20260609_0106_proof_event_v1.sql`
+
+`api/db/migrations/20260609_0107_verification_level_taxonomy.sql`
 
 Implemented tables:
 
@@ -234,11 +237,23 @@ Implemented proof event values:
 | `coritech_proof_event_type` | `SEMEN_ORDER_CREATED`, `SUBMITTED`, `CONFIRMED`, `REJECTED`, `SHIPMENT_CREATED`, `SHIPMENT_STATUS_UPDATED`, `SHIPMENT_CONFIRMED`, `DOCUMENT_UPLOADED`, `ORDER_COMPLETED`, `ADMIN_CORRECTION_CREATED` |
 | `coritech_proof_event_source` | `ORDER_STATUS_CHANGE`, `SHIPMENT_TRACKING_EVENT`, `DOCUMENT_UPLOAD`, `ADMIN_CORRECTION` |
 | `coritech_proof_event_status` | `RECORDED`, `VOIDED` |
+| `coritech_verification_level` | Active in Phase 1: `SELF_REPORTED`, `SYSTEM_RECORDED`, `STATION_CONFIRMED`, `ADMIN_REVIEWED`; reserved for future phases: `VET_SIGNED`, `FEDERATION_ATTESTED`, `VERIFIED_FOR_TRANSACTION` |
 
 Proof events require actor user, role, organization, timestamp and a
-non-blank `verification_level`. Ticket 1.6 uses the starter
-`WORKFLOW_RECORDED` value when no verification level is supplied; Ticket 1.7
-owns the formal verification-level taxonomy and derivation rules.
+required `verification_level`. Ticket 1.7 derives the active Phase 1 level from
+proof event type and actor role. Future verification levels are present in the
+taxonomy for migration stability and UI readiness, but the Phase 1 database
+constraint and API validation block assigning them to proof events.
+
+Phase 1 derivation rules:
+
+| Actor role | Event types | Derived level |
+| --- | --- | --- |
+| `BREEDER` | `SEMEN_ORDER_CREATED`, `SUBMITTED`, `DOCUMENT_UPLOADED` | `SELF_REPORTED` |
+| `BREEDER` | Other Phase 1 proof event types | `SYSTEM_RECORDED` |
+| `BREEDING_STATION` | `CONFIRMED`, `REJECTED`, `SHIPMENT_CONFIRMED`, `DOCUMENT_UPLOADED` | `STATION_CONFIRMED` |
+| `BREEDING_STATION` | Other Phase 1 proof event types | `SYSTEM_RECORDED` |
+| `PLATFORM_ADMIN` | Any Phase 1 proof event type | `ADMIN_REVIEWED` |
 
 The ProofEvent API helper materializes proof events only through explicit
 service calls from existing workflow proof hooks. It does not automatically
