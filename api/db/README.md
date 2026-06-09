@@ -15,6 +15,7 @@ tickets.
 | `migrations/20260609_0106_proof_event_v1.sql` | 1.6 | Creates append-only `proof_events`, proof-event enums, proof-event document/evidence foreign keys and delete protection. |
 | `migrations/20260609_0107_verification_level_taxonomy.sql` | 1.7 | Creates the verification-level enum, converts proof events from the placeholder value and blocks future reserved levels from Phase 1 assignment. |
 | `migrations/20260609_0108_audit_log_v1.sql` | 1.8 | Creates append-only `audit_logs`, normalized audit actions, object-query indexes, proof-event audit-log foreign key and update/delete protection. |
+| `migrations/20260609_0109_amendment_v1.sql` | 1.9 | Creates admin-only `amendments` for selected proof-relevant records, preserving original/amended values, reason, status, audit-log link and optional proof-event link. |
 
 The Ticket 1.1 migration is PostgreSQL-oriented and uses CoriTech-owned records
 linked to managed authentication identities. It does not add custom
@@ -62,3 +63,16 @@ when the application edge provides them.
 `audit_logs` is append-only. The migration adds triggers that block updates and
 deletes; normal application flows must create later corrective evidence instead
 of editing prior audit rows.
+
+## Amendment Notes
+
+Ticket 1.9 stores controlled correction records in `amendments`. Each row
+captures the selected target type and ID, optional target field, original value,
+amended value, mandatory reason, platform-admin actor, status, optional
+platform-admin approver, audit-log link and optional proof-event link.
+
+The amendment table does not update the target record. Application flows must
+create amendment evidence and audit entries instead of silently overwriting
+proof-critical fields. The later admin workflow ticket may decide how approved
+amendments are presented or applied, but that automation is not part of Ticket
+1.9.

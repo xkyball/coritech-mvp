@@ -23,11 +23,17 @@ tickets.
   preparation service, explicit persistence helper, append-only deletion policy,
   proof-event creation audit hook and Ticket 1.7 verification-level taxonomy
   derivation.
+- `domain/audit/` contains the Ticket 1.8 append-only AuditLog model, audit
+  hook materialization helper, object query access checks and normalized action
+  list.
+- `domain/amendments/` contains the Ticket 1.9 Amendment model, admin-only
+  creation service, original/amended value preservation, audit hook and optional
+  admin-correction proof hook.
 
 No custom authentication, authorization middleware, payment handling, logistics
 provider adapter, object-storage provider integration, automatic proof-event
-generation, durable AuditLog persistence, AI behavior or blockchain logic is
-implemented here yet.
+generation, admin amendment UI/workflow automation, AI behavior or blockchain
+logic is implemented here yet.
 
 Future API code must be introduced by an approved Phase 1 ticket and must keep
 configuration, auditability and ownership boundaries explicit.

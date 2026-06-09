@@ -31,7 +31,7 @@ Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 | `signature_ref` | Managed-auth signature or future attestation reference | Placeholder implemented by Ticket 1.6 |
 | `attestation_refs` | Future attestation slots | Placeholder implemented by Ticket 1.6 |
 | `verification_level` | Required trust-strength level derived from event type and actor role | Implemented by Ticket 1.7 |
-| `audit_log_id` | Durable audit-log link | Reserved nullable field for Ticket 1.8 |
+| `audit_log_id` | Durable audit-log link | Implemented by Ticket 1.8 |
 | `audit_hook_ref` | Originating workflow audit hook reference | Implemented by Ticket 1.6 |
 | `status` | Proof event lifecycle status | Implemented by Ticket 1.6 as `RECORDED` or `VOIDED` |
 | `occurred_at` | Workflow event timestamp | Implemented by Ticket 1.6 |
@@ -106,12 +106,20 @@ delete-blocking trigger for `proof_events`, and the API helper exposes no normal
 delete path. Later corrections should be represented through approved
 amendment/admin-correction workflows rather than silent deletion.
 
+Ticket 1.9 adds the Amendment model and an explicit admin-correction proof
+hook. When an amendment carries order, shipment or horse context, the existing
+ProofEvent service can materialize that hook as an
+`ADMIN_CORRECTION_CREATED` proof event with `ADMIN_REVIEWED` verification. This
+is an explicit service call, not automatic amendment-to-proof generation.
+
 ## Automation Boundary
 
 Ticket 1.6 provides the ProofEvent model and an explicit hook-to-proof service.
-It does not automatically create proof events on every order, shipment or
-document action, prevent duplicates across those workflows, or persist full
-AuditLog entries. Those concerns remain in Tickets 7.1, 7.2, 7.3 and 1.8.
+Ticket 1.9 extends that explicit path for admin-correction amendment hooks. The
+service does not automatically create proof events on every order, shipment,
+document or amendment action, prevent duplicates across those workflows, or run
+full admin amendment workflow automation. Those concerns remain in Tickets 7.1,
+7.2, 7.3, 8.3 and adjacent workflow tickets.
 
 ## Delayed Technology Note
 

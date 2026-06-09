@@ -3,6 +3,7 @@ import type {
   AuditLogWriteRepository,
   AuditRequestContext,
 } from "../audit/audit-log.d.ts";
+import type { AmendmentProofHook } from "../amendments/amendment.d.ts";
 import type { SemenOrderProofHook, SemenOrderStatus } from "../orders/semen-order.d.ts";
 import type { ShipmentProofHook, ShipmentStatus } from "../shipments/shipment.d.ts";
 import type {
@@ -66,7 +67,10 @@ export type ProofEventLifecycleStage =
   | "DOCUMENTATION"
   | "ADMIN_CORRECTION";
 
-export type ProofEventRequestHook = SemenOrderProofHook | ShipmentProofHook;
+export type ProofEventRequestHook =
+  | SemenOrderProofHook
+  | ShipmentProofHook
+  | AmendmentProofHook;
 
 export interface ProofEventActorRef {
   userId: string;

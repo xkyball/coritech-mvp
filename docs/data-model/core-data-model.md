@@ -25,7 +25,7 @@ the remaining entities are still conceptual placeholders.
 | VerificationLevel | Reviewable trust level applied to proof events | Implemented by Ticket 1.7; derived from proof event type and actor role |
 | AuditLog | Immutable operational audit entry | Implemented by Ticket 1.8; links actor, role, organization, action, target object, request metadata and timestamp |
 | AccessPermission | Controlled document or workflow access grant | Links subject, resource and permission |
-| Amendment | Controlled correction record | Links original record, reason, approver and audit evidence |
+| Amendment | Controlled correction record | Implemented by Ticket 1.9; links target record, original/amended values, reason, actor, optional approver, audit evidence and optional proof evidence |
 | PaymentReference | Non-processing payment reference | Links order to external payment evidence when applicable |
 
 ## Implemented Identity Foundation
@@ -260,9 +260,10 @@ Phase 1 derivation rules:
 | `PLATFORM_ADMIN` | Any Phase 1 proof event type | `ADMIN_REVIEWED` |
 
 The ProofEvent API helper materializes proof events only through explicit
-service calls from existing workflow proof hooks. It does not automatically
-create proof events on every order, shipment or document action. Those
-automation rules remain in Tickets 7.1, 7.2 and 7.3.
+service calls from existing workflow proof hooks, including Ticket 1.9
+admin-correction amendment hooks. It does not automatically create proof events
+on every order, shipment, document or amendment action. Those automation rules
+remain in Tickets 7.1, 7.2, 7.3 and later admin workflow tickets.
 
 The table blocks direct deletes with a database trigger. Later corrections must
 use approved amendment/admin-correction workflows instead of silently deleting
@@ -303,6 +304,38 @@ unavailable in Phase 1.
 Audit logs are append-only from normal application flows. The domain module
 exposes no update/delete service, and the migration blocks database updates and
 deletes with triggers.
+
+## Implemented Amendment Foundation
+
+Ticket 1.9 adds the controlled Correction/Amendment record:
+
+`api/db/migrations/20260609_0109_amendment_v1.sql`
+
+Implemented tables:
+
+| Table | Purpose |
+| --- | --- |
+| `amendments` | Platform-admin-created correction evidence for selected proof-relevant records, preserving original value, amended value, mandatory reason, status, actor context, optional approver, audit-log link and optional proof-event link. |
+
+Implemented amendment values:
+
+| Enum | Values |
+| --- | --- |
+| `coritech_amendment_status` | `DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED` |
+| `coritech_amendment_target_type` | `SemenOrder`, `OrderStatusHistory`, `Shipment`, `ShipmentTrackingEvent`, `Document`, `EvidenceAttachment`, `ProofEvent` |
+
+The API amendment helper allows active `PLATFORM_ADMIN` users to create
+amendment records for selected proof-relevant targets. The helper stores the
+original value and amended value separately, requires a non-blank reason,
+creates an `AMENDMENT_CREATED` audit hook that materializes as a
+`CREATE_AMENDMENT` AuditLog entry, and can emit an explicit
+`ADMIN_CORRECTION` proof hook when the amendment carries order, shipment or
+horse context.
+
+Ticket 1.9 does not apply `amended_value` to the target record, expose a normal
+target-update path, build admin UI, or automate approval workflows. Later
+workflow tickets can decide how approved amendments are presented or applied,
+but no trust-critical field is silently overwritten by this model.
 
 ## Data Ownership Principle
 

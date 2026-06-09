@@ -416,7 +416,11 @@ function createProofEventInputFromHook(input) {
     return createShipmentProofEventInputFromHook(input);
   }
 
-  issues.push("proofHook.source must be ORDER_STATUS_CHANGE or SHIPMENT_TRACKING_EVENT for Ticket 1.6 hook generation.");
+  if (hook.source === "ADMIN_CORRECTION") {
+    return createAdminCorrectionProofEventInputFromHook(input);
+  }
+
+  issues.push("proofHook.source must be ORDER_STATUS_CHANGE, SHIPMENT_TRACKING_EVENT or ADMIN_CORRECTION for explicit Phase 1 hook generation.");
   throw new ProofEventValidationError(issues);
 }
 
@@ -488,6 +492,46 @@ function createShipmentProofEventInputFromHook(input) {
     breederOrganizationId: hook.triggerRef.breederOrganizationId,
     breedingStationOrganizationId: hook.triggerRef.breedingStationOrganizationId,
     lifecycleStage: lifecycleStageForProofEventType(eventType),
+    verificationLevel: input.verificationLevel,
+    actor: hook.actorRef,
+    documentationRefs: hook.documentationRefs,
+    signatureRef: hook.signatureRef,
+    attestationRefs: input.attestationRefs,
+    auditLogId: input.auditLogId,
+    auditHookRef: hook.auditHookRef,
+    occurredAt: hook.occurredAt,
+    createdAt: input.createdAt,
+    now: input.now,
+  };
+}
+
+/**
+ * @param {import("./proof-event.d.ts").CreateProofEventFromHookInput} input
+ * @returns {import("./proof-event.d.ts").CreateProofEventInput}
+ */
+function createAdminCorrectionProofEventInputFromHook(input) {
+  const hook = /** @type {import("../amendments/amendment.d.ts").AmendmentProofHook} */ (
+    input.proofHook
+  );
+
+  return {
+    proofEventId: input.proofEventId,
+    eventType: "ADMIN_CORRECTION_CREATED",
+    source: "ADMIN_CORRECTION",
+    triggerType: hook.triggerType,
+    triggerRef: hook.triggerRef,
+    semenOrderId: normalizeOptionalString(hook.triggerRef.semenOrderId),
+    shipmentId: normalizeOptionalString(hook.triggerRef.shipmentId),
+    horseId: normalizeOptionalString(hook.triggerRef.horseId) ??
+      normalizeOptionalString(input.horseId),
+    orderNumber: normalizeOptionalString(hook.triggerRef.orderNumber),
+    breederOrganizationId: normalizeOptionalString(
+      hook.triggerRef.breederOrganizationId,
+    ),
+    breedingStationOrganizationId: normalizeOptionalString(
+      hook.triggerRef.breedingStationOrganizationId,
+    ),
+    lifecycleStage: lifecycleStageForProofEventType("ADMIN_CORRECTION_CREATED"),
     verificationLevel: input.verificationLevel,
     actor: hook.actorRef,
     documentationRefs: hook.documentationRefs,
