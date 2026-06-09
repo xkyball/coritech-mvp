@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import "../features/breeder-dashboard/breeder-dashboard.css";
-import "../features/breeder-order-detail/breeder-order-detail.css";
-import "../features/catalog/semen-catalog.css";
-import "../features/order-creation/semen-order-creation.css";
+import "../components/ui/ui.css";
 
 export const metadata: Metadata = {
   title: "CoriTech MVP",

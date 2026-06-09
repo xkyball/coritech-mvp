@@ -1,3 +1,20 @@
+import {
+  Breadcrumbs,
+  Button,
+  ButtonLink,
+  Card,
+  DashboardShell,
+  ErrorState as UiErrorState,
+  Field,
+  Input,
+  LoadingState as UiLoadingState,
+  PageHeader,
+  SectionHeader,
+  Select,
+  StatusBadge,
+  Textarea,
+  formatStatusLabel,
+} from "../../components/ui";
 import type {
   SemenOrderCreationConfirmationViewModel,
   SemenOrderCreationErrorViewModel,
@@ -8,6 +25,12 @@ import type {
 } from "./semen-order-creation.d.ts";
 
 type FormAction = (formData: FormData) => void | Promise<void>;
+
+const breederNavigation = [
+  { href: "/breeder-dashboard", label: "My Orders" },
+  { href: "/app/catalog", label: "Browse Semen Listings" },
+  { href: "/app/orders/new", label: "Create Order" },
+] as const;
 
 export function SemenOrderCreation({
   createDraftAction,
@@ -51,132 +74,163 @@ function OrderCreationForm({
   const formDisabled = !viewModel.selectedListing;
 
   return (
-    <main className="semen-order-creation" data-organization-id={viewModel.organizationContext.organizationId}>
-      <header className="semen-order-creation__header">
-        <div>
-          <p className="semen-order-creation__eyebrow">Breeder order flow</p>
-          <h1>{viewModel.title}</h1>
-          <p>{viewModel.summary}</p>
-        </div>
-        <a href={viewModel.navigation.dashboardHref}>Dashboard</a>
-      </header>
+    <DashboardShell
+      activeHref="/app/orders/new"
+      navigation={breederNavigation}
+      organizationName={viewModel.organizationContext.organizationName}
+      roleLabel="Breeder"
+    >
+      <div className="ct-page-stack" data-organization-id={viewModel.organizationContext.organizationId}>
+        <PageHeader
+          actions={(
+            <ButtonLink href={viewModel.navigation.dashboardHref} variant="secondary">
+              Dashboard
+            </ButtonLink>
+          )}
+          breadcrumb={(
+            <Breadcrumbs
+              items={[
+                { href: viewModel.navigation.dashboardHref, label: "Breeder dashboard" },
+                { href: "/app/catalog", label: "Catalog" },
+                { label: "New order" },
+              ]}
+            />
+          )}
+          eyebrow="Breeder order flow"
+          subtitle={viewModel.summary}
+          title={viewModel.title}
+        />
 
-      <section className="semen-order-creation__section" aria-labelledby="order-listing-selector-heading">
-        <h2 id="order-listing-selector-heading">Listing</h2>
-        <form method="get" action={viewModel.navigation.newOrderHref}>
-          <label>
-            <span>Select listing</span>
-            <select name="semenListingId" defaultValue={viewModel.form.semenListingId}>
-              <option value="">Choose a listing</option>
-              {viewModel.selectableListings.map((listing) => (
-                <option key={listing.id} value={listing.id}>
-                  {listing.stallionName} - {listing.stationLabel}
-                </option>
+        <Card aria-labelledby="order-listing-selector-heading">
+          <SectionHeader id="order-listing-selector-heading" title="Listing" />
+          <form className="ct-form-grid" method="get" action={viewModel.navigation.newOrderHref}>
+            <Field htmlFor="order-semenListingId" label="Select listing">
+              <Select
+                id="order-semenListingId"
+                name="semenListingId"
+                defaultValue={viewModel.form.semenListingId}
+              >
+                <option value="">Choose a listing</option>
+                {viewModel.selectableListings.map((listing) => (
+                  <option key={listing.id} value={listing.id}>
+                    {listing.stallionName} - {listing.stationLabel}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <div className="ct-form-actions">
+              <Button type="submit">Review listing</Button>
+            </div>
+          </form>
+        </Card>
+
+        {viewModel.selectedListing ? <ListingReview listing={viewModel.selectedListing} /> : null}
+        {viewModel.validationIssues.length > 0 ? (
+          <section className="ct-alert" role="alert">
+            <h2>Check order details</h2>
+            <ul>
+              {viewModel.validationIssues.map((issue) => (
+                <li key={issue}>{issue}</li>
               ))}
-            </select>
-          </label>
-          <button type="submit">Review listing</button>
-        </form>
-      </section>
+            </ul>
+          </section>
+        ) : null}
 
-      {viewModel.selectedListing ? <ListingReview listing={viewModel.selectedListing} /> : null}
-      {viewModel.validationIssues.length > 0 ? (
-        <section className="semen-order-creation__alert" role="alert">
-          <h2>Check order details</h2>
-          <ul>
-            {viewModel.validationIssues.map((issue) => (
-              <li key={issue}>{issue}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <section className="semen-order-creation__section" aria-labelledby="order-details-heading">
-        <h2 id="order-details-heading">Delivery and shipping</h2>
-        <form method="post">
-          <input type="hidden" name="semenListingId" value={viewModel.form.semenListingId} />
-          <OrderInput
-            label="Requested delivery date"
-            name="requestedDeliveryDate"
-            required
-            type="date"
-            value={viewModel.form.requestedDeliveryDate}
+        <Card aria-labelledby="order-details-heading">
+          <SectionHeader
+            id="order-details-heading"
+            subtitle="Shipping details are recorded as part of the order proof trail."
+            title="Delivery and shipping"
           />
-          <OrderInput
-            label="Shipping contact"
-            name="shippingContactName"
-            required
-            value={viewModel.form.shippingContactName}
-          />
-          <OrderInput
-            label="Contact phone"
-            name="shippingContactPhone"
-            required
-            type="tel"
-            value={viewModel.form.shippingContactPhone}
-          />
-          <OrderInput
-            label="Address line 1"
-            name="shippingAddressLine1"
-            required
-            value={viewModel.form.shippingAddressLine1}
-          />
-          <OrderInput
-            label="Address line 2"
-            name="shippingAddressLine2"
-            value={viewModel.form.shippingAddressLine2}
-          />
-          <OrderInput
-            label="City"
-            name="shippingCity"
-            required
-            value={viewModel.form.shippingCity}
-          />
-          <OrderInput
-            label="Region"
-            name="shippingRegion"
-            value={viewModel.form.shippingRegion}
-          />
-          <OrderInput
-            label="Postal code"
-            name="shippingPostalCode"
-            required
-            value={viewModel.form.shippingPostalCode}
-          />
-          <OrderInput
-            label="Country"
-            name="shippingCountry"
-            required
-            value={viewModel.form.shippingCountry}
-          />
-          <label className="semen-order-creation__wide">
-            <span>Special instructions</span>
-            <textarea name="specialInstructions" defaultValue={viewModel.form.specialInstructions} />
-          </label>
-          <div className="semen-order-creation__actions">
-            <button
-              disabled={formDisabled}
-              formAction={createDraftAction}
-              formNoValidate
-              name="intent"
-              type="submit"
-              value="draft"
-            >
-              Save draft
-            </button>
-            <button
-              disabled={formDisabled}
-              formAction={submitOrderAction}
-              name="intent"
-              type="submit"
-              value="submit"
-            >
-              Submit order
-            </button>
-          </div>
-        </form>
-      </section>
-    </main>
+          <form className="ct-form-grid" method="post">
+            <input type="hidden" name="semenListingId" value={viewModel.form.semenListingId} />
+            <OrderInput
+              label="Requested delivery date"
+              name="requestedDeliveryDate"
+              required
+              type="date"
+              value={viewModel.form.requestedDeliveryDate}
+            />
+            <OrderInput
+              label="Shipping contact"
+              name="shippingContactName"
+              required
+              value={viewModel.form.shippingContactName}
+            />
+            <OrderInput
+              label="Contact phone"
+              name="shippingContactPhone"
+              required
+              type="tel"
+              value={viewModel.form.shippingContactPhone}
+            />
+            <OrderInput
+              label="Address line 1"
+              name="shippingAddressLine1"
+              required
+              value={viewModel.form.shippingAddressLine1}
+            />
+            <OrderInput
+              label="Address line 2"
+              name="shippingAddressLine2"
+              value={viewModel.form.shippingAddressLine2}
+            />
+            <OrderInput
+              label="City"
+              name="shippingCity"
+              required
+              value={viewModel.form.shippingCity}
+            />
+            <OrderInput
+              label="Region"
+              name="shippingRegion"
+              value={viewModel.form.shippingRegion}
+            />
+            <OrderInput
+              label="Postal code"
+              name="shippingPostalCode"
+              required
+              value={viewModel.form.shippingPostalCode}
+            />
+            <OrderInput
+              label="Country"
+              name="shippingCountry"
+              required
+              value={viewModel.form.shippingCountry}
+            />
+            <Field htmlFor="specialInstructions" label="Special instructions" className="ct-field--wide">
+              <Textarea
+                id="specialInstructions"
+                name="specialInstructions"
+                defaultValue={viewModel.form.specialInstructions}
+              />
+            </Field>
+            <div className="ct-form-actions">
+              <Button
+                disabled={formDisabled}
+                formAction={createDraftAction}
+                formNoValidate
+                name="intent"
+                type="submit"
+                value="draft"
+                variant="secondary"
+              >
+                Save draft
+              </Button>
+              <Button
+                disabled={formDisabled}
+                formAction={submitOrderAction}
+                name="intent"
+                type="submit"
+                value="submit"
+              >
+                Submit order
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </div>
+    </DashboardShell>
   );
 }
 
@@ -186,9 +240,13 @@ function ListingReview({
   listing: SemenOrderCreationListingOption;
 }>) {
   return (
-    <section className="semen-order-creation__section" aria-labelledby="order-listing-review-heading">
-      <h2 id="order-listing-review-heading">Review stallion and station</h2>
-      <dl className="semen-order-creation__details">
+    <Card aria-labelledby="order-listing-review-heading">
+      <SectionHeader
+        id="order-listing-review-heading"
+        title="Review stallion and station"
+        actions={<StatusBadge value={listing.availabilityStatus} />}
+      />
+      <dl className="ct-description-list ct-description-list--grid">
         <DetailTerm term="Stallion" value={listing.stallionName} />
         <DetailTerm term="Breed" value={listing.breed} />
         <DetailTerm term="Breeding station" value={listing.stationLabel} />
@@ -196,7 +254,7 @@ function ListingReview({
         <DetailTerm term="Terms" value={listing.termsSummary ?? "Not specified"} />
         <DetailTerm term="UELN" value={listing.ueln ?? "Not provided"} />
       </dl>
-    </section>
+    </Card>
   );
 }
 
@@ -206,24 +264,44 @@ function ConfirmationState({
   viewModel: SemenOrderCreationConfirmationViewModel;
 }>) {
   return (
-    <main className="semen-order-creation semen-order-creation--confirmation">
-      <section className="semen-order-creation__confirmation" aria-labelledby="order-confirmation-heading">
-        <h1 id="order-confirmation-heading">{viewModel.title}</h1>
-        <p>{viewModel.summary}</p>
-        <dl>
+    <DashboardShell
+      activeHref="/app/orders/new"
+      navigation={breederNavigation}
+      roleLabel="Breeder"
+    >
+      <div className="ct-page-stack">
+        <PageHeader
+          eyebrow="Order confirmation"
+          subtitle={viewModel.summary}
+          title={viewModel.title}
+        />
+        <Card aria-labelledby="order-confirmation-heading">
+          <SectionHeader
+            id="order-confirmation-heading"
+            title="Submitted order"
+            actions={<StatusBadge value={viewModel.order.status} />}
+          />
+          <dl className="ct-description-list ct-description-list--grid">
           <DetailTerm term="Order number" value={viewModel.order.orderNumber} />
           <DetailTerm term="Status" value={formatStatus(viewModel.order.status)} />
           <DetailTerm
             term="Requested delivery"
             value={viewModel.order.requestedDeliveryDate ?? "Not set"}
           />
-        </dl>
-        <div className="semen-order-creation__confirmation-actions">
-          <a href={viewModel.navigation.dashboardHref}>Dashboard</a>
-          {viewModel.order.detailHref ? <a href={viewModel.order.detailHref}>Order detail</a> : null}
-        </div>
-      </section>
-    </main>
+          </dl>
+          <div className="ct-form-actions">
+            <ButtonLink href={viewModel.navigation.dashboardHref} variant="secondary">
+              Dashboard
+            </ButtonLink>
+            {viewModel.order.detailHref ? (
+              <ButtonLink href={viewModel.order.detailHref} variant="primary">
+                Order detail
+              </ButtonLink>
+            ) : null}
+          </div>
+        </Card>
+      </div>
+    </DashboardShell>
   );
 }
 
@@ -233,10 +311,13 @@ function LoadingState({
   viewModel: SemenOrderCreationLoadingViewModel;
 }>) {
   return (
-    <section className="semen-order-creation semen-order-creation--loading" aria-busy="true">
-      <h1>{viewModel.title}</h1>
-      <p>{viewModel.message}</p>
-    </section>
+    <DashboardShell
+      activeHref="/app/orders/new"
+      navigation={breederNavigation}
+      roleLabel="Breeder"
+    >
+      <UiLoadingState message={viewModel.message} title={viewModel.title} />
+    </DashboardShell>
   );
 }
 
@@ -246,10 +327,13 @@ function ErrorState({
   viewModel: SemenOrderCreationErrorViewModel;
 }>) {
   return (
-    <section className="semen-order-creation semen-order-creation--error" role="alert">
-      <h1>{viewModel.title}</h1>
-      <p>{viewModel.message}</p>
-    </section>
+    <DashboardShell
+      activeHref="/app/orders/new"
+      navigation={breederNavigation}
+      roleLabel="Breeder"
+    >
+      <UiErrorState message={viewModel.message} title={viewModel.title} />
+    </DashboardShell>
   );
 }
 
@@ -266,11 +350,12 @@ function OrderInput({
   type?: string;
   value: string;
 }>) {
+  const id = `order-${name}`;
+
   return (
-    <label>
-      <span>{label}</span>
-      <input name={name} type={type} defaultValue={value} required={required} />
-    </label>
+    <Field htmlFor={id} label={label}>
+      <Input id={id} name={name} type={type} defaultValue={value} required={required} />
+    </Field>
   );
 }
 
@@ -290,5 +375,5 @@ function DetailTerm({
 }
 
 function formatStatus(value: string) {
-  return value.toLowerCase().replace(/_/g, " ");
+  return formatStatusLabel(value);
 }

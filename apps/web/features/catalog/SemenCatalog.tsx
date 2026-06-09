@@ -1,3 +1,20 @@
+import {
+  Breadcrumbs,
+  Button,
+  ButtonLink,
+  Card,
+  DashboardShell,
+  EmptyState,
+  ErrorState as UiErrorState,
+  Field,
+  Input,
+  LoadingState as UiLoadingState,
+  PageHeader,
+  SectionHeader,
+  Select,
+  StatusBadge,
+  formatStatusLabel,
+} from "../../components/ui";
 import type {
   SemenCatalogDetailViewModel,
   SemenCatalogErrorViewModel,
@@ -7,6 +24,12 @@ import type {
   SemenCatalogRenderableViewModel,
   SemenCatalogSelectOption,
 } from "./semen-catalog.d.ts";
+
+const breederNavigation = [
+  { href: "/breeder-dashboard", label: "My Orders" },
+  { href: "/app/catalog", label: "Browse Semen Listings" },
+  { href: "/app/orders/new", label: "Create Order" },
+] as const;
 
 export function SemenCatalog({
   viewModel,
@@ -34,73 +57,93 @@ function ListView({
   viewModel: SemenCatalogListViewModel;
 }>) {
   return (
-    <main
-      className={`semen-catalog${viewModel.isEmpty ? " is-empty" : ""}`}
-      data-actor-user-id={viewModel.actorUserId}
+    <DashboardShell
+      activeHref="/app/catalog"
+      navigation={breederNavigation}
+      roleLabel="Breeder"
     >
-      <CatalogHeader
-        actionHref={viewModel.navigation.dashboardHref}
-        actionLabel="Dashboard"
-        eyebrow="Breeder catalog"
-        summary={viewModel.summary}
-        title={viewModel.title}
-      />
-
-      <section className="semen-catalog__filters" aria-labelledby="catalog-filters-heading">
-        <h2 id="catalog-filters-heading">Search and filters</h2>
-        <form method="get" action={viewModel.navigation.catalogHref}>
-          <label>
-            <span>Stallion</span>
-            <input
-              name="stallion"
-              defaultValue={viewModel.filters.stallion ?? ""}
-              placeholder="Search by stallion name"
+      <div className="ct-page-stack" data-actor-user-id={viewModel.actorUserId}>
+        <PageHeader
+          actions={(
+            <ButtonLink href={viewModel.navigation.dashboardHref} variant="secondary">
+              Dashboard
+            </ButtonLink>
+          )}
+          breadcrumb={(
+            <Breadcrumbs
+              items={[
+                { href: viewModel.navigation.dashboardHref, label: "Breeder dashboard" },
+                { label: "Catalog" },
+              ]}
             />
-          </label>
-          <FilterSelect
-            emptyLabel="All breeds"
-            label="Breed"
-            name="breed"
-            options={viewModel.filterOptions.breeds}
-            value={viewModel.filters.breed}
-          />
-          <FilterSelect
-            emptyLabel="All stations"
-            label="Station"
-            name="station"
-            options={viewModel.filterOptions.stations}
-            value={viewModel.filters.station}
-          />
-          <FilterSelect
-            emptyLabel="All availability"
-            label="Availability"
-            name="availabilityStatus"
-            options={viewModel.filterOptions.availabilityStatuses}
-            value={viewModel.filters.availabilityStatus}
-          />
-          <div className="semen-catalog__filter-actions">
-            <button type="submit">Apply filters</button>
-            <a href={viewModel.navigation.catalogHref}>Clear</a>
-          </div>
-        </form>
-      </section>
+          )}
+          eyebrow="Breeder catalog"
+          subtitle={viewModel.summary}
+          title={viewModel.title}
+        />
 
-      <section className="semen-catalog__results" aria-labelledby="catalog-listings-heading">
-        <div className="semen-catalog__section-heading">
-          <h2 id="catalog-listings-heading">Active semen listings</h2>
-          <span>{viewModel.listings.length} shown</span>
-        </div>
-        {viewModel.listings.length === 0 ? (
-          <p className="semen-catalog__empty">No active semen listings match these filters.</p>
-        ) : (
-          <div className="semen-catalog__grid">
-            {viewModel.listings.map((listing) => (
-              <ListingCard key={listing.id ?? listing.stallionId} listing={listing} />
-            ))}
-          </div>
-        )}
-      </section>
-    </main>
+        <Card aria-labelledby="catalog-filters-heading">
+          <SectionHeader id="catalog-filters-heading" title="Search and filters" />
+          <form className="ct-form-grid ct-form-grid--filters" method="get" action={viewModel.navigation.catalogHref}>
+            <Field htmlFor="stallion" label="Stallion">
+              <Input
+                id="stallion"
+                name="stallion"
+                defaultValue={viewModel.filters.stallion ?? ""}
+                placeholder="Search by stallion name"
+              />
+            </Field>
+            <FilterSelect
+              emptyLabel="All breeds"
+              id="breed"
+              label="Breed"
+              name="breed"
+              options={viewModel.filterOptions.breeds}
+              value={viewModel.filters.breed}
+            />
+            <FilterSelect
+              emptyLabel="All stations"
+              id="station"
+              label="Station"
+              name="station"
+              options={viewModel.filterOptions.stations}
+              value={viewModel.filters.station}
+            />
+            <FilterSelect
+              emptyLabel="All availability"
+              id="availabilityStatus"
+              label="Availability"
+              name="availabilityStatus"
+              options={viewModel.filterOptions.availabilityStatuses}
+              value={viewModel.filters.availabilityStatus}
+            />
+            <div className="ct-form-actions">
+              <Button type="submit">Apply filters</Button>
+              <ButtonLink href={viewModel.navigation.catalogHref} variant="ghost">
+                Clear
+              </ButtonLink>
+            </div>
+          </form>
+        </Card>
+
+        <Card aria-labelledby="catalog-listings-heading">
+          <SectionHeader
+            count={`${viewModel.listings.length} shown`}
+            id="catalog-listings-heading"
+            title="Active semen listings"
+          />
+          {viewModel.listings.length === 0 ? (
+            <EmptyState message="No active semen listings match these filters." title="No listings found" />
+          ) : (
+            <div className="ct-card-grid">
+              {viewModel.listings.map((listing) => (
+                <ListingCard key={listing.id ?? listing.stallionId} listing={listing} />
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+    </DashboardShell>
   );
 }
 
@@ -112,44 +155,60 @@ function DetailView({
   const listing = viewModel.listing;
 
   return (
-    <main className="semen-catalog semen-catalog--detail" data-actor-user-id={viewModel.actorUserId}>
-      <CatalogHeader
-        actionHref={viewModel.navigation.catalogHref}
-        actionLabel="Back to catalog"
-        eyebrow="Listing detail"
-        summary={`${listing.breed} at ${listing.stationLabel}`}
-        title={listing.stallionName}
-      />
-
-      <section className="semen-catalog__detail-panel" aria-labelledby="listing-detail-heading">
-        <div className="semen-catalog__detail-heading">
-          <p>{formatStatus(listing.availabilityStatus)}</p>
-          <h2 id="listing-detail-heading">Listing details</h2>
-        </div>
-        <dl className="semen-catalog__details">
-          <DetailTerm term="Breeding station" value={listing.stationLabel} />
-          <DetailTerm term="Breed" value={listing.breed} />
-          <DetailTerm term="Availability" value={formatStatus(listing.availabilityStatus)} />
-          <DetailTerm term="Terms" value={listing.termsSummary ?? "Not specified"} />
-          <DetailTerm term="UELN" value={listing.ueln ?? "Not provided"} />
-          <DetailTerm term="Microchip" value={listing.microchipNumber ?? "Not provided"} />
-        </dl>
-        <div className="semen-catalog__detail-action">
-          {listing.canCreateOrder && listing.createOrderHref ? (
-            <a className="semen-catalog__button" href={listing.createOrderHref}>
-              {listing.orderActionLabel}
-            </a>
-          ) : (
-            <>
-              <button className="semen-catalog__button" type="button" disabled>
-                Unavailable
-              </button>
-              <p>Unavailable listings cannot be ordered.</p>
-            </>
+    <DashboardShell
+      activeHref="/app/catalog"
+      navigation={breederNavigation}
+      roleLabel="Breeder"
+    >
+      <div className="ct-page-stack" data-actor-user-id={viewModel.actorUserId}>
+        <PageHeader
+          actions={(
+            <ButtonLink href={viewModel.navigation.catalogHref} variant="secondary">
+              Back to catalog
+            </ButtonLink>
           )}
-        </div>
-      </section>
-    </main>
+          breadcrumb={(
+            <Breadcrumbs
+              items={[
+                { href: viewModel.navigation.dashboardHref, label: "Breeder dashboard" },
+                { href: viewModel.navigation.catalogHref, label: "Catalog" },
+                { label: listing.stallionName },
+              ]}
+            />
+          )}
+          eyebrow="Listing detail"
+          meta={<StatusBadge value={listing.availabilityStatus} />}
+          subtitle={`${listing.breed} at ${listing.stationLabel}`}
+          title={listing.stallionName}
+        />
+
+        <Card aria-labelledby="listing-detail-heading">
+          <SectionHeader id="listing-detail-heading" title="Listing details" />
+          <dl className="ct-description-list ct-description-list--grid">
+            <DetailTerm term="Breeding station" value={listing.stationLabel} />
+            <DetailTerm term="Breed" value={listing.breed} />
+            <DetailTerm term="Availability" value={formatStatus(listing.availabilityStatus)} />
+            <DetailTerm term="Terms" value={listing.termsSummary ?? "Not specified"} />
+            <DetailTerm term="UELN" value={listing.ueln ?? "Not provided"} />
+            <DetailTerm term="Microchip" value={listing.microchipNumber ?? "Not provided"} />
+          </dl>
+          <div className="ct-form-actions">
+            {listing.canCreateOrder && listing.createOrderHref ? (
+              <ButtonLink href={listing.createOrderHref} variant="primary">
+                {listing.orderActionLabel}
+              </ButtonLink>
+            ) : (
+              <>
+                <Button type="button" disabled>
+                  Unavailable
+                </Button>
+                <span>Unavailable listings cannot be ordered.</span>
+              </>
+            )}
+          </div>
+        </Card>
+      </div>
+    </DashboardShell>
   );
 }
 
@@ -159,8 +218,8 @@ function ListingCard({
   listing: SemenCatalogListingCard;
 }>) {
   return (
-    <article className="semen-catalog__listing">
-      <div className="semen-catalog__listing-heading">
+    <article className="ct-record-card">
+      <div className="ct-record-card__header">
         {listing.detailHref ? (
           <h3>
             <a href={listing.detailHref}>{listing.stallionName}</a>
@@ -168,81 +227,59 @@ function ListingCard({
         ) : (
           <h3>{listing.stallionName}</h3>
         )}
-        <span>{formatStatus(listing.availabilityStatus)}</span>
+        <StatusBadge value={listing.availabilityStatus} />
       </div>
-      <dl>
+      <dl className="ct-description-list">
         <DetailTerm term="Breed" value={listing.breed} />
         <DetailTerm term="Station" value={listing.stationLabel} />
         <DetailTerm term="Terms" value={listing.termsSummary ?? "Not specified"} />
       </dl>
-      <div className="semen-catalog__listing-actions">
-        {listing.detailHref ? <a href={listing.detailHref}>Details</a> : null}
+      <div className="ct-action-bar">
+        {listing.detailHref ? (
+          <ButtonLink href={listing.detailHref} variant="ghost">
+            Details
+          </ButtonLink>
+        ) : null}
         {listing.canCreateOrder && listing.createOrderHref ? (
-          <a className="semen-catalog__button" href={listing.createOrderHref}>
+          <ButtonLink href={listing.createOrderHref} variant="primary">
             {listing.orderActionLabel}
-          </a>
+          </ButtonLink>
         ) : (
-          <button className="semen-catalog__button" type="button" disabled>
+          <Button type="button" disabled>
             Unavailable
-          </button>
+          </Button>
         )}
       </div>
     </article>
   );
 }
 
-function CatalogHeader({
-  actionHref,
-  actionLabel,
-  eyebrow,
-  summary,
-  title,
-}: Readonly<{
-  actionHref: string;
-  actionLabel: string;
-  eyebrow: string;
-  summary: string;
-  title: string;
-}>) {
-  return (
-    <header className="semen-catalog__header">
-      <div>
-        <p className="semen-catalog__eyebrow">{eyebrow}</p>
-        <h1>{title}</h1>
-        <p>{summary}</p>
-      </div>
-      <a className="semen-catalog__secondary-link" href={actionHref}>
-        {actionLabel}
-      </a>
-    </header>
-  );
-}
-
 function FilterSelect({
   emptyLabel,
+  id,
   label,
   name,
   options,
   value,
 }: Readonly<{
   emptyLabel: string;
+  id: string;
   label: string;
   name: string;
   options: readonly SemenCatalogSelectOption[];
   value: string | null;
 }>) {
   return (
-    <label>
-      <span>{label}</span>
-      <select name={name} defaultValue={value ?? ""}>
+    <Field htmlFor={id} label={label}>
+      <Select id={id} name={name} defaultValue={value ?? ""}>
         <option value="">{emptyLabel}</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
-      </select>
-    </label>
+      </Select>
+    </Field>
   );
 }
 
@@ -267,15 +304,13 @@ function LoadingState({
   viewModel: SemenCatalogLoadingViewModel;
 }>) {
   return (
-    <section className="semen-catalog semen-catalog--loading" aria-busy="true">
-      <h1>{viewModel.title}</h1>
-      <p>{viewModel.message}</p>
-      <div className="semen-catalog__skeleton-grid" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
-    </section>
+    <DashboardShell
+      activeHref="/app/catalog"
+      navigation={breederNavigation}
+      roleLabel="Breeder"
+    >
+      <UiLoadingState message={viewModel.message} title={viewModel.title} />
+    </DashboardShell>
   );
 }
 
@@ -285,13 +320,16 @@ function ErrorState({
   viewModel: SemenCatalogErrorViewModel;
 }>) {
   return (
-    <section className="semen-catalog semen-catalog--error" role="alert">
-      <h1>{viewModel.title}</h1>
-      <p>{viewModel.message}</p>
-    </section>
+    <DashboardShell
+      activeHref="/app/catalog"
+      navigation={breederNavigation}
+      roleLabel="Breeder"
+    >
+      <UiErrorState message={viewModel.message} title={viewModel.title} />
+    </DashboardShell>
   );
 }
 
 function formatStatus(value: unknown) {
-  return String(value).toLowerCase().replace(/_/g, " ");
+  return formatStatusLabel(value);
 }

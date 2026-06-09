@@ -1,4 +1,18 @@
 import type { ReactNode } from "react";
+import {
+  Breadcrumbs,
+  ButtonLink,
+  Card,
+  DashboardShell,
+  EmptyState,
+  ErrorState as UiErrorState,
+  LoadingState as UiLoadingState,
+  PageHeader,
+  SectionHeader,
+  StatusBadge,
+  Table,
+  formatStatusLabel,
+} from "../../components/ui";
 import type {
   BreederOrderDetailErrorViewModel,
   BreederOrderDetailLoadingViewModel,
@@ -13,6 +27,12 @@ import type {
   BreederOrderStatusHistoryRow,
   BreederOrderSummaryItem,
 } from "./breeder-order-detail.d.ts";
+
+const breederNavigation = [
+  { href: "/breeder-dashboard", label: "My Orders" },
+  { href: "/app/catalog", label: "Browse Semen Listings" },
+  { href: "/app/orders/new", label: "Create Order" },
+] as const;
 
 export function BreederOrderDetail({
   viewModel,
@@ -38,30 +58,46 @@ function ReadyOrderDetail({
   const sections = viewModel.sections;
 
   return (
-    <main
-      className="breeder-order-detail"
-      data-organization-id={viewModel.organizationContext.organizationId}
+    <DashboardShell
+      activeHref="/breeder-dashboard"
+      navigation={breederNavigation}
+      organizationName={viewModel.organizationContext.organizationName}
+      roleLabel="Breeder"
     >
-      <header className="breeder-order-detail__header">
-        <div>
-          <p className="breeder-order-detail__eyebrow">Breeder order detail</p>
-          <h1>{viewModel.title}</h1>
-          <p>{viewModel.summary}</p>
-        </div>
-        <nav aria-label="Order detail actions">
-          <a href={viewModel.navigation.dashboardHref}>Dashboard</a>
-          <a href={viewModel.supportAction.href}>{viewModel.supportAction.label}</a>
-        </nav>
-      </header>
+      <div className="ct-page-stack" data-organization-id={viewModel.organizationContext.organizationId}>
+        <PageHeader
+          actions={(
+            <>
+              <ButtonLink href={viewModel.navigation.dashboardHref} variant="secondary">
+                Dashboard
+              </ButtonLink>
+              <ButtonLink href={viewModel.supportAction.href} variant="ghost">
+                {viewModel.supportAction.label}
+              </ButtonLink>
+            </>
+          )}
+          breadcrumb={(
+            <Breadcrumbs
+              items={[
+                { href: viewModel.navigation.dashboardHref, label: "Breeder dashboard" },
+                { label: viewModel.title },
+              ]}
+            />
+          )}
+          eyebrow="Breeder order detail"
+          subtitle={viewModel.summary}
+          title={viewModel.title}
+        />
 
-      <CurrentStatus viewModel={viewModel} />
-      <SummarySection section={sections.orderSummary} />
-      <StatusHistorySection section={sections.statusHistory} />
-      <ShipmentSection section={sections.shipments} />
-      <DocumentsSection section={sections.documents} />
-      <ProofEventsSection section={sections.proofEvents} />
-      <SupportSection supportAction={viewModel.supportAction} />
-    </main>
+        <CurrentStatus viewModel={viewModel} />
+        <SummarySection section={sections.orderSummary} />
+        <StatusHistorySection section={sections.statusHistory} />
+        <ShipmentSection section={sections.shipments} />
+        <DocumentsSection section={sections.documents} />
+        <ProofEventsSection section={sections.proofEvents} />
+        <SupportSection supportAction={viewModel.supportAction} />
+      </div>
+    </DashboardShell>
   );
 }
 
@@ -73,20 +109,25 @@ function CurrentStatus({
   const latest = viewModel.currentStatus.latestChange;
 
   return (
-    <section className="breeder-order-detail__section breeder-order-detail__current" aria-labelledby="current-status-heading">
-      <h2 id="current-status-heading">Current status</h2>
-      <div>
+    <Card aria-labelledby="current-status-heading">
+      <SectionHeader
+        actions={<StatusBadge value={viewModel.currentStatus.status} />}
+        id="current-status-heading"
+        title="Current status"
+      />
+      <div className="ct-data-panel">
+        <span>Status movement</span>
         <strong>{formatStatus(viewModel.currentStatus.status)}</strong>
         {latest ? (
           <p>
             Latest movement: {formatStatus(latest.toStatus)} at {latest.changedAt}
-            {latest.reason ? ` - ${latest.reason}` : null}
+            {latest.reason ? ` - ${latest.reason}` : ""}
           </p>
         ) : (
           <p>No status movement has been recorded yet.</p>
         )}
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -100,7 +141,7 @@ function SummarySection({
       {section.items.length === 0 ? (
         <EmptyMessage message={section.emptyMessage} />
       ) : (
-        <dl className="breeder-order-detail__summary-list">
+        <dl className="ct-description-list ct-description-list--grid">
           {section.items.map((item) => (
             <DetailTerm key={item.term} term={item.term} value={item.value} />
           ))}
@@ -120,7 +161,7 @@ function StatusHistorySection({
       {section.items.length === 0 ? (
         <EmptyMessage message={section.emptyMessage} />
       ) : (
-        <table>
+        <Table>
           <thead>
             <tr>
               <th>Changed at</th>
@@ -134,14 +175,14 @@ function StatusHistorySection({
             {section.items.map((history) => (
               <tr key={history.id ?? `${history.toStatus}-${history.changedAt}`}>
                 <td>{history.changedAt}</td>
-                <td>{history.fromStatus ? formatStatus(history.fromStatus) : "Start"}</td>
-                <td>{formatStatus(history.toStatus)}</td>
+                <td>{history.fromStatus ? <StatusBadge value={history.fromStatus} /> : "Start"}</td>
+                <td><StatusBadge value={history.toStatus} /></td>
                 <td>{formatStatus(history.actorRoleCode)}</td>
                 <td>{history.reason ?? "Not recorded"}</td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </DetailSection>
   );
@@ -157,7 +198,7 @@ function ShipmentSection({
       {section.items.length === 0 ? (
         <EmptyMessage message={section.emptyMessage} />
       ) : (
-        <table>
+        <Table>
           <thead>
             <tr>
               <th>Status</th>
@@ -170,7 +211,7 @@ function ShipmentSection({
           <tbody>
             {section.items.map((shipment) => (
               <tr key={shipment.id ?? shipment.orderNumber}>
-                <td>{formatStatus(shipment.status)}</td>
+                <td><StatusBadge value={shipment.status} /></td>
                 <td>{shipment.providerName ?? "Not recorded"}</td>
                 <td>
                   {shipment.trackingUrl ? (
@@ -188,7 +229,7 @@ function ShipmentSection({
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </DetailSection>
   );
@@ -204,7 +245,7 @@ function TrackingEvents({
   }
 
   return (
-    <ol className="breeder-order-detail__compact-list">
+    <ol className="ct-compact-list">
       {events.map((event) => (
         <li key={event.id ?? `${event.toStatus}-${event.occurredAt}`}>
           {formatStatus(event.toStatus)} at {event.occurredAt}
@@ -225,7 +266,7 @@ function DocumentsSection({
       {section.items.length === 0 ? (
         <EmptyMessage message={section.emptyMessage} />
       ) : (
-        <table>
+        <Table>
           <thead>
             <tr>
               <th>Document</th>
@@ -240,13 +281,21 @@ function DocumentsSection({
               <tr key={document.id ?? `${document.targetType}-${document.targetId}`}>
                 <td>{document.originalFileName}</td>
                 <td>{document.documentType}</td>
-                <td>{formatStatus(document.accessClassification)}</td>
+                <td><StatusBadge value={document.accessClassification} /></td>
                 <td>{document.createdAt}</td>
-                <td>{document.detailHref ? <a href={document.detailHref}>View</a> : "Unavailable"}</td>
+                <td>
+                  {document.detailHref ? (
+                    <ButtonLink href={document.detailHref} variant="ghost">
+                      View
+                    </ButtonLink>
+                  ) : (
+                    <StatusBadge value="unavailable" />
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </DetailSection>
   );
@@ -262,7 +311,7 @@ function ProofEventsSection({
       {section.items.length === 0 ? (
         <EmptyMessage message={section.emptyMessage} />
       ) : (
-        <table>
+        <Table>
           <thead>
             <tr>
               <th>Occurred</th>
@@ -278,12 +327,12 @@ function ProofEventsSection({
                 <td>{event.occurredAt}</td>
                 <td>{formatStatus(event.eventType)}</td>
                 <td>{formatStatus(event.source)}</td>
-                <td>{formatStatus(event.verificationLevel)}</td>
-                <td>{formatStatus(event.status)}</td>
+                <td><StatusBadge value={event.verificationLevel} /></td>
+                <td><StatusBadge value={event.status} /></td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </DetailSection>
   );
@@ -295,13 +344,16 @@ function SupportSection({
   supportAction: BreederOrderDetailSupportAction;
 }>) {
   return (
-    <section className="breeder-order-detail__section breeder-order-detail__support" aria-labelledby="support-action-heading">
-      <h2 id="support-action-heading">Support</h2>
-      <div>
+    <Card aria-labelledby="support-action-heading">
+      <SectionHeader id="support-action-heading" title="Support" />
+      <div className="ct-data-panel">
+        <span>Support reference</span>
         <p>Order {supportAction.orderNumber}</p>
-        <a href={supportAction.href}>{supportAction.label}</a>
+        <ButtonLink href={supportAction.href} variant="secondary">
+          {supportAction.label}
+        </ButtonLink>
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -315,10 +367,10 @@ function DetailSection({
   children: ReactNode;
 }>) {
   return (
-    <section className="breeder-order-detail__section" aria-labelledby={headingId}>
-      <h2 id={headingId}>{title}</h2>
+    <Card aria-labelledby={headingId}>
+      <SectionHeader id={headingId} title={title} />
       {children}
-    </section>
+    </Card>
   );
 }
 
@@ -328,10 +380,13 @@ function LoadingState({
   viewModel: BreederOrderDetailLoadingViewModel;
 }>) {
   return (
-    <section className="breeder-order-detail breeder-order-detail--loading" aria-busy="true">
-      <h1>{viewModel.title}</h1>
-      <p>{viewModel.message}</p>
-    </section>
+    <DashboardShell
+      activeHref="/breeder-dashboard"
+      navigation={breederNavigation}
+      roleLabel="Breeder"
+    >
+      <UiLoadingState message={viewModel.message} title={viewModel.title} />
+    </DashboardShell>
   );
 }
 
@@ -341,10 +396,13 @@ function ErrorState({
   viewModel: BreederOrderDetailErrorViewModel;
 }>) {
   return (
-    <section className="breeder-order-detail breeder-order-detail--error" role="alert">
-      <h1>{viewModel.title}</h1>
-      <p>{viewModel.message}</p>
-    </section>
+    <DashboardShell
+      activeHref="/breeder-dashboard"
+      navigation={breederNavigation}
+      roleLabel="Breeder"
+    >
+      <UiErrorState message={viewModel.message} title={viewModel.title} />
+    </DashboardShell>
   );
 }
 
@@ -364,9 +422,9 @@ function DetailTerm({
 }
 
 function EmptyMessage({ message }: Readonly<{ message: string }>) {
-  return <p className="breeder-order-detail__empty">{message}</p>;
+  return <EmptyState message={message} title="No records found" />;
 }
 
 function formatStatus(value: unknown) {
-  return String(value).toLowerCase().replace(/_/g, " ");
+  return formatStatusLabel(value);
 }

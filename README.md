@@ -161,6 +161,33 @@ npm run docker:down
 npm run docker:reset
 ```
 
+## UI Foundation
+
+All future UI work must use the CoriTech design system and shared components.
+
+Visual principles:
+- calm
+- precise
+- premium
+- role-aware
+- trust-focused
+- operational
+- due-diligence ready
+
+Avoid:
+- decorative horse imagery
+- marketplace-first styling
+- random colors
+- one-off components
+- generic admin-template pages
+
+When implementing UI:
+1. Check existing shared components first.
+2. Reuse the dashboard shell.
+3. Use semantic theme tokens.
+4. Preserve accessibility.
+5. Do not create preview/demo routes unless explicitly requested.
+
 ## Phase 1 Includes
 
 - Organization-scoped roles for Breeder, Breeding Station and Platform Admin.

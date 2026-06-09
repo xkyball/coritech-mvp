@@ -1,3 +1,9 @@
+import {
+  Badge,
+  ButtonLink,
+  MetricCard,
+} from "../components/ui";
+
 const proofSteps = [
   "Trigger",
   "Documentation",
@@ -27,26 +33,33 @@ const foundation = [
 
 export default function Home() {
   return (
-    <main className="status-shell">
-      <section className="status-hero" aria-labelledby="page-title">
-        <div className="status-hero__copy">
-          <p className="eyebrow">CoriTech MVP</p>
+    <main className="ct-home">
+      <section className="ct-home__hero" aria-labelledby="page-title">
+        <div>
+          <p className="ct-eyebrow">CoriTech MVP</p>
           <h1 id="page-title">Phase 1: Semen Ordering, Tracking &amp; Documentation</h1>
-          <p className="lede">Proof Chain-ready foundation for verified horse passport and equine data workflows.</p>
+          <p>Proof Chain-ready foundation for verified horse passport and equine data workflows.</p>
+          <div className="ct-page-header__meta">
+            <Badge tone="info">Operational MVP</Badge>
+            <Badge tone="accent">Due diligence ready</Badge>
+          </div>
         </div>
-        <div className="stack-panel" aria-label="Standard development stack">
+        <div className="ct-home__stack" aria-label="Standard development stack">
           {foundation.map((item) => (
-            <span key={item}>{item}</span>
+            <MetricCard key={item} label="Foundation" value={item} />
           ))}
+          <ButtonLink href="/breeder-dashboard" variant="primary">
+            Open breeder workspace
+          </ButtonLink>
         </div>
       </section>
 
-      <section className="proof-band" aria-labelledby="proof-title">
+      <section className="ct-home__band ct-home__band--proof" aria-labelledby="proof-title">
         <div>
-          <p className="eyebrow">Core Proof Logic</p>
+          <p className="ct-eyebrow">Core Proof Logic</p>
           <h2 id="proof-title">Trigger -&gt; Documentation -&gt; Signature -&gt; Verification Level -&gt; Audit Trail</h2>
         </div>
-        <ol className="proof-chain">
+        <ol className="ct-home__list">
           {proofSteps.map((step, index) => (
             <li key={step}>
               <span>{String(index + 1).padStart(2, "0")}</span>
@@ -56,12 +69,12 @@ export default function Home() {
         </ol>
       </section>
 
-      <section className="workflow-band" aria-labelledby="workflow-title">
-        <div className="section-heading">
-          <p className="eyebrow">Phase 1 Workflow</p>
+      <section className="ct-home__band" aria-labelledby="workflow-title">
+        <div>
+          <p className="ct-eyebrow">Phase 1 Workflow</p>
           <h2 id="workflow-title">Operational wedge for breeders and breeding stations</h2>
         </div>
-        <ol className="workflow-list">
+        <ol className="ct-home__workflow">
           {phaseOneFlow.map((item) => (
             <li key={item}>{item}</li>
           ))}
