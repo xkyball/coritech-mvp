@@ -18,7 +18,7 @@ Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 | `id` | Unique proof event identifier | `[PENDING_DATA_MODEL]` |
 | `trigger_type` | Workflow action that created the proof event | `[PENDING_TICKET_01_06]` |
 | `trigger_ref` | Linked order, shipment, document or amendment record | `[PENDING_TICKET_01_06]` |
-| `documentation_refs` | Evidence documents supporting the event | `[PENDING_TICKET_01_05]` |
+| `documentation_refs` | Evidence documents supporting the event | Implemented as Ticket 1.5 `evidence_attachments`; durable proof event table remains `[PENDING_TICKET_01_06]` |
 | `actor_ref` | User or organization responsible for the trigger | `[PENDING_TICKET_01_01]` |
 | `signature_ref` | Confirmation, attestation or managed identity evidence | `[PENDING_ARCHITECTURE_DECISION]` |
 | `verification_level` | Simple reviewable proof level | `[PENDING_TICKET_01_07]` |
@@ -33,6 +33,13 @@ Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 | Shipment action | Shipment created, dispatched or delivered |
 | Document upload | Required evidence document attached to order or shipment |
 | Admin amendment | Corrected record with reason and approver |
+
+## Documentation Attachment Foundation
+
+Ticket 1.5 introduces `documents` and `evidence_attachments` so a proof event
+can be supported by one or more evidence documents once Ticket 1.6 adds durable
+proof-event persistence. A document upload does not automatically create a proof
+event or assign a high verification level in Ticket 1.5.
 
 ## Verification Level Placeholder
 

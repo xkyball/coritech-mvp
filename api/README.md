@@ -16,10 +16,13 @@ tickets.
 - `domain/shipments/` contains the Ticket 1.4 shipment and normalized tracking
   event model, endpoint contracts, validation, station-scoped write checks and
   audit/proof hooks.
+- `domain/documents/` contains the Ticket 1.5 document metadata and evidence
+  attachment model, endpoint contracts, object-storage reference validation,
+  classification-aware access checks and upload/view audit hooks.
 
 No custom authentication, authorization middleware, payment handling, logistics
-provider adapter, durable proof-event generation, AI behavior or blockchain
-logic is implemented here yet.
+provider adapter, object-storage provider integration, durable proof-event
+generation, AI behavior or blockchain logic is implemented here yet.
 
 Future API code must be introduced by an approved Phase 1 ticket and must keep
 configuration, auditability and ownership boundaries explicit.

@@ -19,7 +19,8 @@ the remaining entities are still conceptual placeholders.
 | OrderStatusHistory | Ordered record of order state changes | Implemented by Ticket 1.3; linked to semen order and actor context |
 | Shipment | Delivery record for semen order fulfillment | Implemented by Ticket 1.4; linked to confirmed semen order and tracking events |
 | ShipmentTrackingEvent | Milestone, carrier update or manual tracking note | Implemented by Ticket 1.4; linked to shipment, actor context and normalized source |
-| EvidenceDocument | Metadata for uploaded proof documents | Linked to order, shipment or proof event |
+| Document | Metadata and object-storage references for uploaded evidence documents | Implemented by Ticket 1.5; linked to order, shipment or proof event |
+| EvidenceAttachment | Relation between a document and a proof event | Implemented by Ticket 1.5; supports proof event documentation without creating proof events automatically |
 | ProofEvent | Workflow-generated proof record | Links trigger, documentation, signature, verification level and audit trail |
 | VerificationLevel | Reviewable trust level applied to proof events | Used by proof event and reporting surfaces |
 | AuditLog | Immutable operational audit entry | Links actor, action, target object and timestamp |
@@ -173,6 +174,43 @@ The model stores optional `provider_name`, `provider_tracking_id`,
 logistics provider updates can be normalized into the same tracking timeline.
 Ticket 1.4 does not implement a logistics provider adapter or provider
 automation; that remains owned by Ticket 5.2.
+
+## Implemented Document Evidence Foundation
+
+Ticket 1.5 adds document metadata and proof-event evidence attachment records:
+
+`api/db/migrations/20260609_0105_document_evidence_attachment.sql`
+
+Implemented tables:
+
+| Table | Purpose |
+| --- | --- |
+| `documents` | Metadata, file details and object-storage references for evidence documents linked to a semen order, shipment or proof event. |
+| `evidence_attachments` | Relation attaching documents to proof events for documentation support. |
+
+Implemented document access classifications:
+
+| Classification | Phase 1 meaning |
+| --- | --- |
+| `INTERNAL` | Visible to the assigned breeding station and platform admin. |
+| `ORDER_PARTICIPANTS` | Visible to breeder, assigned breeding station and platform admin for the linked order context. |
+| `RESTRICTED` | Visible to the uploader organization and platform admin. |
+| `BUYER_VIEW_ELIGIBLE` | Eligibility marker for later controlled buyer workflows; does not grant buyer access in Phase 1. |
+| `ADMIN_ONLY` | Visible to platform admin only. |
+
+Documents store `original_file_name`, `content_type`, `file_size_bytes`,
+optional SHA-256 checksum and object-storage reference fields
+(`storage_provider`, `storage_bucket`, `storage_object_key`, optional region
+and version). Raw file bytes, local filesystem paths and public unrestricted
+links are intentionally not part of the model.
+
+The API document helper exposes framework-neutral endpoint contracts for
+creating metadata records, viewing documents, listing documents by order or
+shipment, and attaching documents to proof events. Uploads and views emit
+`DOCUMENT_ACCESS` audit hooks. Evidence attachment creation also emits an audit
+hook. Durable AuditLog persistence remains owned by Ticket 1.8, object-storage
+provider integration remains owned by Ticket 6.1, and automatic proof-event
+generation from document uploads remains owned by Ticket 7.3.
 
 ## Data Ownership Principle
 

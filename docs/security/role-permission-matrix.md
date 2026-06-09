@@ -50,3 +50,16 @@ access. This is not yet the full RBAC middleware layer.
 - No public unrestricted document links.
 - No vendor-owned production-critical access dependency.
 - Every elevated permission requires a documented owner and review path.
+
+## Document Access Classifications
+
+Ticket 1.5 introduces mandatory document access classifications used by the
+document metadata helper:
+
+| Classification | Phase 1 access boundary |
+| --- | --- |
+| `INTERNAL` | Assigned breeding station and platform admin. |
+| `ORDER_PARTICIPANTS` | Breeder, assigned breeding station and platform admin for the linked order context. |
+| `RESTRICTED` | Uploader organization and platform admin. |
+| `BUYER_VIEW_ELIGIBLE` | Future eligibility marker only; it does not grant buyer access in Phase 1. |
+| `ADMIN_ONLY` | Platform admin only. |
