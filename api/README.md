@@ -1,13 +1,16 @@
-# CoriTech API Placeholder
+# CoriTech API
 
-This directory is reserved for the future CoriTech application API.
+This directory contains API-side contracts introduced by approved Phase 1
+tickets.
 
-No database models, authentication, authorization middleware, order logic,
-payment handling, logistics integration, proof-event generation, AI behavior, or
-blockchain logic is implemented by the repository setup ticket.
+- `config/` contains the Ticket 0.3 environment contract and validation helper.
+- `db/` contains approved database migrations.
+- `domain/identity/` contains the Ticket 1.1 user, organization and role model
+  helper plus TypeScript declarations.
+
+No custom authentication, authorization middleware, order logic, payment
+handling, logistics integration, proof-event generation, AI behavior or
+blockchain logic is implemented here yet.
 
 Future API code must be introduced by an approved Phase 1 ticket and must keep
-configuration, auditability, and ownership boundaries explicit.
-
-Environment variable structure and fail-fast validation for future API startup
-now live in `api/config/` as part of Ticket 0.3.
+configuration, auditability and ownership boundaries explicit.

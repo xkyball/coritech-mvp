@@ -2,23 +2,30 @@
 
 ## Purpose
 
-This starter matrix defines expected Phase 1 access boundaries. It is
-conceptual only and will be finalized by the role and permission tickets.
+This starter matrix defines expected Phase 1 access boundaries. Ticket 1.1 now
+implements the foundational role codes; permission enforcement remains owned by
+later authorization tickets.
 
 ## Starter Roles
 
-| Role | Intended user | Notes |
+| Role code | Intended user | Notes |
 | --- | --- | --- |
-| CoriTech Admin | CoriTech operations or authorized reviewer | Highest operational oversight |
-| Breeder | Buyer or breeder organization user | Access to own orders and permitted documents |
-| Breeding Station Admin | Semen provider organization user | Manages station listings, orders and fulfillment |
-| Logistics Contributor | Internal or external shipment updater | Limited shipment event access |
-| Evidence Reviewer | Authorized reviewer or verifier | Limited review access where approved |
-| Investor/Diligence Viewer | Read-only due-diligence user | Only if explicitly provisioned |
+| `PLATFORM_ADMIN` | CoriTech operations or authorized reviewer | Highest operational oversight; can assign Phase 1 roles |
+| `BREEDER` | Breeder organization user | Access to own orders and permitted documents once RBAC is implemented |
+| `BREEDING_STATION` | Semen provider organization user | Manages station listings, orders and fulfillment once RBAC is implemented |
+
+Prepared future role codes `VET`, `FEDERATION`, `SALES_VENUE`, `BUYER` and
+`TECH_SUPPORT` are reserved by the data model but are not assignable or
+permissioned in Phase 1.
 
 ## Starter Permission Matrix
 
-| Capability | CoriTech Admin | Breeder | Breeding Station Admin | Logistics Contributor | Evidence Reviewer | Diligence Viewer |
+This matrix remains conceptual until the RBAC ticket is implemented. Only
+`PLATFORM_ADMIN`, `BREEDER` and `BREEDING_STATION` are implemented role codes
+in Ticket 1.1; the other columns remain pending access categories, not assigned
+roles.
+
+| Capability | `PLATFORM_ADMIN` | `BREEDER` | `BREEDING_STATION` | Logistics Contributor `[PENDING]` | Evidence Reviewer `[PENDING]` | Diligence Viewer `[PENDING]` |
 | --- | --- | --- | --- | --- | --- | --- |
 | Manage users and organizations | Yes | No | Own organization only | No | No | No |
 | Manage semen listings | Review/override | No | Own listings | No | No | Read-only if approved |
