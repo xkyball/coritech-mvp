@@ -15,8 +15,8 @@ the remaining entities are still conceptual placeholders.
 | Role | Permission group scoped to organization context | Implemented by Ticket 1.1; grants Phase 1 role context |
 | Stallion | Horse record used for semen listing context | Implemented by Ticket 1.2; owned by a breeding station |
 | SemenListing | Offer record for available semen | Implemented by Ticket 1.2; linked to stallion and breeding station |
-| SemenOrder | Operational order between breeder and breeding station | Links breeder, station, listing, shipment and evidence |
-| OrderStatusHistory | Ordered record of order state changes | Linked to semen order and actor |
+| SemenOrder | Operational order between breeder and breeding station | Implemented by Ticket 1.3; links breeder, station and listing |
+| OrderStatusHistory | Ordered record of order state changes | Implemented by Ticket 1.3; linked to semen order and actor context |
 | Shipment | Delivery record for semen order fulfillment | Linked to order and tracking events |
 | ShipmentTrackingEvent | Milestone, carrier update or manual tracking note | Linked to shipment and actor/source |
 | EvidenceDocument | Metadata for uploaded proof documents | Linked to order, shipment or proof event |
@@ -84,8 +84,53 @@ Listing writes emit a `SEMEN_LISTING_CHANGE` audit hook. This is not the full
 AuditLog implementation; Ticket 1.8 owns durable audit-log persistence.
 
 Inactive listings, and listings marked unavailable, are rejected by the catalog
-orderability helper. The full semen-order creation flow remains owned by a
-later ticket.
+orderability helper. Ticket 1.3 consumes that helper when preparing draft semen
+orders.
+
+## Implemented Order Workflow Foundation
+
+Ticket 1.3 adds the central semen-order transaction model:
+
+`api/db/migrations/20260609_0103_semen_order_status_history.sql`
+
+Implemented tables:
+
+| Table | Purpose |
+| --- | --- |
+| `semen_orders` | Breeder-to-breeding-station order records linked to a semen listing, with unique human-readable order numbers. |
+| `order_status_history` | Append-only status transition records with actor user, role, organization, timestamp and reason. |
+
+Implemented order status values:
+
+| Enum | Values |
+| --- | --- |
+| `coritech_semen_order_status` | `DRAFT`, `SUBMITTED`, `RECEIVED`, `CONFIRMED`, `REJECTED`, `IN_FULFILMENT`, `SHIPPED`, `DELIVERED`, `COMPLETED`, `CANCELLED` |
+
+Allowed transitions are intentionally finite:
+
+| From | To |
+| --- | --- |
+| `DRAFT` | `SUBMITTED`, `CANCELLED` |
+| `SUBMITTED` | `RECEIVED`, `CANCELLED` |
+| `RECEIVED` | `CONFIRMED`, `REJECTED`, `CANCELLED` |
+| `CONFIRMED` | `IN_FULFILMENT`, `CANCELLED` |
+| `IN_FULFILMENT` | `SHIPPED`, `CANCELLED` |
+| `SHIPPED` | `DELIVERED` |
+| `DELIVERED` | `COMPLETED` |
+
+`REJECTED`, `COMPLETED` and `CANCELLED` are terminal statuses.
+
+The API order helper exposes framework-neutral endpoint contracts for creating
+draft orders, changing status, viewing an order and viewing status history.
+Breeder access is scoped to the breeder organization on the order. Breeding
+station access is scoped to the station assigned through the listing.
+Platform-admin access is retained for support and oversight. Future buyer
+access remains unavailable in Phase 1.
+
+Every prepared order status change emits a `SEMEN_ORDER_STATUS_CHANGE` audit
+hook and a `PROOF_EVENT_REQUEST` hook. These hooks are integration points only;
+durable AuditLog and ProofEvent persistence remain owned by Tickets 1.8 and
+1.6 respectively.
 
 ## Data Ownership Principle
 

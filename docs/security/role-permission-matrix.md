@@ -25,6 +25,12 @@ This matrix remains conceptual until the RBAC ticket is implemented. Only
 in Ticket 1.1; the other columns remain pending access categories, not assigned
 roles.
 
+Ticket 1.3 implements the first order-workflow permission checks inside the
+framework-neutral semen order domain helper: breeders can create and submit
+orders for their breeder organization, assigned breeding stations can progress
+station-owned order statuses, and platform admins retain support/oversight
+access. This is not yet the full RBAC middleware layer.
+
 | Capability | `PLATFORM_ADMIN` | `BREEDER` | `BREEDING_STATION` | Logistics Contributor `[PENDING]` | Evidence Reviewer `[PENDING]` | Diligence Viewer `[PENDING]` |
 | --- | --- | --- | --- | --- | --- | --- |
 | Manage users and organizations | Yes | No | Own organization only | No | No | No |
