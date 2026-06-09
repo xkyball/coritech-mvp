@@ -5,6 +5,9 @@ tickets.
 
 - `config/` contains the Ticket 0.3 environment contract and validation helper.
 - `db/` contains approved database migrations.
+- `domain/catalog/` contains the Ticket 1.2 stallion and semen listing model,
+  endpoint contracts, validation, ownership checks, search helpers and listing
+  audit hook.
 - `domain/identity/` contains the Ticket 1.1 user, organization and role model
   helper plus TypeScript declarations.
 

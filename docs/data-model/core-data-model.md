@@ -13,8 +13,8 @@ the remaining entities are still conceptual placeholders.
 | User | Authenticated person using CoriTech | Implemented by Ticket 1.1; belongs to one or more organizations through roles |
 | Organization | Breeder, breeding station or CoriTech platform entity | Implemented by Ticket 1.1; owns users and later workflow records |
 | Role | Permission group scoped to organization context | Implemented by Ticket 1.1; grants Phase 1 role context |
-| Stallion | Horse record used for semen listing context | Owned or managed by a breeding station |
-| SemenListing | Offer record for available semen | Linked to stallion and breeding station |
+| Stallion | Horse record used for semen listing context | Implemented by Ticket 1.2; owned by a breeding station |
+| SemenListing | Offer record for available semen | Implemented by Ticket 1.2; linked to stallion and breeding station |
 | SemenOrder | Operational order between breeder and breeding station | Links breeder, station, listing, shipment and evidence |
 | OrderStatusHistory | Ordered record of order state changes | Linked to semen order and actor |
 | Shipment | Delivery record for semen order fulfillment | Linked to order and tracking events |
@@ -53,6 +53,39 @@ Role assignment changes are not a full audit-log implementation. The
 `user_organization_roles` table stores assignment and revocation actors, and
 the API identity helper emits a `ROLE_ASSIGNMENT` audit hook for Ticket 1.8 to
 connect to the future `AuditLog` table.
+
+## Implemented Catalog Foundation
+
+Ticket 1.2 adds the station-owned semen catalog model:
+
+`api/db/migrations/20260609_0102_stallion_semen_listing_model.sql`
+
+Implemented tables:
+
+| Table | Purpose |
+| --- | --- |
+| `stallions` | Breeding-station-owned horse records with name, breed, optional UELN/chip identifiers and active/inactive status. |
+| `semen_listings` | Semen listing records linked to a stallion and breeding station with listing and availability status. |
+
+Implemented catalog status values:
+
+| Enum | Values |
+| --- | --- |
+| `coritech_stallion_status` | `ACTIVE`, `INACTIVE` |
+| `coritech_semen_availability_status` | `AVAILABLE`, `LIMITED`, `UNAVAILABLE` |
+| `coritech_semen_listing_status` | `ACTIVE`, `INACTIVE` |
+
+The API catalog helper exposes framework-neutral CRUD/search endpoint contracts
+for stallions and semen listings. Listing management is limited to the owning
+breeding station or platform admin. Breeder access is limited to active semen
+listings; future buyer access remains unavailable in Phase 1.
+
+Listing writes emit a `SEMEN_LISTING_CHANGE` audit hook. This is not the full
+AuditLog implementation; Ticket 1.8 owns durable audit-log persistence.
+
+Inactive listings, and listings marked unavailable, are rejected by the catalog
+orderability helper. The full semen-order creation flow remains owned by a
+later ticket.
 
 ## Data Ownership Principle
 
