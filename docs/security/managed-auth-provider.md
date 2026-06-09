@@ -88,4 +88,6 @@ backup admin and evidence location.
 - Provider-specific token exchange and management API calls are represented as
   framework-neutral contracts; the concrete HTTP adapter belongs with the API
   runtime wiring.
-- RBAC enforcement is owned by Ticket 2.2 and is not implemented here.
+- Ticket 2.2 RBAC enforcement is implemented as a framework-neutral middleware
+  helper. The concrete HTTP adapter still needs to wire managed-auth sessions
+  into that middleware at runtime.

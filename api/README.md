@@ -31,13 +31,13 @@ tickets.
   admin-correction proof hook.
 - `domain/auth/` contains the Ticket 2.1 managed authentication provider
   contract, hosted sign-up/login/logout redirects, provider-managed password
-  reset and email verification request contracts, internal User mapping and
-  session-context helper.
+  reset and email verification request contracts, internal User mapping,
+  session-context helper and the Ticket 2.2 framework-neutral RBAC middleware.
 
-No custom password handling, authorization middleware, payment handling,
-logistics provider adapter, object-storage provider integration, automatic
-proof-event generation, admin amendment UI/workflow automation, AI behavior or
-blockchain logic is implemented here yet.
+No custom password handling, payment handling, logistics provider adapter,
+object-storage provider integration, automatic proof-event generation, admin
+amendment UI/workflow automation, AI behavior, blockchain logic or future
+AccessPermission grant model is implemented here yet.
 
 Future API code must be introduced by an approved Phase 1 ticket and must keep
 configuration, auditability and ownership boundaries explicit.

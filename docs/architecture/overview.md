@@ -25,7 +25,7 @@ Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 | Proof layer | Workflow-generated proof events, verification level v1 and audit trail | Core models implemented by Tickets 1.6, 1.7 and 1.8 |
 | Data layer | Core operational records and document metadata | `[PENDING_IMPLEMENTATION]` |
 | Document storage | Controlled upload, storage and viewing of evidence files | `[PENDING_VENDOR_SELECTION]` |
-| Identity and access | Managed authentication, organization roles and permissions | Managed auth contract and role model implemented by Tickets 2.1 and 1.1; RBAC middleware remains pending Ticket 2.2 |
+| Identity and access | Managed authentication, organization roles and permissions | Managed auth contract and role model implemented by Tickets 2.1 and 1.1; Ticket 2.2 implements framework-neutral RBAC middleware for Phase 1 route checks |
 | Integrations | Email, logistics adapter placeholder, payment reference placeholder and future external system register | `[PENDING_VENDOR_SELECTION]` |
 | Deployment | Local, staging and production environments under CoriTech control | `[PENDING_ENVIRONMENT_SETUP]` |
 

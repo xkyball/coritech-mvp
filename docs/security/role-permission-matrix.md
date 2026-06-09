@@ -2,9 +2,10 @@
 
 ## Purpose
 
-This starter matrix defines expected Phase 1 access boundaries. Ticket 1.1 now
-implements the foundational role codes; permission enforcement remains owned by
-later authorization tickets.
+This matrix defines implemented Phase 1 RBAC boundaries for the operational
+semen-ordering wedge. Ticket 1.1 implements the foundational role codes and
+Ticket 2.2 adds framework-neutral API middleware for route-level permission
+checks.
 
 ## Starter Roles
 
@@ -20,16 +21,22 @@ permissioned in Phase 1.
 
 ## Starter Permission Matrix
 
-This matrix remains conceptual until the RBAC ticket is implemented. Only
-`PLATFORM_ADMIN`, `BREEDER` and `BREEDING_STATION` are implemented role codes
-in Ticket 1.1; the other columns remain pending access categories, not assigned
-roles.
+`PLATFORM_ADMIN`, `BREEDER` and `BREEDING_STATION` are the only permissioned
+Phase 1 role codes. Other columns remain pending access categories, not
+assigned roles.
 
 Ticket 1.3 implements the first order-workflow permission checks inside the
 framework-neutral semen order domain helper: breeders can create and submit
 orders for their breeder organization, assigned breeding stations can progress
 station-owned order statuses, and platform admins retain support/oversight
-access. This is not yet the full RBAC middleware layer.
+access.
+
+Ticket 2.2 adds `api/domain/auth/rbac-middleware.mjs`, which wraps endpoint
+handlers with role, organization and object-level checks before the domain
+handler runs. Denied access returns a normalized `403` response and writes a
+normalized RBAC access-decision event when a route repository exposes
+`recordRbacAccessDecision`. Denied decisions are logged; successful
+`PLATFORM_ADMIN` access is logged by default.
 
 | Capability | `PLATFORM_ADMIN` | `BREEDER` | `BREEDING_STATION` | Logistics Contributor `[PENDING]` | Evidence Reviewer `[PENDING]` | Diligence Viewer `[PENDING]` |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -50,6 +57,8 @@ access. This is not yet the full RBAC middleware layer.
 - No public unrestricted document links.
 - No vendor-owned production-critical access dependency.
 - Every elevated permission requires a documented owner and review path.
+- The Ticket 2.3 `AccessPermission` grant model is not implemented by the RBAC
+  middleware; object access remains role, organization and order scoped.
 
 ## Document Access Classifications
 

@@ -35,6 +35,12 @@ Managed authentication provider configuration, password-handling boundaries,
 admin MFA evidence and account-ownership requirements are documented in
 `docs/security/managed-auth-provider.md`.
 
+Ticket 2.2 RBAC middleware enforces Phase 1 role, organization and object
+boundaries before protected endpoint handlers run. Denied access returns `403`
+and is logged through normalized RBAC access-decision events when the route
+repository exposes `recordRbacAccessDecision`; successful `PLATFORM_ADMIN`
+access is logged by default.
+
 ## GDPR and Privacy Placeholders
 
 | Topic | Placeholder |
