@@ -36,6 +36,8 @@ CoriTech should own or control:
 - Admin and backup admin list for production-critical accounts.
 - Export or transfer process for each production-critical vendor.
 - Data processing agreements where personal data is handled.
+- Account ownership checklist evidence in
+  `docs/vendor-ip/account-ownership-checklist.md`.
 
 ## Explicit Rejection
 
