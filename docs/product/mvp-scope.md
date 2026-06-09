@@ -16,7 +16,7 @@ documentation that generate trustworthy evidence.
 | Proof events | Generate audit-ready proof from workflow actions | `[PENDING_IMPLEMENTATION]` |
 | Verification level v1 | Assign simple reviewable verification levels to proof events | `[PENDING_IMPLEMENTATION]` |
 | Audit trail | Preserve who did what, when and why | `[PENDING_IMPLEMENTATION]` |
-| Managed access | Use managed auth and role-based permissions | `[PENDING_VENDOR_SELECTION]` |
+| Managed access | Use managed auth and role-based permissions | Managed auth contract implemented by Ticket 2.1; RBAC middleware pending Ticket 2.2 |
 
 ## Core Proof Narrative
 

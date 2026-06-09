@@ -10,7 +10,7 @@ status for Phase 1.
 | System | Phase 1 use | Data exchanged | Account ownership | Status |
 | --- | --- | --- | --- | --- |
 | Source-control platform | Repository, review and ownership evidence | Code and documentation | CoriTech-controlled required | `[PENDING_CONFIRMATION]` |
-| Managed auth provider | User authentication and identity evidence | Account data, auth events | CoriTech-controlled required | `[PENDING_VENDOR_SELECTION]` |
+| Managed auth provider | User authentication and identity evidence through Ticket 2.1 hosted auth contract | Account data, auth events | CoriTech-controlled required | Contract implemented; provider selection and tenant evidence pending |
 | Database provider | Operational and proof records | Core data model records | CoriTech-controlled required | `[PENDING_VENDOR_SELECTION]` |
 | Object storage provider | Evidence documents | Uploaded documents and metadata | CoriTech-controlled required | `[PENDING_VENDOR_SELECTION]` |
 | Email provider | Notifications | Email address, template context, delivery metadata | CoriTech-controlled required | `[PENDING_VENDOR_SELECTION]` |

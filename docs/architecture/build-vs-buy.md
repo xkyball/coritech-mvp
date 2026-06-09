@@ -14,7 +14,7 @@ reduces delivery risk, security risk and investor diligence friction.
 | Proof event model | Build | CoriTech-specific trust layer and audit narrative | Implemented by Ticket 1.6 |
 | Verification level v1 | Build | Requires CoriTech domain rules and reviewer clarity | Implemented by Ticket 1.7 |
 | Audit trail | Build | Core diligence evidence and operational control | Implemented by Ticket 1.8 |
-| Authentication | Buy/manage | Managed auth reduces security and compliance risk | `[PENDING_VENDOR_SELECTION]` |
+| Authentication | Buy/manage | Managed auth reduces security and compliance risk | OIDC-compatible contract implemented by Ticket 2.1; provider selection and tenant evidence pending |
 | Object storage | Buy/manage | Evidence files require durable controlled storage | `[PENDING_VENDOR_SELECTION]` |
 | Email delivery | Buy/manage | Commodity notification infrastructure | `[PENDING_VENDOR_SELECTION]` |
 | Hosting/database | Buy/manage | Commodity infrastructure with clear CoriTech account ownership | `[PENDING_VENDOR_SELECTION]` |

@@ -25,7 +25,7 @@ Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 | Proof layer | Workflow-generated proof events, verification level v1 and audit trail | Core models implemented by Tickets 1.6, 1.7 and 1.8 |
 | Data layer | Core operational records and document metadata | `[PENDING_IMPLEMENTATION]` |
 | Document storage | Controlled upload, storage and viewing of evidence files | `[PENDING_VENDOR_SELECTION]` |
-| Identity and access | Managed authentication, organization roles and permissions | `[PENDING_VENDOR_SELECTION]` |
+| Identity and access | Managed authentication, organization roles and permissions | Managed auth contract and role model implemented by Tickets 2.1 and 1.1; RBAC middleware remains pending Ticket 2.2 |
 | Integrations | Email, logistics adapter placeholder, payment reference placeholder and future external system register | `[PENDING_VENDOR_SELECTION]` |
 | Deployment | Local, staging and production environments under CoriTech control | `[PENDING_ENVIRONMENT_SETUP]` |
 
@@ -49,8 +49,8 @@ Delayed items:
 
 | Question | Current answer |
 | --- | --- |
-| Who owns production accounts? | `[PENDING_CONFIRMATION]` |
-| Which managed auth provider is selected? | `[PENDING_VENDOR_SELECTION]` |
+| Who owns production accounts? | Production-critical accounts, including managed auth, must be CoriTech-controlled before production use. Evidence remains tracked in the account ownership checklist. |
+| Which managed auth provider is selected? | OIDC-compatible managed auth contract implemented by Ticket 2.1; concrete provider selection and tenant evidence remain pending. |
 | Which object storage provider is selected? | `[PENDING_VENDOR_SELECTION]` |
 | Which hosting and database providers are selected? | `[PENDING_VENDOR_SELECTION]` |
 | Where is audit evidence retained? | Ticket 1.8 stores append-only audit evidence in the CoriTech PostgreSQL `audit_logs` table with object-query indexes. |

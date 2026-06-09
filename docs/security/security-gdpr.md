@@ -18,6 +18,8 @@ due diligence. It is not legal advice.
 ## Security Principles
 
 - Use managed authentication where available.
+- Enforce provider-managed MFA for `PLATFORM_ADMIN` accounts in staging and
+  production.
 - Enforce least-privilege role access.
 - Prevent public unrestricted document links.
 - Store secrets outside version control.
@@ -28,6 +30,10 @@ due diligence. It is not legal advice.
 - Keep audit logs append-only; corrections must create later evidence instead
   of editing prior audit entries.
 - Prefer provider controls with exportable audit evidence.
+
+Managed authentication provider configuration, password-handling boundaries,
+admin MFA evidence and account-ownership requirements are documented in
+`docs/security/managed-auth-provider.md`.
 
 ## GDPR and Privacy Placeholders
 

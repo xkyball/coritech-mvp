@@ -16,10 +16,14 @@ tickets.
 | `migrations/20260609_0107_verification_level_taxonomy.sql` | 1.7 | Creates the verification-level enum, converts proof events from the placeholder value and blocks future reserved levels from Phase 1 assignment. |
 | `migrations/20260609_0108_audit_log_v1.sql` | 1.8 | Creates append-only `audit_logs`, normalized audit actions, object-query indexes, proof-event audit-log foreign key and update/delete protection. |
 | `migrations/20260609_0109_amendment_v1.sql` | 1.9 | Creates admin-only `amendments` for selected proof-relevant records, preserving original/amended values, reason, status, audit-log link and optional proof-event link. |
+| `migrations/20260609_0201_managed_auth_provider.sql` | 2.1 | Updates database comments for provider-managed authentication and internal user identity mapping. |
 
 The Ticket 1.1 migration is PostgreSQL-oriented and uses CoriTech-owned records
 linked to managed authentication identities. It does not add custom
 authentication, RBAC middleware or admin screens.
+
+Ticket 2.1 updates the database comments only. It does not add password fields
+or provider-specific credential storage.
 
 Role assignment writes must call the identity role-model helper so the
 `ROLE_ASSIGNMENT` audit hook can be forwarded to the Ticket 1.8 AuditLog service

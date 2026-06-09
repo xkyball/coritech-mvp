@@ -29,11 +29,15 @@ tickets.
 - `domain/amendments/` contains the Ticket 1.9 Amendment model, admin-only
   creation service, original/amended value preservation, audit hook and optional
   admin-correction proof hook.
+- `domain/auth/` contains the Ticket 2.1 managed authentication provider
+  contract, hosted sign-up/login/logout redirects, provider-managed password
+  reset and email verification request contracts, internal User mapping and
+  session-context helper.
 
-No custom authentication, authorization middleware, payment handling, logistics
-provider adapter, object-storage provider integration, automatic proof-event
-generation, admin amendment UI/workflow automation, AI behavior or blockchain
-logic is implemented here yet.
+No custom password handling, authorization middleware, payment handling,
+logistics provider adapter, object-storage provider integration, automatic
+proof-event generation, admin amendment UI/workflow automation, AI behavior or
+blockchain logic is implemented here yet.
 
 Future API code must be introduced by an approved Phase 1 ticket and must keep
 configuration, auditability and ownership boundaries explicit.

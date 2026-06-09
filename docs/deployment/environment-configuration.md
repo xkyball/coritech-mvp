@@ -36,7 +36,7 @@ ignored by git and must stay outside version control.
 
 | Environment | Purpose | Secret source | Placeholder policy |
 | --- | --- | --- | --- |
-| Local | Developer build and test work | Local machine env file only | Placeholder provider credentials are allowed until later provider tickets land |
+| Local | Developer build and test work | Local machine env file only | Placeholder provider credentials are allowed until hosted auth testing is enabled |
 | Staging | Internal review, integration testing and demos | CoriTech-controlled deployment secrets or future vault | No placeholders allowed |
 | Production | Live operational workflow | CoriTech-controlled deployment secrets or future vault | No placeholders allowed |
 
@@ -45,9 +45,9 @@ ignored by git and must stay outside version control.
 | Variable | Purpose | Notes |
 | --- | --- | --- |
 | `DATABASE_URL` | Primary relational database connection | Use local-only database values in development; staging/production values stay outside git |
-| `AUTH_PROVIDER_CLIENT_ID` | Managed auth application client ID | Placeholder only until Ticket 2.1 |
+| `AUTH_PROVIDER_CLIENT_ID` | Managed auth application client ID | Required before auth routes are enabled |
 | `AUTH_PROVIDER_CLIENT_SECRET` | Managed auth application secret | Must never appear in docs or commits |
-| `AUTH_PROVIDER_DOMAIN` | Managed auth issuer or tenant domain | Keep provider-neutral until selection |
+| `AUTH_PROVIDER_DOMAIN` | Managed auth issuer or tenant domain | Must point to the CoriTech-controlled provider tenant |
 | `EMAIL_PROVIDER_API_KEY` | Outbound email provider API key | Placeholder only until Ticket 9.1 |
 | `OBJECT_STORAGE_BUCKET` | Controlled document storage bucket/container name | Bucket name may change after vendor selection |
 | `OBJECT_STORAGE_ACCESS_KEY` | Object storage access key | Secret-managed outside local examples |
@@ -82,8 +82,9 @@ It validates that:
 - staging and production values are not placeholder strings;
 - staging and production base URLs do not point to `localhost`.
 
-This gives future runtime tickets a fail-fast config gate without selecting any
-real provider yet.
+The Ticket 2.1 managed auth contract adds a second guard that prevents hosted
+auth routes from being enabled with placeholder provider values, including in
+local development.
 
 ## Secrets Vault Placeholder
 

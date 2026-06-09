@@ -18,9 +18,11 @@ Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 - `infra/` - Placeholder for future infrastructure configuration.
 - `docs/` - Ticket backlog, ownership records, and due-diligence materials.
 
-Each area currently contains documentation only. Authentication, data models,
-user interfaces, payments, logistics adapters, AI, blockchain, and marketplace
-logic are intentionally not implemented as part of repository setup.
+Implementation is introduced only through approved tickets. Managed
+authentication contracts, core data models and proof/audit helpers now live
+under `api/`; user interfaces, payments, logistics adapters, AI, blockchain and
+marketplace logic remain outside the implemented scope unless a later ticket
+explicitly approves them.
 
 ## Start Here
 
