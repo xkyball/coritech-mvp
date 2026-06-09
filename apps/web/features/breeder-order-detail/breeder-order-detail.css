@@ -1,0 +1,241 @@
+.breeder-order-detail {
+  background: #f8f7f4;
+  color: #1d1f24;
+  display: grid;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  gap: 18px;
+  line-height: 1.45;
+  margin: 0;
+  min-height: 100%;
+  padding: 24px;
+}
+
+.breeder-order-detail__header {
+  align-items: end;
+  border-bottom: 1px solid #d8d4ca;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding-bottom: 16px;
+}
+
+.breeder-order-detail__header h1 {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.breeder-order-detail__header p {
+  color: #59636f;
+  margin: 6px 0 0;
+}
+
+.breeder-order-detail__eyebrow {
+  color: #59636f;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.breeder-order-detail__header nav,
+.breeder-order-detail__support div {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.breeder-order-detail a {
+  color: #005f73;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.breeder-order-detail__header a,
+.breeder-order-detail__support a {
+  border: 1px solid #005f73;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.breeder-order-detail__section {
+  background: #ffffff;
+  border: 1px solid #dedad1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.breeder-order-detail__section h2 {
+  border-bottom: 1px solid #ece8df;
+  color: #252a30;
+  font-size: 17px;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 0;
+  padding: 14px 16px;
+}
+
+.breeder-order-detail__current div,
+.breeder-order-detail__support div {
+  padding: 16px;
+}
+
+.breeder-order-detail__current strong {
+  color: #496b3a;
+  display: block;
+  font-size: 24px;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+.breeder-order-detail__current p,
+.breeder-order-detail__support p,
+.breeder-order-detail__empty {
+  color: #59636f;
+  margin: 0;
+}
+
+.breeder-order-detail__current p {
+  margin-top: 6px;
+}
+
+.breeder-order-detail__summary-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.breeder-order-detail__summary-list div {
+  border-bottom: 1px solid #ece8df;
+  display: grid;
+  gap: 4px;
+  min-height: 74px;
+  padding: 12px 16px;
+}
+
+.breeder-order-detail__summary-list div:nth-child(odd) {
+  border-right: 1px solid #ece8df;
+}
+
+.breeder-order-detail__summary-list dt,
+.breeder-order-detail th {
+  color: #59636f;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.breeder-order-detail__summary-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.breeder-order-detail table {
+  border-collapse: collapse;
+  font-size: 14px;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.breeder-order-detail th,
+.breeder-order-detail td {
+  border-bottom: 1px solid #ece8df;
+  overflow-wrap: anywhere;
+  padding: 12px 16px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.breeder-order-detail tr:last-child td {
+  border-bottom: 0;
+}
+
+.breeder-order-detail__compact-list {
+  display: grid;
+  gap: 6px;
+  list-style-position: inside;
+  margin: 0;
+  padding: 0;
+}
+
+.breeder-order-detail__compact-list span {
+  color: #59636f;
+  display: block;
+  margin-left: 18px;
+}
+
+.breeder-order-detail__empty {
+  padding: 16px;
+}
+
+.breeder-order-detail--loading,
+.breeder-order-detail--error {
+  align-content: center;
+  justify-items: start;
+  min-height: 280px;
+}
+
+.breeder-order-detail--error {
+  background: #fff8f5;
+  border: 1px solid #d79b82;
+}
+
+@media (max-width: 760px) {
+  .breeder-order-detail {
+    padding: 16px;
+  }
+
+  .breeder-order-detail__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .breeder-order-detail__header nav {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .breeder-order-detail__header a {
+    text-align: center;
+  }
+
+  .breeder-order-detail__summary-list {
+    grid-template-columns: 1fr;
+  }
+
+  .breeder-order-detail__summary-list div:nth-child(odd) {
+    border-right: 0;
+  }
+
+  .breeder-order-detail table,
+  .breeder-order-detail thead,
+  .breeder-order-detail tbody,
+  .breeder-order-detail th,
+  .breeder-order-detail td,
+  .breeder-order-detail tr {
+    display: block;
+  }
+
+  .breeder-order-detail thead {
+    clip: rect(0 0 0 0);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+  }
+
+  .breeder-order-detail td {
+    border-bottom: 0;
+    padding: 8px 16px;
+  }
+
+  .breeder-order-detail tr {
+    border-bottom: 1px solid #ece8df;
+    padding: 8px 0;
+  }
+}

@@ -39,6 +39,12 @@ existing order domain endpoints for draft creation and submission, including
 audit/proof hook emission, and shares the demo order repository with the
 breeder dashboard so newly created demo orders appear in "My orders".
 
+Ticket 3.4 adds `apps/web/features/breeder-order-detail` and the
+`/app/orders/[orderId]` route for breeder-owned order tracking. The view model
+requires an active breeder role for the order's breeder organization, displays
+status history, shipment information, permission-filtered linked documents and
+simple proof events, and remains read-only/display-only for Phase 1.
+
 ## 4. Current database setup, if any
 
 PostgreSQL is the local development database. Docker Compose defines a `db`

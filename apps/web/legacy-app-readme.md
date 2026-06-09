@@ -7,6 +7,10 @@ This directory contains Phase 1 frontend modules introduced by approved tickets.
 - `breeder-dashboard/` - Ticket 3.1 breeder dashboard view model, HTML renderer
   and styles for a breeder organization's catalog, order, document and
   action-required overview.
+- `breeder-order-detail/` - Ticket 3.4 breeder-owned order detail view model,
+  renderer, React component and styles for order summary, current status,
+  status history, shipment information, permissioned documents and simple proof
+  event display.
 
 ## Guardrails
 
