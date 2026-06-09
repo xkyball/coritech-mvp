@@ -11,9 +11,9 @@ reduces delivery risk, security risk and investor diligence friction.
 | Area | Direction | Rationale | Status |
 | --- | --- | --- | --- |
 | Semen ordering workflow | Build | Domain workflow is the MVP wedge and source of proof events | `[PENDING_IMPLEMENTATION]` |
-| Proof event model | Build | CoriTech-specific trust layer and audit narrative | `[PENDING_IMPLEMENTATION]` |
-| Verification level v1 | Build | Requires CoriTech domain rules and reviewer clarity | `[PENDING_IMPLEMENTATION]` |
-| Audit trail | Build | Core diligence evidence and operational control | `[PENDING_IMPLEMENTATION]` |
+| Proof event model | Build | CoriTech-specific trust layer and audit narrative | Implemented by Ticket 1.6 |
+| Verification level v1 | Build | Requires CoriTech domain rules and reviewer clarity | Implemented by Ticket 1.7 |
+| Audit trail | Build | Core diligence evidence and operational control | Implemented by Ticket 1.8 |
 | Authentication | Buy/manage | Managed auth reduces security and compliance risk | `[PENDING_VENDOR_SELECTION]` |
 | Object storage | Buy/manage | Evidence files require durable controlled storage | `[PENDING_VENDOR_SELECTION]` |
 | Email delivery | Buy/manage | Commodity notification infrastructure | `[PENDING_VENDOR_SELECTION]` |

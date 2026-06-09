@@ -12,7 +12,7 @@ due diligence. It is not legal advice.
 | Account data | User name, email, organization, role | Managed auth and role-based access |
 | Operational data | Listings, orders, shipment references, statuses | Authenticated access only |
 | Evidence documents | Certificates, order documents, shipment evidence | Controlled storage and restricted viewing |
-| Audit data | Actor, timestamp, action, target object, amendment reason | Retained for diligence and operational accountability |
+| Audit data | Actor, role, organization, timestamp, action, target object, before/after values, reason, IP address and user agent when available | Append-only retention for diligence and operational accountability |
 | Payment reference data | External reference IDs or manual payment notes | No payment processing unless later approved |
 
 ## Security Principles
@@ -25,6 +25,8 @@ due diligence. It is not legal advice.
   or a future secrets vault.
 - Keep production-critical accounts CoriTech-owned or transferable.
 - Log access and changes to proof-relevant records.
+- Keep audit logs append-only; corrections must create later evidence instead
+  of editing prior audit entries.
 - Prefer provider controls with exportable audit evidence.
 
 ## GDPR and Privacy Placeholders

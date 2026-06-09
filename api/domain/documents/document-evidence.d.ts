@@ -1,3 +1,8 @@
+import type {
+  AuditLog,
+  AuditLogWriteRepository,
+  AuditRequestContext,
+} from "../audit/audit-log.d.ts";
 import type { UserOrganizationRoleLike } from "../identity/role-model.d.ts";
 
 export type DocumentAccessClassification =
@@ -249,7 +254,7 @@ export interface EvidenceAttachmentAuditHookInput {
   actorRole: UserOrganizationRoleLike;
 }
 
-export interface DocumentEvidenceRepository {
+export interface DocumentEvidenceRepository extends AuditLogWriteRepository {
   findSemenOrderById(orderId: string): Promise<SemenOrderLinkTargetLike | null>;
   findShipmentById(shipmentId: string): Promise<ShipmentLinkTargetLike | null>;
   findProofEventById(proofEventId: string): Promise<ProofEventLinkTargetLike | null>;
@@ -271,6 +276,7 @@ export interface EndpointRequest<
 > {
   actor: DocumentActorContext;
   repository: DocumentEvidenceRepository;
+  auditContext?: AuditRequestContext | null;
   params?: Record<string, string | undefined>;
   body: TBody;
   query?: TQuery;
@@ -280,6 +286,7 @@ export interface EndpointResponse<TBody, THook = never> {
   status: number;
   body: TBody;
   auditHook?: THook;
+  auditLog?: AuditLog;
 }
 
 export declare const DOCUMENT_ACCESS_CLASSIFICATIONS: readonly DocumentAccessClassification[];

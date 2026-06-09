@@ -1,5 +1,6 @@
 // @ts-check
 
+import { createAuditLogFromHook } from "../audit/audit-log.mjs";
 import {
   FUTURE_VERIFICATION_LEVELS,
   VERIFICATION_LEVELS,
@@ -308,10 +309,17 @@ export async function createProofEventFromHook(input) {
   const createProofEvent = requireRepositoryMethod(input.repository, "createProofEvent");
   const prepared = prepareProofEventFromHook(input);
   const proofEvent = await createProofEvent(prepared.proofEvent);
+  const auditHook = buildProofEventCreationAuditHook({ proofEvent });
+  const auditLog = await createAuditLogFromHook({
+    repository: input.repository,
+    auditHook,
+    requestContext: input.auditContext,
+  });
 
   return Object.freeze({
     proofEvent,
-    auditHook: buildProofEventCreationAuditHook({ proofEvent }),
+    auditHook,
+    auditLog,
   });
 }
 

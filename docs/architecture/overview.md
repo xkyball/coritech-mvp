@@ -22,7 +22,7 @@ Trigger -> Documentation -> Signature -> Verification Level -> Audit Trail
 | Layer | Phase 1 responsibility | Status |
 | --- | --- | --- |
 | Product workflow | Semen listing, semen order, station confirmation, shipment tracking and evidence collection | `[PENDING_IMPLEMENTATION]` |
-| Proof layer | Workflow-generated proof events, verification level v1 and audit trail | `[PENDING_IMPLEMENTATION]` |
+| Proof layer | Workflow-generated proof events, verification level v1 and audit trail | Core models implemented by Tickets 1.6, 1.7 and 1.8 |
 | Data layer | Core operational records and document metadata | `[PENDING_IMPLEMENTATION]` |
 | Document storage | Controlled upload, storage and viewing of evidence files | `[PENDING_VENDOR_SELECTION]` |
 | Identity and access | Managed authentication, organization roles and permissions | `[PENDING_VENDOR_SELECTION]` |
@@ -53,4 +53,4 @@ Delayed items:
 | Which managed auth provider is selected? | `[PENDING_VENDOR_SELECTION]` |
 | Which object storage provider is selected? | `[PENDING_VENDOR_SELECTION]` |
 | Which hosting and database providers are selected? | `[PENDING_VENDOR_SELECTION]` |
-| Where is audit evidence retained? | `[PENDING_ARCHITECTURE_DECISION]` |
+| Where is audit evidence retained? | Ticket 1.8 stores append-only audit evidence in the CoriTech PostgreSQL `audit_logs` table with object-query indexes. |

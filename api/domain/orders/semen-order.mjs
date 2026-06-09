@@ -1,5 +1,6 @@
 // @ts-check
 
+import { createAuditLogFromHook } from "../audit/audit-log.mjs";
 import { isSemenListingOrderable } from "../catalog/semen-catalog.mjs";
 import { isActiveRoleAssignment } from "../identity/role-model.mjs";
 
@@ -548,6 +549,12 @@ export async function createDraftSemenOrderEndpoint(request) {
   );
   const refreshed = rebuildPersistedChange(prepared, persisted, null);
 
+  const auditLog = await createAuditLogFromHook({
+    repository: request.repository,
+    auditHook: refreshed.auditHook,
+    requestContext: request.auditContext,
+  });
+
   return Object.freeze({
     status: 201,
     body: Object.freeze({
@@ -555,6 +562,7 @@ export async function createDraftSemenOrderEndpoint(request) {
       statusHistory: refreshed.statusHistory,
     }),
     auditHook: refreshed.auditHook,
+    auditLog,
     proofHook: refreshed.proofHook,
   });
 }
@@ -591,6 +599,12 @@ export async function transitionSemenOrderStatusEndpoint(request) {
   );
   const refreshed = rebuildPersistedChange(prepared, persisted, existingOrder);
 
+  const auditLog = await createAuditLogFromHook({
+    repository: request.repository,
+    auditHook: refreshed.auditHook,
+    requestContext: request.auditContext,
+  });
+
   return Object.freeze({
     status: 200,
     body: Object.freeze({
@@ -598,6 +612,7 @@ export async function transitionSemenOrderStatusEndpoint(request) {
       statusHistory: refreshed.statusHistory,
     }),
     auditHook: refreshed.auditHook,
+    auditLog,
     proofHook: refreshed.proofHook,
   });
 }

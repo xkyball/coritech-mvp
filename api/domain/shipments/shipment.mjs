@@ -1,5 +1,6 @@
 // @ts-check
 
+import { createAuditLogFromHook } from "../audit/audit-log.mjs";
 import { isActiveRoleAssignment } from "../identity/role-model.mjs";
 import { isSemenOrderStatus } from "../orders/semen-order.mjs";
 
@@ -499,6 +500,12 @@ export async function createShipmentEndpoint(request) {
     "SHIPMENT_CREATED",
   );
 
+  const auditLog = await createAuditLogFromHook({
+    repository: request.repository,
+    auditHook: refreshed.auditHook,
+    requestContext: request.auditContext,
+  });
+
   return Object.freeze({
     status: 201,
     body: Object.freeze({
@@ -506,6 +513,7 @@ export async function createShipmentEndpoint(request) {
       trackingEvent: refreshed.trackingEvent,
     }),
     auditHook: refreshed.auditHook,
+    auditLog,
     proofHook: refreshed.proofHook,
   });
 }
@@ -552,6 +560,12 @@ export async function createShipmentTrackingEventEndpoint(request) {
     "SHIPMENT_STATUS_UPDATED",
   );
 
+  const auditLog = await createAuditLogFromHook({
+    repository: request.repository,
+    auditHook: refreshed.auditHook,
+    requestContext: request.auditContext,
+  });
+
   return Object.freeze({
     status: 200,
     body: Object.freeze({
@@ -559,6 +573,7 @@ export async function createShipmentTrackingEventEndpoint(request) {
       trackingEvent: refreshed.trackingEvent,
     }),
     auditHook: refreshed.auditHook,
+    auditLog,
     proofHook: refreshed.proofHook,
   });
 }

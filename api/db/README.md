@@ -14,20 +14,21 @@ tickets.
 | `migrations/20260609_0105_document_evidence_attachment.sql` | 1.5 | Creates document metadata, object-storage reference fields, mandatory access classification and proof-event evidence attachments. |
 | `migrations/20260609_0106_proof_event_v1.sql` | 1.6 | Creates append-only `proof_events`, proof-event enums, proof-event document/evidence foreign keys and delete protection. |
 | `migrations/20260609_0107_verification_level_taxonomy.sql` | 1.7 | Creates the verification-level enum, converts proof events from the placeholder value and blocks future reserved levels from Phase 1 assignment. |
+| `migrations/20260609_0108_audit_log_v1.sql` | 1.8 | Creates append-only `audit_logs`, normalized audit actions, object-query indexes, proof-event audit-log foreign key and update/delete protection. |
 
 The Ticket 1.1 migration is PostgreSQL-oriented and uses CoriTech-owned records
 linked to managed authentication identities. It does not add custom
-authentication, RBAC middleware, admin screens or the full audit-log table.
+authentication, RBAC middleware or admin screens.
 
 Role assignment writes must call the identity role-model helper so the
-`ROLE_ASSIGNMENT` audit hook can be forwarded to the AuditLog implementation
-introduced by Ticket 1.8.
+`ROLE_ASSIGNMENT` audit hook can be forwarded to the Ticket 1.8 AuditLog service
+as a `CHANGE_PERMISSION` entry.
 
 ## Catalog Notes
 
 Ticket 1.2 adds the semen catalog foundation only. Listing writes must call the
 catalog helper so the `SEMEN_LISTING_CHANGE` audit hook can be forwarded to the
-future AuditLog table introduced by Ticket 1.8.
+Ticket 1.8 AuditLog service.
 
 `semen_listings.listing_status = 'INACTIVE'` records must not be orderable.
 Order creation remains owned by a later ticket and must call the catalog
@@ -39,7 +40,7 @@ Ticket 1.5 stores document metadata and object-storage references only. The
 `documents` table intentionally has no raw file payload or local filesystem path
 column. Uploads and controlled viewing must call the document evidence helper so
 `DOCUMENT_UPLOADED`, `DOCUMENT_VIEWED` and `EVIDENCE_ATTACHMENT_CREATED` audit
-hooks can be forwarded to the future AuditLog table introduced by Ticket 1.8.
+hooks can be forwarded to the Ticket 1.8 AuditLog service.
 
 Ticket 1.6 adds the durable `proof_events` table and foreign keys from
 `documents.proof_event_id` and `evidence_attachments.proof_event_id`.
@@ -49,3 +50,15 @@ Ticket 1.7 formalizes `coritech_verification_level` with active Phase 1 levels
 `ADMIN_REVIEWED`. `VET_SIGNED`, `FEDERATION_ATTESTED` and
 `VERIFIED_FOR_TRANSACTION` are reserved enum values only; the
 `proof_events` table constraint blocks assigning them in Phase 1.
+
+## Audit Log Notes
+
+Ticket 1.8 stores normalized audit actions in `audit_logs` and keeps the
+domain-specific workflow action in `source_action` and metadata. The table is
+queryable by `(object_type, object_id)` and records actor user, actor role,
+actor organization, previous/new JSON values, reason, IP address and user agent
+when the application edge provides them.
+
+`audit_logs` is append-only. The migration adds triggers that block updates and
+deletes; normal application flows must create later corrective evidence instead
+of editing prior audit rows.

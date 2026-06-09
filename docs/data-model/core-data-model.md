@@ -23,7 +23,7 @@ the remaining entities are still conceptual placeholders.
 | EvidenceAttachment | Relation between a document and a proof event | Implemented by Ticket 1.5; supports proof event documentation without creating proof events automatically |
 | ProofEvent | Workflow-generated proof record | Implemented by Ticket 1.6; links trigger, documentation, signature placeholder, verification level and audit-hook context |
 | VerificationLevel | Reviewable trust level applied to proof events | Implemented by Ticket 1.7; derived from proof event type and actor role |
-| AuditLog | Immutable operational audit entry | Links actor, action, target object and timestamp |
+| AuditLog | Immutable operational audit entry | Implemented by Ticket 1.8; links actor, role, organization, action, target object, request metadata and timestamp |
 | AccessPermission | Controlled document or workflow access grant | Links subject, resource and permission |
 | Amendment | Controlled correction record | Links original record, reason, approver and audit evidence |
 | PaymentReference | Non-processing payment reference | Links order to external payment evidence when applicable |
@@ -50,10 +50,11 @@ Prepared future role codes are `VET`, `FEDERATION`, `SALES_VENUE`, `BUYER` and
 `TECH_SUPPORT`. They exist only as reserved enum/catalog values and are not
 assignable in Phase 1.
 
-Role assignment changes are not a full audit-log implementation. The
-`user_organization_roles` table stores assignment and revocation actors, and
-the API identity helper emits a `ROLE_ASSIGNMENT` audit hook for Ticket 1.8 to
-connect to the future `AuditLog` table.
+The `user_organization_roles` table stores assignment and revocation actors,
+and the API identity helper emits a `ROLE_ASSIGNMENT` audit hook. Ticket 1.8
+adds the AuditLog service helper that materializes those hooks as
+`CHANGE_PERMISSION` audit entries when permission changes are persisted through
+an audit-aware repository.
 
 ## Implemented Catalog Foundation
 
@@ -81,8 +82,9 @@ for stallions and semen listings. Listing management is limited to the owning
 breeding station or platform admin. Breeder access is limited to active semen
 listings; future buyer access remains unavailable in Phase 1.
 
-Listing writes emit a `SEMEN_LISTING_CHANGE` audit hook. This is not the full
-AuditLog implementation; Ticket 1.8 owns durable audit-log persistence.
+Listing writes emit a `SEMEN_LISTING_CHANGE` audit hook. Ticket 1.8 persists
+those hooks as AuditLog entries through the shared audit service. Platform-admin
+listing updates are normalized as `ADMIN_EDIT` audit entries.
 
 Inactive listings, and listings marked unavailable, are rejected by the catalog
 orderability helper. Ticket 1.3 consumes that helper when preparing draft semen
@@ -129,11 +131,11 @@ Platform-admin access is retained for support and oversight. Future buyer
 access remains unavailable in Phase 1.
 
 Every prepared order status change emits a `SEMEN_ORDER_STATUS_CHANGE` audit
-hook and a `PROOF_EVENT_REQUEST` hook. Ticket 1.6 can materialize approved
-order milestones from those hooks through the explicit ProofEvent service.
-Automatic proof-event generation from every relevant order action, duplicate
-prevention and durable AuditLog persistence remain owned by Tickets 7.1 and
-1.8.
+hook and a `PROOF_EVENT_REQUEST` hook. Ticket 1.8 persists order creation and
+status-change hooks as AuditLog entries. Ticket 1.6 can materialize approved
+order milestones from proof hooks through the explicit ProofEvent service.
+Automatic proof-event generation from every relevant order action and duplicate
+prevention remain owned by Ticket 7.1.
 
 ## Implemented Shipment Tracking Foundation
 
@@ -169,8 +171,9 @@ Every prepared shipment creation or status update emits a
 `SHIPMENT_TRACKING_EVENT` audit hook and a `PROOF_EVENT_REQUEST` hook. Ticket
 1.6 can materialize shipment-created, shipment-updated and
 shipment-confirmed proof events from those hooks through the explicit
-ProofEvent service. Durable AuditLog persistence remains Ticket 1.8, while
-automated shipment proof generation from shipment actions remains Ticket 7.2.
+ProofEvent service. Ticket 1.8 persists shipment creation and shipment status
+updates as AuditLog entries, while automated shipment proof generation from
+shipment actions remains Ticket 7.2.
 
 The model stores optional `provider_name`, `provider_tracking_id`,
 `tracking_url`, `source_event_id` and `provider_status` fields so future
@@ -211,9 +214,10 @@ The API document helper exposes framework-neutral endpoint contracts for
 creating metadata records, viewing documents, listing documents by order or
 shipment, and attaching documents to proof events. Uploads and views emit
 `DOCUMENT_ACCESS` audit hooks. Evidence attachment creation also emits an audit
-hook. Durable AuditLog persistence remains owned by Ticket 1.8, object-storage
-provider integration remains owned by Ticket 6.1, and automatic proof-event
-generation from document uploads remains owned by Ticket 7.3.
+hook. Ticket 1.8 persists document upload, document view and evidence-attachment
+hooks as AuditLog entries. Object-storage provider integration remains owned by
+Ticket 6.1, and automatic proof-event generation from document uploads remains
+owned by Ticket 7.3.
 
 ## Implemented Proof Event Foundation
 
@@ -262,8 +266,43 @@ automation rules remain in Tickets 7.1, 7.2 and 7.3.
 
 The table blocks direct deletes with a database trigger. Later corrections must
 use approved amendment/admin-correction workflows instead of silently deleting
-proof records. The nullable `audit_log_id` field is reserved for Ticket 1.8;
-until then, each proof event stores the originating `audit_hook_ref`.
+proof records. Ticket 1.8 adds a nullable foreign key from
+`proof_events.audit_log_id` to `audit_logs.id` so explicit proof-event service
+calls can retain the originating workflow audit-log link when available. Each
+proof event also stores the originating `audit_hook_ref`.
+
+## Implemented Audit Log Foundation
+
+Ticket 1.8 adds the durable AuditLog record:
+
+`api/db/migrations/20260609_0108_audit_log_v1.sql`
+
+Implemented tables:
+
+| Table | Purpose |
+| --- | --- |
+| `audit_logs` | Append-only trust-relevant action records with actor user, role, organization, normalized action, source action, object type/id, before/after JSON values, reason, request IP/user agent when available and timestamps. |
+
+Implemented audit actions:
+
+| Enum | Values |
+| --- | --- |
+| `coritech_audit_log_action` | `CREATE`, `UPDATE`, `STATUS_CHANGE`, `UPLOAD_DOCUMENT`, `VIEW_DOCUMENT`, `CREATE_PROOF_EVENT`, `CHANGE_PERMISSION`, `ADMIN_EDIT`, `CREATE_AMENDMENT`, `LOGIN`, `LOGOUT` |
+
+The API audit helper materializes existing workflow audit hooks into normalized
+AuditLog entries. Critical Phase 1 hooks currently wired to persistence are
+order creation/status changes, shipment creation/status changes, document
+upload/view, evidence attachment, explicit proof-event creation, role
+assignment permission changes and platform-admin listing edits.
+
+Audit logs are queryable by `object_type` and `object_id`. Participant-aware
+query helpers allow platform-admin access, or Phase 1 breeder/station access
+when the caller supplies authorized object context. Future buyer access remains
+unavailable in Phase 1.
+
+Audit logs are append-only from normal application flows. The domain module
+exposes no update/delete service, and the migration blocks database updates and
+deletes with triggers.
 
 ## Data Ownership Principle
 

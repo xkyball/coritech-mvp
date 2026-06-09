@@ -302,6 +302,10 @@ test("document endpoints persist metadata, emit view audit hooks and attach evid
   const created = await createDocumentEndpoint({
     actor: stationActor,
     repository,
+    auditContext: {
+      ipAddress: "203.0.113.12",
+      userAgent: "node-test/document-upload",
+    },
     body: {
       targetType: "Shipment",
       targetId: "shipment-1",
@@ -321,10 +325,19 @@ test("document endpoints persist metadata, emit view audit hooks and attach evid
   assert.equal(created.body.document.id, "document-1");
   assert.equal(created.body.document.shipmentId, "shipment-1");
   assert.equal(created.auditHook?.action, "DOCUMENT_UPLOADED");
+  assert.equal(created.auditLog?.action, "UPLOAD_DOCUMENT");
+  assert.equal(created.auditLog?.objectType, "Document");
+  assert.equal(created.auditLog?.objectId, "document-1");
+  assert.equal(created.auditLog?.newValues?.originalFileName, "health-certificate.pdf");
+  assert.equal(created.auditLog?.ipAddress, "203.0.113.12");
 
   const fetched = await getDocumentEndpoint({
     actor: breederActor,
     repository,
+    auditContext: {
+      ipAddress: "203.0.113.13",
+      userAgent: "node-test/document-view",
+    },
     params: {
       documentId: "document-1",
     },
@@ -335,6 +348,9 @@ test("document endpoints persist metadata, emit view audit hooks and attach evid
   assert.equal(fetched.body.document.id, "document-1");
   assert.equal(fetched.auditHook?.action, "DOCUMENT_VIEWED");
   assert.equal(fetched.auditHook?.actorRoleCode, "BREEDER");
+  assert.equal(fetched.auditLog?.action, "VIEW_DOCUMENT");
+  assert.equal(fetched.auditLog?.actorOrganizationId, breederOrganizationId);
+  assert.equal(fetched.auditLog?.userAgent, "node-test/document-view");
 
   const orderDocuments = await listOrderDocumentsEndpoint({
     actor: breederActor,
@@ -373,6 +389,8 @@ test("document endpoints persist metadata, emit view audit hooks and attach evid
   assert.equal(attached.status, 201);
   assert.equal(attached.body.evidenceAttachment.id, "evidence-attachment-1");
   assert.equal(attached.auditHook?.action, "EVIDENCE_ATTACHMENT_CREATED");
+  assert.equal(attached.auditLog?.action, "CREATE");
+  assert.equal(attached.auditLog?.objectType, "ProofEvent");
 
   const evidenceTimeline = await listEvidenceAttachmentsForProofEventEndpoint({
     actor: adminActor,
@@ -408,8 +426,10 @@ function buildRepository({ orders, shipments, proofEvents }) {
   const proofEventStore = new Map(proofEvents.map((event) => [event.id, event]));
   const documentStore = new Map();
   const evidenceAttachmentStore = new Map();
+  const auditLogStore = new Map();
   let documentSequence = 1;
   let evidenceAttachmentSequence = 1;
+  let auditLogSequence = 1;
 
   return {
     async findSemenOrderById(orderId) {
@@ -458,6 +478,18 @@ function buildRepository({ orders, shipments, proofEvents }) {
     },
     async listEvidenceAttachmentsForProofEvent(proofEventId) {
       return evidenceAttachmentStore.get(proofEventId) ?? [];
+    },
+    async createAuditLog(auditLog) {
+      const persistedAuditLog = {
+        ...auditLog,
+        id: auditLog.id ?? `audit-log-${auditLogSequence++}`,
+      };
+      const objectLogs = auditLogStore.get(persistedAuditLog.objectId) ?? [];
+
+      objectLogs.push(persistedAuditLog);
+      auditLogStore.set(persistedAuditLog.objectId, objectLogs);
+
+      return persistedAuditLog;
     },
   };
 }

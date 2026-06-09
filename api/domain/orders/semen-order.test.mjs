@@ -321,6 +321,10 @@ test("endpoint handlers persist every status change with refreshed audit and pro
   const created = await createDraftSemenOrderEndpoint({
     actor: breederActor,
     repository,
+    auditContext: {
+      ipAddress: "203.0.113.10",
+      userAgent: "node-test/order-create",
+    },
     body: {
       semenListingId: "listing-active",
       breederOrganizationId,
@@ -335,6 +339,13 @@ test("endpoint handlers persist every status change with refreshed audit and pro
   assert.equal(created.body.statusHistory.id, "history-1");
   assert.equal(created.body.statusHistory.semenOrderId, "order-1");
   assert.equal(created.auditHook?.targetId, "order-1");
+  assert.equal(created.auditLog?.action, "CREATE");
+  assert.equal(created.auditLog?.sourceAction, "SEMEN_ORDER_DRAFT_CREATED");
+  assert.equal(created.auditLog?.objectId, "order-1");
+  assert.equal(created.auditLog?.actorRoleCode, "BREEDER");
+  assert.equal(created.auditLog?.actorOrganizationId, breederOrganizationId);
+  assert.equal(created.auditLog?.ipAddress, "203.0.113.10");
+  assert.equal(created.auditLog?.userAgent, "node-test/order-create");
   assert.equal(created.proofHook?.triggerRef.statusHistoryId, "history-1");
 
   const submitted = await transitionSemenOrderStatusEndpoint({
@@ -355,6 +366,9 @@ test("endpoint handlers persist every status change with refreshed audit and pro
   assert.equal(submitted.body.statusHistory.id, "history-2");
   assert.equal(submitted.auditHook?.previousValue?.status, "DRAFT");
   assert.equal(submitted.auditHook?.newValue.status, "SUBMITTED");
+  assert.equal(submitted.auditLog?.action, "STATUS_CHANGE");
+  assert.equal(submitted.auditLog?.previousValues?.status, "DRAFT");
+  assert.equal(submitted.auditLog?.newValues?.status, "SUBMITTED");
 
   const received = await transitionSemenOrderStatusEndpoint({
     actor: stationActor,
@@ -402,8 +416,10 @@ function buildRepository({ listings, sequenceStart }) {
   const listingStore = new Map(listings.map((listing) => [listing.id, listing]));
   const orderStore = new Map();
   const historyStore = new Map();
+  const auditLogStore = new Map();
   let orderSequence = 1;
   let historySequence = 1;
+  let auditLogSequence = 1;
   let orderNumberSequence = sequenceStart;
 
   return {
@@ -456,6 +472,18 @@ function buildRepository({ listings, sequenceStart }) {
     },
     async listOrderStatusHistory(orderId) {
       return historyStore.get(orderId) ?? [];
+    },
+    async createAuditLog(auditLog) {
+      const persistedAuditLog = {
+        ...auditLog,
+        id: auditLog.id ?? `audit-log-${auditLogSequence++}`,
+      };
+      const objectLogs = auditLogStore.get(persistedAuditLog.objectId) ?? [];
+
+      objectLogs.push(persistedAuditLog);
+      auditLogStore.set(persistedAuditLog.objectId, objectLogs);
+
+      return persistedAuditLog;
     },
   };
 }

@@ -1,5 +1,6 @@
 // @ts-check
 
+import { createAuditLogFromHook } from "../audit/audit-log.mjs";
 import { isActiveRoleAssignment } from "../identity/role-model.mjs";
 
 export const STALLION_STATUSES = /** @type {const} */ ([
@@ -883,11 +884,25 @@ export async function createSemenListingEndpoint(request) {
     actor: request.actor,
   });
   const listing = await createSemenListing(prepared.listing);
+  const auditHook = buildSemenListingAuditHook({
+    action: "SEMEN_LISTING_CREATED",
+    actor: request.actor,
+    listing,
+    previousListing: null,
+    reason: prepared.auditHook.reason,
+    occurredAt: listing.createdAt,
+  });
+  const auditLog = await createAuditLogFromHook({
+    repository: request.repository,
+    auditHook,
+    requestContext: request.auditContext,
+  });
 
   return Object.freeze({
     status: 201,
     body: Object.freeze({ listing }),
-    auditHook: prepared.auditHook,
+    auditHook,
+    auditLog,
   });
 }
 
@@ -916,11 +931,25 @@ export async function updateSemenListingEndpoint(request) {
     actor: request.actor,
   });
   const listing = await updateSemenListing(prepared.listing);
+  const auditHook = buildSemenListingAuditHook({
+    action: prepared.auditHook.action,
+    actor: request.actor,
+    listing,
+    previousListing: existingListing,
+    reason: prepared.auditHook.reason,
+    occurredAt: listing.updatedAt,
+  });
+  const auditLog = await createAuditLogFromHook({
+    repository: request.repository,
+    auditHook,
+    requestContext: request.auditContext,
+  });
 
   return Object.freeze({
     status: 200,
     body: Object.freeze({ listing }),
-    auditHook: prepared.auditHook,
+    auditHook,
+    auditLog,
   });
 }
 

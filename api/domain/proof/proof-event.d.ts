@@ -1,3 +1,8 @@
+import type {
+  AuditLog,
+  AuditLogWriteRepository,
+  AuditRequestContext,
+} from "../audit/audit-log.d.ts";
 import type { SemenOrderProofHook, SemenOrderStatus } from "../orders/semen-order.d.ts";
 import type { ShipmentProofHook, ShipmentStatus } from "../shipments/shipment.d.ts";
 import type {
@@ -137,6 +142,7 @@ export interface CreateProofEventFromHookInput {
 export interface CreateProofEventFromHookServiceInput
   extends CreateProofEventFromHookInput {
   repository: ProofEventRepository;
+  auditContext?: AuditRequestContext | null;
 }
 
 export interface PreparedProofEventChange {
@@ -166,7 +172,7 @@ export interface ProofEventCreationAuditHook {
   occurredAt: string;
 }
 
-export interface ProofEventRepository {
+export interface ProofEventRepository extends AuditLogWriteRepository {
   createProofEvent(proofEvent: ProofEvent): Promise<ProofEvent>;
   findProofEventById?(proofEventId: string): Promise<ProofEvent | null>;
   listProofEventsForOrder?(orderId: string): Promise<ProofEvent[]>;
@@ -176,6 +182,7 @@ export interface ProofEventRepository {
 export interface PersistedProofEventChange {
   proofEvent: ProofEvent;
   auditHook: ProofEventCreationAuditHook;
+  auditLog: AuditLog;
 }
 
 export declare const PROOF_EVENT_TYPES: readonly ProofEventType[];

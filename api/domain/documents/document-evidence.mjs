@@ -1,5 +1,6 @@
 // @ts-check
 
+import { createAuditLogFromHook } from "../audit/audit-log.mjs";
 import { isActiveRoleAssignment } from "../identity/role-model.mjs";
 
 export const DOCUMENT_ACCESS_CLASSIFICATIONS = /** @type {const} */ ([
@@ -488,10 +489,17 @@ export async function createDocumentEndpoint(request) {
     occurredAt: document.createdAt,
   });
 
+  const auditLog = await createAuditLogFromHook({
+    repository: request.repository,
+    auditHook: refreshedAuditHook,
+    requestContext: request.auditContext,
+  });
+
   return Object.freeze({
     status: 201,
     body: Object.freeze({ document }),
     auditHook: refreshedAuditHook,
+    auditLog,
   });
 }
 
@@ -518,15 +526,23 @@ export async function getDocumentEndpoint(request) {
     );
   }
 
+  const auditHook = buildDocumentViewAuditHook({
+    actor: request.actor,
+    actorRole,
+    document,
+    occurredAt: toIsoTimestamp(new Date()),
+  });
+  const auditLog = await createAuditLogFromHook({
+    repository: request.repository,
+    auditHook,
+    requestContext: request.auditContext,
+  });
+
   return Object.freeze({
     status: 200,
     body: Object.freeze({ document }),
-    auditHook: buildDocumentViewAuditHook({
-      actor: request.actor,
-      actorRole,
-      document,
-      occurredAt: toIsoTimestamp(new Date()),
-    }),
+    auditHook,
+    auditLog,
   });
 }
 
@@ -665,10 +681,17 @@ export async function createEvidenceAttachmentEndpoint(request) {
       }),
   });
 
+  const auditLog = await createAuditLogFromHook({
+    repository: request.repository,
+    auditHook: refreshedAuditHook,
+    requestContext: request.auditContext,
+  });
+
   return Object.freeze({
     status: 201,
     body: Object.freeze({ evidenceAttachment }),
     auditHook: refreshedAuditHook,
+    auditLog,
   });
 }
 

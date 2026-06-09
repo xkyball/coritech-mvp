@@ -1,4 +1,9 @@
 import type {
+  AuditLog,
+  AuditLogWriteRepository,
+  AuditRequestContext,
+} from "../audit/audit-log.d.ts";
+import type {
   RoleCode,
   UserOrganizationRoleLike,
 } from "../identity/role-model.d.ts";
@@ -204,7 +209,7 @@ export interface StallionSearchFilters {
   status?: StallionStatus | string | null;
 }
 
-export interface SemenCatalogRepository {
+export interface SemenCatalogRepository extends AuditLogWriteRepository {
   createStallion(stallion: Stallion): Promise<Stallion>;
   updateStallion(stallion: Stallion): Promise<Stallion>;
   findStallionById(stallionId: string): Promise<Stallion | null>;
@@ -226,6 +231,7 @@ export interface EndpointRequest<
 > {
   actor: CatalogActorContext;
   repository: SemenCatalogRepository;
+  auditContext?: AuditRequestContext | null;
   params?: Record<string, string | undefined>;
   body: TBody;
   query?: TQuery;
@@ -235,6 +241,7 @@ export interface EndpointResponse<TBody, TAuditHook = undefined> {
   status: number;
   body: TBody;
   auditHook?: TAuditHook;
+  auditLog?: AuditLog;
 }
 
 export declare const STALLION_STATUSES: readonly StallionStatus[];

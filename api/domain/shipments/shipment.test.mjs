@@ -295,6 +295,10 @@ test("shipment endpoints persist shipment and tracking event timeline", async ()
   const created = await createShipmentEndpoint({
     actor: stationActor,
     repository,
+    auditContext: {
+      ipAddress: "203.0.113.11",
+      userAgent: "node-test/shipment-create",
+    },
     params: {
       orderId: "order-confirmed",
     },
@@ -313,6 +317,10 @@ test("shipment endpoints persist shipment and tracking event timeline", async ()
   assert.equal(created.body.trackingEvent.id, "tracking-event-1");
   assert.equal(created.body.trackingEvent.shipmentId, "shipment-1");
   assert.equal(created.auditHook?.targetId, "shipment-1");
+  assert.equal(created.auditLog?.action, "CREATE");
+  assert.equal(created.auditLog?.sourceAction, "SHIPMENT_CREATED");
+  assert.equal(created.auditLog?.objectId, "shipment-1");
+  assert.equal(created.auditLog?.ipAddress, "203.0.113.11");
   assert.equal(created.proofHook?.triggerRef.trackingEventId, "tracking-event-1");
 
   const updated = await createShipmentTrackingEventEndpoint({
@@ -334,6 +342,9 @@ test("shipment endpoints persist shipment and tracking event timeline", async ()
   assert.equal(updated.body.trackingEvent.toStatus, "DELIVERED");
   assert.equal(updated.auditHook?.previousValue?.status, "PREPARED");
   assert.equal(updated.auditHook?.newValue.status, "DELIVERED");
+  assert.equal(updated.auditLog?.action, "STATUS_CHANGE");
+  assert.equal(updated.auditLog?.previousValues?.status, "PREPARED");
+  assert.equal(updated.auditLog?.newValues?.status, "DELIVERED");
 
   const listedForOrder = await listOrderShipmentsEndpoint({
     actor: breederActor,
@@ -392,8 +403,10 @@ function buildRepository({ orders }) {
   const orderStore = new Map(orders.map((order) => [order.id, order]));
   const shipmentStore = new Map();
   const eventStore = new Map();
+  const auditLogStore = new Map();
   let shipmentSequence = 1;
   let eventSequence = 1;
+  let auditLogSequence = 1;
 
   return {
     async findSemenOrderById(orderId) {
@@ -448,6 +461,18 @@ function buildRepository({ orders }) {
     },
     async listShipmentTrackingEvents(shipmentId) {
       return eventStore.get(shipmentId) ?? [];
+    },
+    async createAuditLog(auditLog) {
+      const persistedAuditLog = {
+        ...auditLog,
+        id: auditLog.id ?? `audit-log-${auditLogSequence++}`,
+      };
+      const objectLogs = auditLogStore.get(persistedAuditLog.objectId) ?? [];
+
+      objectLogs.push(persistedAuditLog);
+      auditLogStore.set(persistedAuditLog.objectId, objectLogs);
+
+      return persistedAuditLog;
     },
   };
 }

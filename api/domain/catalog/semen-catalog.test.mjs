@@ -336,6 +336,8 @@ test("semen listing endpoint handlers create, update and soft-delete with audit 
   assert.equal(created.status, 201);
   assert.equal(created.body.listing.id, "listing-endpoint");
   assert.equal(created.auditHook?.action, "SEMEN_LISTING_CREATED");
+  assert.equal(created.auditLog?.action, "CREATE");
+  assert.equal(created.auditLog?.objectType, "SemenListing");
 
   const updated = await updateSemenListingEndpoint({
     actor: stationActor,
@@ -353,6 +355,25 @@ test("semen listing endpoint handlers create, update and soft-delete with audit 
   assert.equal(updated.body.listing.availabilityStatus, "LIMITED");
   assert.equal(updated.auditHook?.previousValue?.availabilityStatus, "AVAILABLE");
   assert.equal(updated.auditHook?.newValue.availabilityStatus, "LIMITED");
+  assert.equal(updated.auditLog?.action, "UPDATE");
+  assert.equal(updated.auditLog?.newValues?.availabilityStatus, "LIMITED");
+
+  const adminEdited = await updateSemenListingEndpoint({
+    actor: adminActor,
+    repository,
+    params: {
+      listingId: "listing-endpoint",
+    },
+    body: {
+      termsSummary: "Admin-corrected collection window",
+      changeReason: "Support correction after station call",
+    },
+  });
+
+  assert.equal(adminEdited.status, 200);
+  assert.equal(adminEdited.auditHook?.actorRoleCode, "PLATFORM_ADMIN");
+  assert.equal(adminEdited.auditLog?.action, "ADMIN_EDIT");
+  assert.equal(adminEdited.auditLog?.reason, "Support correction after station call");
 
   const deleted = await deleteSemenListingEndpoint({
     actor: stationActor,
@@ -367,6 +388,7 @@ test("semen listing endpoint handlers create, update and soft-delete with audit 
 
   assert.equal(deleted.body.listing.listingStatus, "INACTIVE");
   assert.equal(deleted.auditHook?.action, "SEMEN_LISTING_DEACTIVATED");
+  assert.equal(deleted.auditLog?.action, "UPDATE");
 });
 
 test("future buyer role cannot search listings as unrestricted buyer access", () => {
@@ -386,6 +408,7 @@ test("future buyer role cannot search listings as unrestricted buyer access", ()
 function buildRepository({ stallions, listings }) {
   const stallionStore = new Map(stallions.map((stallion) => [stallion.id, stallion]));
   const listingStore = new Map(listings.map((listing) => [listing.id, listing]));
+  let auditLogSequence = 1;
 
   return {
     async createStallion(stallion) {
@@ -431,6 +454,12 @@ function buildRepository({ stallions, listings }) {
           return stallion ? { listing, stallion } : null;
         })
         .filter(Boolean);
+    },
+    async createAuditLog(auditLog) {
+      return {
+        ...auditLog,
+        id: auditLog.id ?? `audit-log-${auditLogSequence++}`,
+      };
     },
   };
 }

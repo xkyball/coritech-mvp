@@ -1,3 +1,8 @@
+import type {
+  AuditLog,
+  AuditLogWriteRepository,
+  AuditRequestContext,
+} from "../audit/audit-log.d.ts";
 import type { UserOrganizationRoleLike } from "../identity/role-model.d.ts";
 import type { SemenOrderLike } from "../orders/semen-order.d.ts";
 
@@ -213,7 +218,7 @@ export interface ShipmentProofHookInput {
   auditHook: ShipmentTrackingAuditHook;
 }
 
-export interface ShipmentRepository {
+export interface ShipmentRepository extends AuditLogWriteRepository {
   findSemenOrderById(orderId: string): Promise<SemenOrderLike | null>;
   createShipmentWithTrackingEvent(
     shipment: Shipment,
@@ -239,6 +244,7 @@ export interface EndpointRequest<
 > {
   actor: ShipmentActorContext;
   repository: ShipmentRepository;
+  auditContext?: AuditRequestContext | null;
   params?: Record<string, string | undefined>;
   body: TBody;
   query?: TQuery;
@@ -248,6 +254,7 @@ export interface EndpointResponse<TBody> {
   status: number;
   body: TBody;
   auditHook?: ShipmentTrackingAuditHook;
+  auditLog?: AuditLog;
   proofHook?: ShipmentProofHook;
 }
 

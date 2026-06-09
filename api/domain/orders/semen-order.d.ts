@@ -1,3 +1,8 @@
+import type {
+  AuditLog,
+  AuditLogWriteRepository,
+  AuditRequestContext,
+} from "../audit/audit-log.d.ts";
 import type { UserOrganizationRoleLike } from "../identity/role-model.d.ts";
 import type { SemenListingLike } from "../catalog/semen-catalog.d.ts";
 
@@ -193,7 +198,7 @@ export interface SemenOrderProofHookInput {
   auditHook: SemenOrderStatusAuditHook;
 }
 
-export interface SemenOrderRepository {
+export interface SemenOrderRepository extends AuditLogWriteRepository {
   findSemenListingById(listingId: string): Promise<SemenListingLike | null>;
   nextSemenOrderNumberSequence(): Promise<number>;
   createSemenOrderWithStatusHistory(
@@ -219,6 +224,7 @@ export interface EndpointRequest<
 > {
   actor: SemenOrderActorContext;
   repository: SemenOrderRepository;
+  auditContext?: AuditRequestContext | null;
   params?: Record<string, string | undefined>;
   body: TBody;
   query?: TQuery;
@@ -228,6 +234,7 @@ export interface EndpointResponse<TBody> {
   status: number;
   body: TBody;
   auditHook?: SemenOrderStatusAuditHook;
+  auditLog?: AuditLog;
   proofHook?: SemenOrderProofHook;
 }
 

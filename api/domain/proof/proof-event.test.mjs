@@ -326,6 +326,10 @@ test("createProofEventFromHook persists via an explicit proof service call", asy
   assert.equal(persisted.proofEvent.verificationLevel, "SELF_REPORTED");
   assert.equal(persisted.auditHook.targetId, "proof-event-1");
   assert.equal(persisted.auditHook.targetRef.semenOrderId, "order-1");
+  assert.equal(persisted.auditLog.action, "CREATE_PROOF_EVENT");
+  assert.equal(persisted.auditLog.objectType, "ProofEvent");
+  assert.equal(persisted.auditLog.objectId, "proof-event-1");
+  assert.equal(persisted.auditLog.newValues?.proofEventType, "SUBMITTED");
 });
 
 function buildSubmittedOrderProofEventInput(overrides = {}) {
@@ -361,12 +365,19 @@ function buildSubmittedOrderProofEventInput(overrides = {}) {
 
 function buildRepository() {
   let sequence = 1;
+  let auditLogSequence = 1;
 
   return {
     async createProofEvent(proofEvent) {
       return {
         ...proofEvent,
         id: proofEvent.id ?? `proof-event-${sequence++}`,
+      };
+    },
+    async createAuditLog(auditLog) {
+      return {
+        ...auditLog,
+        id: auditLog.id ?? `audit-log-${auditLogSequence++}`,
       };
     },
   };
