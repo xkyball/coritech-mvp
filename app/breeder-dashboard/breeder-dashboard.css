@@ -1,0 +1,225 @@
+.breeder-dashboard {
+  color: #1d1f24;
+  background: #f8f7f4;
+  display: grid;
+  gap: 18px;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.45;
+  margin: 0;
+  min-height: 100%;
+  padding: 24px;
+}
+
+.breeder-dashboard__header {
+  align-items: end;
+  border-bottom: 1px solid #d8d4ca;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding-bottom: 16px;
+}
+
+.breeder-dashboard__header h1 {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.breeder-dashboard__eyebrow {
+  color: #59636f;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.breeder-dashboard__primary-link,
+.breeder-dashboard a {
+  color: #005f73;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.breeder-dashboard__primary-link {
+  border: 1px solid #005f73;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.breeder-dashboard__section {
+  background: #ffffff;
+  border: 1px solid #dedad1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.breeder-dashboard__section h2 {
+  border-bottom: 1px solid #ece8df;
+  color: #252a30;
+  font-size: 17px;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 0;
+  padding: 14px 16px;
+}
+
+.breeder-dashboard__summary ul {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.breeder-dashboard__summary li {
+  align-items: center;
+  background: #f3f5f2;
+  display: flex;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 12px 16px;
+}
+
+.breeder-dashboard__summary strong {
+  color: #6f4e1f;
+  font-size: 22px;
+}
+
+.breeder-dashboard table {
+  border-collapse: collapse;
+  font-size: 14px;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.breeder-dashboard th,
+.breeder-dashboard td {
+  border-bottom: 1px solid #ece8df;
+  overflow-wrap: anywhere;
+  padding: 12px 16px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.breeder-dashboard th {
+  color: #59636f;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.breeder-dashboard tr:last-child td {
+  border-bottom: 0;
+}
+
+.breeder-dashboard__actions {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.breeder-dashboard__actions li {
+  border-bottom: 1px solid #ece8df;
+  display: grid;
+  gap: 5px;
+  padding: 14px 16px;
+}
+
+.breeder-dashboard__actions li:last-child {
+  border-bottom: 0;
+}
+
+.breeder-dashboard__actions p,
+.breeder-dashboard__empty {
+  color: #59636f;
+  margin: 0;
+}
+
+.breeder-dashboard__empty {
+  padding: 16px;
+}
+
+.breeder-dashboard--loading,
+.breeder-dashboard--error {
+  align-content: center;
+  justify-items: start;
+  min-height: 280px;
+}
+
+.breeder-dashboard--error {
+  background: #fff8f5;
+  border: 1px solid #d79b82;
+}
+
+.breeder-dashboard__skeleton-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(80px, 1fr));
+  width: min(520px, 100%);
+}
+
+.breeder-dashboard__skeleton-grid span {
+  animation: breeder-dashboard-pulse 1.3s ease-in-out infinite;
+  background: #dedad1;
+  border-radius: 6px;
+  height: 72px;
+}
+
+@keyframes breeder-dashboard-pulse {
+  0% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0.45;
+  }
+}
+
+@media (max-width: 760px) {
+  .breeder-dashboard {
+    padding: 16px;
+  }
+
+  .breeder-dashboard__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .breeder-dashboard table,
+  .breeder-dashboard thead,
+  .breeder-dashboard tbody,
+  .breeder-dashboard th,
+  .breeder-dashboard td,
+  .breeder-dashboard tr {
+    display: block;
+  }
+
+  .breeder-dashboard thead {
+    clip: rect(0 0 0 0);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+  }
+
+  .breeder-dashboard td {
+    border-bottom: 0;
+    padding: 8px 16px;
+  }
+
+  .breeder-dashboard tr {
+    border-bottom: 1px solid #ece8df;
+    padding: 8px 0;
+  }
+}

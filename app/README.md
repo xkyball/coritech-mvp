@@ -1,10 +1,17 @@
-# CoriTech App Placeholder
+# CoriTech App
 
-This directory is reserved for the future CoriTech application frontend.
+This directory contains Phase 1 frontend modules introduced by approved tickets.
 
-No user interface, authentication flow, marketplace behavior, payments,
-logistics workflows, AI features, blockchain logic, or unrestricted document
-access is implemented by the repository setup ticket.
+## Implemented Modules
 
-Future code in this area must be introduced by an approved Phase 1 ticket and
-must preserve CoriTech ownership, review, and transferability controls.
+- `breeder-dashboard/` - Ticket 3.1 breeder dashboard view model, HTML renderer
+  and styles for a breeder organization's catalog, order, document and
+  action-required overview.
+
+## Guardrails
+
+Frontend code in this directory must continue to use managed auth context and
+role-based server contracts from `api/domain/`. It must not add custom
+authentication, public document links, AI claims, blockchain/token logic, full
+marketplace automation, federation automation, sensor ingestion or unrestricted
+buyer access unless a later approved ticket explicitly changes the scope.
