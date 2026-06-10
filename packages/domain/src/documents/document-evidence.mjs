@@ -17,9 +17,17 @@ export const DOCUMENT_LINK_TARGET_TYPES = /** @type {const} */ ([
   "ProofEvent",
 ]);
 
+export const DOCUMENT_STATUSES = /** @type {const} */ ([
+  "ACTIVE",
+  "SUPERSEDED",
+  "REVOKED",
+]);
+
 export const DOCUMENT_AUDIT_ACTIONS = /** @type {const} */ ([
   "DOCUMENT_UPLOADED",
   "DOCUMENT_VIEWED",
+  "DOCUMENT_REVOKED",
+  "DOCUMENT_REPLACED",
   "EVIDENCE_ATTACHMENT_CREATED",
 ]);
 
@@ -130,6 +138,16 @@ export function isDocumentLinkTargetType(value) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {value is import("./document-evidence.d.ts").DocumentStatus}
+ */
+export function isDocumentStatus(value) {
+  return typeof value === "string" && DOCUMENT_STATUSES.includes(
+    /** @type {import("./document-evidence.d.ts").DocumentStatus} */ (value),
+  );
+}
+
+/**
  * @param {import("./document-evidence.d.ts").DocumentActorContext} actor
  * @param {import("./document-evidence.d.ts").DocumentLinkTargetLike} target
  * @param {import("./document-evidence.d.ts").DocumentAccessClassification | string} accessClassification
@@ -158,6 +176,15 @@ export function canUploadDocument(actor, target, accessClassification) {
  */
 export function canViewDocument(actor, document) {
   return Boolean(findViewDocumentActorRole(actor, document));
+}
+
+/**
+ * @param {import("./document-evidence.d.ts").DocumentActorContext} actor
+ * @param {import("./document-evidence.d.ts").DocumentLike} document
+ * @returns {boolean}
+ */
+export function canManageDocumentLifecycle(actor, document) {
+  return Boolean(findDocumentLifecycleActorRole(actor, document));
 }
 
 /**
@@ -286,6 +313,14 @@ export function prepareCreateDocument(input) {
     storageRegion: normalizeOptionalString(input.storageRegion),
     storageVersionId: normalizeOptionalString(input.storageVersionId),
     accessClassification,
+    status: "ACTIVE",
+    replacedByDocumentId: null,
+    revocationReason: null,
+    replacementReason: null,
+    lifecycleChangedAt: null,
+    lifecycleChangedByUserId: null,
+    lifecycleChangedByRoleCode: null,
+    lifecycleChangedByOrganizationId: null,
     uploadedByUserId: input.actor.userId.trim(),
     uploaderRoleCode:
       /** @type {import("./document-evidence.d.ts").DocumentActorRoleCode} */ (
@@ -304,6 +339,127 @@ export function prepareCreateDocument(input) {
   return Object.freeze({
     document,
     auditHook,
+  });
+}
+
+/**
+ * @param {import("./document-evidence.d.ts").RevokeDocumentInput} input
+ * @returns {import("./document-evidence.d.ts").PreparedDocumentChange}
+ */
+export function prepareRevokeDocument(input) {
+  const issues = validateLifecycleInput(input, "revocation");
+
+  if (issues.length > 0) {
+    throw new DocumentEvidenceValidationError(issues);
+  }
+
+  if (documentStatus(input.document) !== "ACTIVE") {
+    throw new DocumentEvidenceValidationError([
+      "only active documents can be revoked.",
+    ]);
+  }
+
+  const actorRole = findDocumentLifecycleActorRole(input.actor, input.document);
+
+  if (!actorRole) {
+    throw new DocumentEvidenceAuthorizationError(
+      "actor is not authorized to revoke this document.",
+    );
+  }
+
+  const occurredAt = toIsoTimestamp(
+    input.revokedAt ?? input.now ?? new Date(),
+  );
+  const document = Object.freeze({
+    ...input.document,
+    status: "REVOKED",
+    revocationReason: normalizeRequiredString(input.reason),
+    replacementReason: input.document.replacementReason ?? null,
+    lifecycleChangedAt: occurredAt,
+    lifecycleChangedByUserId: input.actor.userId.trim(),
+    lifecycleChangedByRoleCode:
+      /** @type {import("./document-evidence.d.ts").DocumentActorRoleCode} */ (
+        actorRole.roleCode
+      ),
+    lifecycleChangedByOrganizationId: actorRole.organizationId,
+    updatedAt: occurredAt,
+  });
+
+  return Object.freeze({
+    document,
+    auditHook: buildDocumentLifecycleAuditHook({
+      action: "DOCUMENT_REVOKED",
+      actor: input.actor,
+      actorRole,
+      document,
+      previousDocument: input.document,
+      reason: normalizeRequiredString(input.reason),
+      occurredAt,
+    }),
+  });
+}
+
+/**
+ * @param {import("./document-evidence.d.ts").SupersedeDocumentInput} input
+ * @returns {import("./document-evidence.d.ts").PreparedDocumentChange}
+ */
+export function prepareSupersedeDocument(input) {
+  const issues = validateLifecycleInput(input, "replacement");
+
+  validateRequiredNonBlankString(
+    input?.replacementDocumentId,
+    "replacementDocumentId",
+    issues,
+  );
+
+  if (issues.length > 0) {
+    throw new DocumentEvidenceValidationError(issues);
+  }
+
+  if (documentStatus(input.document) !== "ACTIVE") {
+    throw new DocumentEvidenceValidationError([
+      "only active documents can be replaced.",
+    ]);
+  }
+
+  const actorRole = findDocumentLifecycleActorRole(input.actor, input.document);
+
+  if (!actorRole) {
+    throw new DocumentEvidenceAuthorizationError(
+      "actor is not authorized to replace this document.",
+    );
+  }
+
+  const occurredAt = toIsoTimestamp(
+    input.supersededAt ?? input.now ?? new Date(),
+  );
+  const document = Object.freeze({
+    ...input.document,
+    status: "SUPERSEDED",
+    replacedByDocumentId: normalizeRequiredString(input.replacementDocumentId),
+    replacementReason: normalizeRequiredString(input.reason),
+    revocationReason: input.document.revocationReason ?? null,
+    lifecycleChangedAt: occurredAt,
+    lifecycleChangedByUserId: input.actor.userId.trim(),
+    lifecycleChangedByRoleCode:
+      /** @type {import("./document-evidence.d.ts").DocumentActorRoleCode} */ (
+        actorRole.roleCode
+      ),
+    lifecycleChangedByOrganizationId: actorRole.organizationId,
+    updatedAt: occurredAt,
+  });
+
+  return Object.freeze({
+    document,
+    auditHook: buildDocumentLifecycleAuditHook({
+      action: "DOCUMENT_REPLACED",
+      actor: input.actor,
+      actorRole,
+      document,
+      previousDocument: input.document,
+      reason: normalizeRequiredString(input.reason),
+      occurredAt,
+    }),
   });
 }
 
@@ -426,6 +582,38 @@ export function buildDocumentViewAuditHook(input) {
     targetRef: documentTargetRef(input.document),
     documentRef: documentAuditValue(input.document),
     reason: null,
+    occurredAt: input.occurredAt,
+  });
+}
+
+/**
+ * @param {{
+ *   action: "DOCUMENT_REVOKED" | "DOCUMENT_REPLACED",
+ *   actor: import("./document-evidence.d.ts").DocumentActorContext,
+ *   actorRole: import("../identity/role-model.d.ts").UserOrganizationRoleLike,
+ *   document: import("./document-evidence.d.ts").DocumentLike,
+ *   previousDocument: import("./document-evidence.d.ts").DocumentLike,
+ *   reason: string,
+ *   occurredAt: string,
+ * }} input
+ * @returns {import("./document-evidence.d.ts").DocumentAuditHook}
+ */
+function buildDocumentLifecycleAuditHook(input) {
+  return Object.freeze({
+    eventType: "DOCUMENT_ACCESS",
+    action: input.action,
+    actorUserId: input.actor.userId.trim(),
+    actorRoleCode:
+      /** @type {import("./document-evidence.d.ts").DocumentActorRoleCode} */ (
+        input.actorRole.roleCode
+      ),
+    actorOrganizationId: input.actorRole.organizationId,
+    targetType: "Document",
+    targetId: input.document.id,
+    targetRef: documentTargetRef(input.document),
+    previousValue: documentAuditValue(input.previousDocument),
+    documentRef: documentAuditValue(input.document),
+    reason: input.reason,
     occurredAt: input.occurredAt,
   });
 }
@@ -984,6 +1172,10 @@ function findViewDocumentActorRole(actor, document) {
     return undefined;
   }
 
+  if (documentStatus(document) === "REVOKED") {
+    return findActorRole(actor, "PLATFORM_ADMIN");
+  }
+
   if (document.accessClassification === "ADMIN_ONLY") {
     return findActorRole(actor, "PLATFORM_ADMIN");
   }
@@ -1003,6 +1195,35 @@ function findViewDocumentActorRole(actor, document) {
   }
 
   return findTargetParticipantRole(actor, document);
+}
+
+/**
+ * @param {import("./document-evidence.d.ts").DocumentActorContext} actor
+ * @param {import("./document-evidence.d.ts").DocumentLike} document
+ * @returns {import("../identity/role-model.d.ts").UserOrganizationRoleLike | undefined}
+ */
+function findDocumentLifecycleActorRole(actor, document) {
+  if (findActorRole(actor, "PLATFORM_ADMIN")) {
+    return findActorRole(actor, "PLATFORM_ADMIN");
+  }
+
+  if (documentStatus(document) !== "ACTIVE") {
+    return undefined;
+  }
+
+  if (actor?.userId && actor.userId === document.uploadedByUserId) {
+    return findActorRole(
+      actor,
+      document.uploaderRoleCode,
+      document.uploaderOrganizationId,
+    );
+  }
+
+  return findActorRole(
+    actor,
+    document.uploaderRoleCode,
+    document.uploaderOrganizationId,
+  );
 }
 
 /**
@@ -1069,7 +1290,19 @@ function documentAuditValue(document) {
     storageRegion: document.storageRegion,
     storageVersionId: document.storageVersionId,
     accessClassification: document.accessClassification,
+    status: documentStatus(document),
+    replacedByDocumentId: normalizeOptionalString(document.replacedByDocumentId),
+    revocationReason: normalizeOptionalString(document.revocationReason),
+    replacementReason: normalizeOptionalString(document.replacementReason),
   });
+}
+
+/**
+ * @param {Partial<import("./document-evidence.d.ts").DocumentLike>} document
+ * @returns {import("./document-evidence.d.ts").DocumentStatus}
+ */
+function documentStatus(document) {
+  return isDocumentStatus(document.status) ? document.status : "ACTIVE";
 }
 
 /**
@@ -1113,6 +1346,74 @@ function validateActor(value) {
   }
 
   return issues;
+}
+
+/**
+ * @param {unknown} input
+ * @param {"revocation" | "replacement"} actionName
+ * @returns {string[]}
+ */
+function validateLifecycleInput(input, actionName) {
+  const issues = [];
+
+  if (!input || typeof input !== "object") {
+    return [`document ${actionName} input is required.`];
+  }
+
+  const change = /** @type {Partial<import("./document-evidence.d.ts").RevokeDocumentInput>} */ (
+    input
+  );
+
+  issues.push(...validateActor(change.actor));
+  validateDocumentForLifecycle(change.document, issues);
+  validateRequiredNonBlankString(change.reason, "reason", issues);
+  validateOptionalTimestamp(change.now, "now", issues);
+
+  if (actionName === "revocation") {
+    validateOptionalTimestamp(change.revokedAt, "revokedAt", issues);
+  }
+
+  if (actionName === "replacement") {
+    validateOptionalTimestamp(change.supersededAt, "supersededAt", issues);
+  }
+
+  return issues;
+}
+
+/**
+ * @param {unknown} value
+ * @param {string[]} issues
+ * @returns {void}
+ */
+function validateDocumentForLifecycle(value, issues) {
+  if (!value || typeof value !== "object") {
+    issues.push("document is required.");
+    return;
+  }
+
+  const document = /** @type {Partial<import("./document-evidence.d.ts").DocumentLike>} */ (
+    value
+  );
+
+  if (!normalizeRequiredString(document.id)) {
+    issues.push("document.id is required.");
+  }
+
+  if (!isDocumentStatus(documentStatus(document))) {
+    issues.push(`document.status must be one of: ${DOCUMENT_STATUSES.join(", ")}.`);
+  }
+
+  if (!normalizeRequiredString(document.uploadedByUserId)) {
+    issues.push("document.uploadedByUserId is required.");
+  }
+
+  if (!normalizeRequiredString(document.uploaderRoleCode)) {
+    issues.push("document.uploaderRoleCode is required.");
+  }
+
+  if (!normalizeRequiredString(document.uploaderOrganizationId)) {
+    issues.push("document.uploaderOrganizationId is required.");
+  }
 }
 
 /**

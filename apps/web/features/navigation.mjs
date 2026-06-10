@@ -4,16 +4,20 @@ export const breederNavigation = Object.freeze([
   Object.freeze({ href: "/breeder-dashboard", label: "My Orders" }),
   Object.freeze({ href: "/app/catalog", label: "Browse Semen Listings" }),
   Object.freeze({ href: "/app/orders/new", label: "Create Order" }),
+  Object.freeze({ href: "/app/documents/upload", label: "Documents" }),
 ]);
 
 export const stationNavigation = Object.freeze([
   Object.freeze({ href: "/station-dashboard", label: "Station Overview" }),
   Object.freeze({ href: "/app/station/orders", label: "Order Management" }),
+  Object.freeze({ href: "/app/station/shipments", label: "Shipments" }),
+  Object.freeze({ href: "/app/documents/upload", label: "Documents" }),
   Object.freeze({ href: "/app/station/listings", label: "Listing Management" }),
 ]);
 
 export const adminNavigation = Object.freeze([
   Object.freeze({ href: "/app/admin", label: "Admin Overview" }),
+  Object.freeze({ href: "/app/documents/upload", label: "Documents" }),
 ]);
 
 export const roleNavigationGroups = Object.freeze({

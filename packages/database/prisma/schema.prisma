@@ -125,6 +125,14 @@ enum DocumentLinkTargetType {
   @@map("coritech_document_link_target_type")
 }
 
+enum DocumentStatus {
+  ACTIVE
+  SUPERSEDED
+  REVOKED
+
+  @@map("coritech_document_status")
+}
+
 enum ProofEventType {
   SEMEN_ORDER_CREATED
   SUBMITTED
@@ -330,6 +338,12 @@ model SemenOrder {
   breedingStationOrganizationType OrganizationType @default(BREEDING_STATION) @map("breeding_station_organization_type")
   status                          SemenOrderStatus @default(DRAFT)
   requestedDeliveryDate           DateTime?        @map("requested_delivery_date") @db.Date
+  mareName                        String?          @map("mare_name")
+  mareRegistrationReference       String?          @map("mare_registration_reference")
+  mareBreed                       String?          @map("mare_breed")
+  mareOwnerName                   String?          @map("mare_owner_name")
+  intendedInseminationContext     String?          @map("intended_insemination_context")
+  vetOrRecipientContact           String?          @map("vet_or_recipient_contact")
   shippingContactName             String?          @map("shipping_contact_name")
   shippingContactPhone            String?          @map("shipping_contact_phone")
   shippingAddressLine1            String?          @map("shipping_address_line_1")
@@ -379,6 +393,10 @@ model Shipment {
   providerName                  String?        @map("provider_name")
   providerTrackingId            String?        @map("provider_tracking_id")
   trackingUrl                   String?        @map("tracking_url")
+  deliveredAt                   DateTime?      @map("delivered_at") @db.Timestamptz(6)
+  confirmedReceivedAt           DateTime?      @map("confirmed_received_at") @db.Timestamptz(6)
+  confirmedByUserId             String?        @map("confirmed_by_user_id") @db.Uuid
+  confirmationSource            String?        @map("confirmation_source")
   createdByUserId               String         @map("created_by_user_id") @db.Uuid
   updatedByUserId               String         @map("updated_by_user_id") @db.Uuid
   createdAt                     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -437,6 +455,14 @@ model Document {
   storageRegion                 String?                      @map("storage_region")
   storageVersionId              String?                      @map("storage_version_id")
   accessClassification          DocumentAccessClassification @map("access_classification")
+  status                        DocumentStatus               @default(ACTIVE)
+  replacedByDocumentId          String?                      @map("replaced_by_document_id") @db.Uuid
+  revocationReason              String?                      @map("revocation_reason")
+  replacementReason             String?                      @map("replacement_reason")
+  lifecycleChangedAt            DateTime?                    @map("lifecycle_changed_at") @db.Timestamptz(6)
+  lifecycleChangedByUserId      String?                      @map("lifecycle_changed_by_user_id") @db.Uuid
+  lifecycleChangedByRoleCode    RoleCode?                    @map("lifecycle_changed_by_role_code")
+  lifecycleChangedByOrganizationId String?                   @map("lifecycle_changed_by_organization_id") @db.Uuid
   uploadedByUserId              String                       @map("uploaded_by_user_id") @db.Uuid
   uploaderRoleCode              RoleCode                     @map("uploader_role_code")
   uploaderOrganizationId        String                       @map("uploader_organization_id") @db.Uuid
@@ -444,6 +470,7 @@ model Document {
   updatedAt                     DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([id, targetType, targetId], map: "documents_id_target_unique")
+  @@index([status, createdAt], map: "documents_status_lookup")
   @@index([accessClassification, createdAt], map: "documents_access_lookup")
   @@index([storageProvider, storageBucket, storageObjectKey], map: "documents_storage_reference_lookup")
   @@map("documents")

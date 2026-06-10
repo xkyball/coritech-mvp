@@ -3,7 +3,10 @@
 import { canViewDocument } from "@coritech/domain/documents/document-evidence.mjs";
 import { isActiveRoleAssignment } from "@coritech/domain/identity/role-model.mjs";
 import { canViewSemenOrder } from "@coritech/domain/orders/semen-order.mjs";
-import { canViewShipment } from "@coritech/domain/shipments/shipment.mjs";
+import {
+  canConfirmShipmentReceived,
+  canViewShipment,
+} from "@coritech/domain/shipments/shipment.mjs";
 
 export const BREEDER_ORDER_DETAIL_VIEW_STATES = /** @type {const} */ ([
   "LOADING",
@@ -151,7 +154,11 @@ export function createBreederOrderDetailViewModel(input) {
         emptyMessage: "No shipment has been recorded for this order.",
         items: Object.freeze(
           shipments.map((shipment) =>
-            toShipmentRow(shipment, shipmentTrackingEvents)
+            toShipmentRow({
+              actor,
+              shipment,
+              shipmentTrackingEvents,
+            })
           ),
         ),
       }),
@@ -331,6 +338,12 @@ function toOrderSummary(order) {
     breedingStationOrganizationId: order.breedingStationOrganizationId,
     status: order.status,
     requestedDeliveryDate: normalizeOptionalString(order.requestedDeliveryDate),
+    mareName: normalizeOptionalString(order.mareName),
+    mareRegistrationReference: normalizeOptionalString(order.mareRegistrationReference),
+    mareBreed: normalizeOptionalString(order.mareBreed),
+    mareOwnerName: normalizeOptionalString(order.mareOwnerName),
+    intendedInseminationContext: normalizeOptionalString(order.intendedInseminationContext),
+    vetOrRecipientContact: normalizeOptionalString(order.vetOrRecipientContact),
     shippingContactName: normalizeOptionalString(order.shippingContactName),
     shippingContactPhone: normalizeOptionalString(order.shippingContactPhone),
     shippingAddressLines: Object.freeze(buildShippingAddressLines(order)),
@@ -350,6 +363,15 @@ function buildOrderSummaryItems(order) {
     summaryItem("Current status", formatStatus(order.status)),
     summaryItem("Breeding station", order.breedingStationOrganizationId),
     summaryItem("Requested delivery", order.requestedDeliveryDate ?? "Not set"),
+    summaryItem("Mare", order.mareName ?? "Not set"),
+    summaryItem("Mare registration", order.mareRegistrationReference ?? "Not set"),
+    summaryItem("Mare breed", order.mareBreed ?? "Not set"),
+    summaryItem("Mare owner", order.mareOwnerName ?? "Not set"),
+    summaryItem(
+      "Insemination context",
+      order.intendedInseminationContext ?? "Not set",
+    ),
+    summaryItem("Vet or recipient contact", order.vetOrRecipientContact ?? "Not set"),
     summaryItem("Shipping contact", order.shippingContactName ?? "Not set"),
     summaryItem("Contact phone", order.shippingContactPhone ?? "Not set"),
     summaryItem(
@@ -392,13 +414,17 @@ function toStatusHistoryRow(history) {
 }
 
 /**
- * @param {import("./breeder-order-detail.d.ts").ShipmentLike} shipment
- * @param {readonly import("./breeder-order-detail.d.ts").ShipmentTrackingEventLike[]} shipmentTrackingEvents
+ * @param {{
+ *   actor: import("./breeder-order-detail.d.ts").BreederOrderDetailActorContext;
+ *   shipment: import("./breeder-order-detail.d.ts").ShipmentLike;
+ *   shipmentTrackingEvents: readonly import("./breeder-order-detail.d.ts").ShipmentTrackingEventLike[];
+ * }} input
  * @returns {import("./breeder-order-detail.d.ts").BreederOrderShipmentRow}
  */
-function toShipmentRow(shipment, shipmentTrackingEvents) {
+function toShipmentRow(input) {
+  const shipment = input.shipment;
   const shipmentId = normalizeOptionalString(shipment.id);
-  const trackingEvents = shipmentTrackingEvents
+  const trackingEvents = input.shipmentTrackingEvents
     .filter((event) =>
       (shipmentId && event.shipmentId === shipmentId) ||
       (
@@ -408,6 +434,10 @@ function toShipmentRow(shipment, shipmentTrackingEvents) {
       )
     )
     .map(toShipmentTrackingEventRow);
+  const confirmedReceivedAt = normalizeOptionalString(shipment.confirmedReceivedAt);
+  const canConfirmReceived = !confirmedReceivedAt &&
+    ["IN_TRANSIT", "DELIVERED"].includes(shipment.status) &&
+    canConfirmShipmentReceived(input.actor, shipment);
 
   return Object.freeze({
     id: shipmentId,
@@ -417,6 +447,16 @@ function toShipmentRow(shipment, shipmentTrackingEvents) {
     providerName: normalizeOptionalString(shipment.providerName),
     providerTrackingId: normalizeOptionalString(shipment.providerTrackingId),
     trackingUrl: normalizeOptionalString(shipment.trackingUrl),
+    deliveredAt: normalizeOptionalString(shipment.deliveredAt),
+    confirmedReceivedAt,
+    confirmedByUserId: normalizeOptionalString(shipment.confirmedByUserId),
+    confirmationSource: normalizeOptionalString(shipment.confirmationSource),
+    canConfirmReceived,
+    confirmationSummary: confirmedReceivedAt
+      ? `Receipt confirmed at ${confirmedReceivedAt}`
+      : canConfirmReceived
+        ? "Receipt confirmation available"
+        : "Receipt not confirmed",
     createdAt: normalizeOptionalString(shipment.createdAt),
     updatedAt: normalizeOptionalString(shipment.updatedAt),
     trackingEvents: Object.freeze(trackingEvents),
@@ -458,6 +498,7 @@ function toDocumentRow(document) {
     targetId: document.targetId,
     orderNumber: document.orderNumber,
     accessClassification: document.accessClassification,
+    status: document.status ?? "ACTIVE",
     createdAt: document.createdAt,
     detailHref: documentId
       ? `${BREEDER_ORDER_DETAIL_ROUTES.documentDetail}/${encodeURIComponent(documentId)}`
@@ -727,13 +768,14 @@ function renderShipmentSection(section) {
     ? renderEmptyMessage(section.emptyMessage)
     : [
       "    <table>",
-      "      <thead><tr><th>Status</th><th>Provider</th><th>Tracking</th><th>Updated</th><th>Events</th></tr></thead>",
+      "      <thead><tr><th>Status</th><th>Provider</th><th>Tracking</th><th>Receipt</th><th>Updated</th><th>Events</th></tr></thead>",
       "      <tbody>",
       section.items.map((shipment) => [
         "        <tr>",
         `          <td>${escapeHtml(formatStatus(shipment.status))}</td>`,
         `          <td>${escapeHtml(shipment.providerName ?? "Not recorded")}</td>`,
         `          <td>${renderTrackingLink(shipment)}</td>`,
+        `          <td>${escapeHtml(shipment.confirmationSummary)}</td>`,
         `          <td>${escapeHtml(shipment.updatedAt ?? "Not recorded")}</td>`,
         `          <td>${renderShipmentTrackingEvents(shipment.trackingEvents)}</td>`,
         "        </tr>",
@@ -789,13 +831,14 @@ function renderDocumentsSection(section) {
     ? renderEmptyMessage(section.emptyMessage)
     : [
       "    <table>",
-      "      <thead><tr><th>Document</th><th>Type</th><th>Access</th><th>Created</th><th>Open</th></tr></thead>",
+      "      <thead><tr><th>Document</th><th>Type</th><th>Access</th><th>Status</th><th>Created</th><th>Open</th></tr></thead>",
       "      <tbody>",
       section.items.map((document) => [
         "        <tr>",
         `          <td>${escapeHtml(document.originalFileName)}</td>`,
         `          <td>${escapeHtml(document.documentType)}</td>`,
         `          <td>${escapeHtml(formatStatus(document.accessClassification))}</td>`,
+        `          <td>${escapeHtml(formatStatus(document.status))}</td>`,
         `          <td>${escapeHtml(document.createdAt)}</td>`,
         `          <td>${document.detailHref ? `<a href="${escapeAttribute(document.detailHref)}">View</a>` : "Unavailable"}</td>`,
         "        </tr>",

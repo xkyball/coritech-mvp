@@ -264,6 +264,7 @@ function DocumentsSection({
               <th>Type</th>
               <th>Order</th>
               <th>Access</th>
+              <th>Status</th>
               <th>Open</th>
             </tr>
           </thead>
@@ -274,6 +275,7 @@ function DocumentsSection({
                 <td>{document.documentType}</td>
                 <td>{document.orderNumber ?? document.targetId}</td>
                 <td><StatusBadge value={document.accessClassification} /></td>
+                <td><StatusBadge value={document.status} /></td>
                 <td>
                   {isImplementedDocumentHref(document.detailHref) ? (
                     <ButtonLink href={document.detailHref ?? ""} variant="ghost">
@@ -354,5 +356,5 @@ function formatStatus(value: unknown) {
 }
 
 function isImplementedDocumentHref(href: string | null) {
-  return Boolean(href && !href.startsWith("/app/documents/"));
+  return Boolean(href);
 }

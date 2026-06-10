@@ -22,6 +22,7 @@ service owns these commands:
 - `rejectOrder`
 - `moveToFulfilment`
 - `completeOrder`
+- `cancelOrder`
 - `transitionOrder` for explicit status transitions covered by the centralized
   transition map
 
@@ -34,6 +35,8 @@ Read-only order queries remain outside the command service.
 - Each command validates that the actor has exactly one active Phase 1 role
   context before mutating an order.
 - Draft updates are allowed only while the order is still `DRAFT`.
+- `rejectOrder` and `cancelOrder` require a non-empty reason so negative
+  outcomes remain auditable and visible in status history.
 - Status transitions create status history and append audit and proof hooks.
 - Duplicate status commands that target the order's current status return an
   idempotent result without writing another history, audit or proof event.
@@ -53,6 +56,9 @@ The service emits framework-neutral hook objects:
 
 - Audit hooks are written through the audit repository integration.
 - Proof hooks are dispatched through an injected proof service when available.
+  If no proof service is supplied and the repository supports proof-event
+  persistence, order proof milestones are written directly and duplicate
+  proof events are avoided by the repository.
 - Notification hooks are dispatched through an injected notification service when
   available.
 

@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./environment": "./src/environment.mjs",
+    "./environment": {
+      "types": "./src/environment.d.ts",
+      "default": "./src/environment.mjs"
+    },
     "./environment.d.ts": "./src/environment.d.ts"
   },
   "scripts": {

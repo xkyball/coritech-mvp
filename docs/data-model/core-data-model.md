@@ -19,8 +19,8 @@ the remaining entities are still conceptual placeholders.
 | OrderStatusHistory | Ordered record of order state changes | Implemented by Ticket 1.3; linked to semen order and actor context |
 | Shipment | Delivery record for semen order fulfillment | Implemented by Ticket 1.4; linked to confirmed semen order and tracking events |
 | ShipmentTrackingEvent | Milestone, carrier update or manual tracking note | Implemented by Ticket 1.4; linked to shipment, actor context and normalized source |
-| Document | Metadata and object-storage references for uploaded evidence documents | Implemented by Ticket 1.5; linked to order, shipment or proof event |
-| EvidenceAttachment | Relation between a document and a proof event | Implemented by Ticket 1.5; supports proof event documentation without creating proof events automatically |
+| Document | Metadata, lifecycle status and object-storage references for uploaded evidence documents | Implemented by Ticket 1.5 and extended by Phase 1.1 document workflow tickets; linked to order, shipment or proof event |
+| EvidenceAttachment | Relation between a document and a proof event | Implemented by Ticket 1.5; document uploads can now create/link upload proof evidence without treating the document as proof by itself |
 | ProofEvent | Workflow-generated proof record | Implemented by Ticket 1.6; links trigger, documentation, signature placeholder, verification level and audit-hook context |
 | VerificationLevel | Reviewable trust level applied to proof events | Implemented by Ticket 1.7; derived from proof event type and actor role |
 | AuditLog | Immutable operational audit entry | Implemented by Ticket 1.8; links actor, role, organization, action, target object, request metadata and timestamp |
@@ -144,11 +144,19 @@ prevention remain owned by Ticket 7.1.
 
 Ticket 3.3 adds Phase 1 order-creation detail fields to `semen_orders`:
 `requested_delivery_date`, shipping contact fields, shipping address fields and
-optional `special_instructions`. Draft orders may be saved before every detail
-is complete. Application validation requires requested delivery date, shipping
-contact, primary address, city, postal code and country before a breeder can
-move the order to `SUBMITTED`. These fields do not create shipment automation,
-logistics-provider integration or unrestricted downstream access.
+optional `special_instructions`. Ticket 18.07 keeps the minimal mare/recipient
+details inline on `semen_orders` rather than adding a separate table:
+`mare_name`, `mare_registration_reference`, `mare_breed`, optional
+`mare_owner_name`, optional `intended_insemination_context` and optional
+`vet_or_recipient_contact`.
+
+Draft orders may be saved before every detail is complete. Application
+validation requires requested delivery date, mare name, mare registration
+reference, mare breed, shipping contact, primary address, city, postal code and
+country before a breeder can move the order to `SUBMITTED`. These fields are
+order-sensitive and follow existing order permissions; they do not create
+shipment automation, logistics-provider integration or unrestricted downstream
+access.
 
 ## Implemented Shipment Tracking Foundation
 
@@ -160,7 +168,7 @@ Implemented tables:
 
 | Table | Purpose |
 | --- | --- |
-| `shipments` | Shipment records linked to semen orders, with current normalized shipment status and optional provider reference fields. |
+| `shipments` | Shipment records linked to semen orders, with current normalized shipment status, optional provider reference fields and nullable delivery/receipt confirmation fields. |
 | `shipment_tracking_events` | Append-only tracking timeline linked to a shipment and actor/source context. |
 
 Implemented shipment status values:
@@ -180,13 +188,16 @@ breeding-station users, with platform-admin support access. Breeder access is
 read-only for shipments linked to their own orders. Future buyer access remains
 unavailable in Phase 1.
 
-Every prepared shipment creation or status update emits a
-`SHIPMENT_TRACKING_EVENT` audit hook and a `PROOF_EVENT_REQUEST` hook. Ticket
-1.6 can materialize shipment-created, shipment-updated and
-shipment-confirmed proof events from those hooks through the explicit
-ProofEvent service. Ticket 1.8 persists shipment creation and shipment status
-updates as AuditLog entries, while automated shipment proof generation from
-shipment actions remains Ticket 7.2.
+Every prepared shipment creation, status update or breeder receipt confirmation
+emits a `SHIPMENT_TRACKING_EVENT` audit hook and a `PROOF_EVENT_REQUEST` hook.
+Shipment actions now persist shipment-created, shipment-updated and
+shipment-confirmed proof events through `ShipmentService` when the repository
+supports proof-event writes.
+
+Delivery confirmation uses nullable `delivered_at`, `confirmed_received_at`,
+`confirmed_by_user_id` and `confirmation_source` fields. Station delivery marks
+`STATION_MARKED_DELIVERED`; breeder acknowledgement marks
+`BREEDER_CONFIRMED_RECEIVED` without deleting or rewriting tracking events.
 
 The model stores optional `provider_name`, `provider_tracking_id`,
 `tracking_url`, `source_event_id` and `provider_status` fields so future
@@ -199,6 +210,10 @@ automation; that remains owned by Ticket 5.2.
 Ticket 1.5 adds document metadata and proof-event evidence attachment records:
 
 `packages/database/legacy-sql/migrations/20260609_0105_document_evidence_attachment.sql`
+
+Phase 1.1 adds document lifecycle fields through:
+
+`packages/database/prisma/migrations/20260610120000_document_lifecycle/migration.sql`
 
 Implemented tables:
 
@@ -223,14 +238,24 @@ optional SHA-256 checksum and object-storage reference fields
 and version). Raw file bytes, local filesystem paths and public unrestricted
 links are intentionally not part of the model.
 
+Document lifecycle status is tracked with `ACTIVE`, `SUPERSEDED` and `REVOKED`.
+Replacement/revocation records retain reason, actor user, role, organization
+and timestamp. Revoked documents are denied to normal participants; platform
+admins retain controlled review access.
+
 The API document helper exposes framework-neutral endpoint contracts for
 creating metadata records, viewing documents, listing documents by order or
 shipment, and attaching documents to proof events. Uploads and views emit
 `DOCUMENT_ACCESS` audit hooks. Evidence attachment creation also emits an audit
 hook. Ticket 1.8 persists document upload, document view and evidence-attachment
-hooks as AuditLog entries. Object-storage provider integration remains owned by
-Ticket 6.1, and automatic proof-event generation from document uploads remains
-owned by Ticket 7.3.
+hooks as AuditLog entries.
+
+The web runtime now uploads document bytes to private object storage, persists
+metadata through the Prisma document repository, serves authorized controlled
+access URLs, and supports document replacement/revocation. Uploading evidence
+can create a `DOCUMENT_UPLOADED` proof event and EvidenceAttachment. Upload
+proof events derive `SYSTEM_RECORDED` so documents remain evidence attached to
+proof events rather than high-verification proof by themselves.
 
 ## Implemented Proof Event Foundation
 
@@ -266,17 +291,17 @@ Phase 1 derivation rules:
 
 | Actor role | Event types | Derived level |
 | --- | --- | --- |
-| `BREEDER` | `SEMEN_ORDER_CREATED`, `SUBMITTED`, `DOCUMENT_UPLOADED` | `SELF_REPORTED` |
+| `BREEDER` | `SEMEN_ORDER_CREATED`, `SUBMITTED` | `SELF_REPORTED` |
 | `BREEDER` | Other Phase 1 proof event types | `SYSTEM_RECORDED` |
-| `BREEDING_STATION` | `CONFIRMED`, `REJECTED`, `SHIPMENT_CONFIRMED`, `DOCUMENT_UPLOADED` | `STATION_CONFIRMED` |
+| `BREEDING_STATION` | `CONFIRMED`, `REJECTED`, `SHIPMENT_CONFIRMED` | `STATION_CONFIRMED` |
 | `BREEDING_STATION` | Other Phase 1 proof event types | `SYSTEM_RECORDED` |
 | `PLATFORM_ADMIN` | Any Phase 1 proof event type | `ADMIN_REVIEWED` |
 
 The ProofEvent API helper materializes proof events only through explicit
-service calls from existing workflow proof hooks, including Ticket 1.9
-admin-correction amendment hooks. It does not automatically create proof events
-on every order, shipment, document or amendment action. Those automation rules
-remain in Tickets 7.1, 7.2, 7.3 and later admin workflow tickets.
+service calls from existing workflow proof hooks, including order actions,
+shipment actions, document uploads and Ticket 1.9 admin-correction amendment
+hooks. It does not create broad future-phase proof automation outside those
+approved Phase 1 workflow actions.
 
 The table blocks direct deletes with a database trigger. Later corrections must
 use approved amendment/admin-correction workflows instead of silently deleting

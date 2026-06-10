@@ -17,11 +17,11 @@ traceability.
 | `UserOrganizationRole` | Organization-scoped role assignment and revocation evidence. |
 | `Stallion` | Breeding-station-owned horse record for semen listing context. |
 | `SemenListing` | Station-owned semen availability record. |
-| `SemenOrder` | Breeder-to-station order record with creation delivery and shipping details. |
+| `SemenOrder` | Breeder-to-station order record with creation delivery, mare/recipient and shipping details. |
 | `OrderStatusHistory` | Append-oriented status transition timeline. |
-| `Shipment` | Fulfillment shipment linked to a semen order. |
+| `Shipment` | Fulfillment shipment linked to a semen order, including station delivery and breeder receipt confirmation fields. |
 | `ShipmentTrackingEvent` | Normalized shipment tracking milestone. |
-| `Document` | Document metadata and object-storage reference. |
+| `Document` | Document metadata, lifecycle status and object-storage reference. |
 | `EvidenceAttachment` | Link between document metadata and proof event. |
 | `VerificationLevel` | Seeded verification-level taxonomy for review and UI use. |
 | `ProofEvent` | Workflow proof event with trigger, actor, verification and audit context. |
@@ -39,6 +39,10 @@ The seed script creates:
 - One breeder organization, one breeding station and one platform organization.
 - One user for each active organization context.
 - Role assignments, a stallion, a semen listing, a semen order, status history, shipment, tracking event, document metadata, proof events, audit logs, an access grant and an amendment.
+
+Document lifecycle uses `ACTIVE`, `SUPERSEDED` and `REVOKED` states so
+replacement and revocation preserve proof history instead of hard-deleting
+evidence.
 
 ## Notes
 

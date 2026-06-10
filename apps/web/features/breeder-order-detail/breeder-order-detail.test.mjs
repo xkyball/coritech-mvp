@@ -75,6 +75,12 @@ const ownOrder = {
   breedingStationOrganizationId: stationOrganizationId,
   status: "CONFIRMED",
   requestedDeliveryDate: "2026-06-10",
+  mareName: "Willow Queen",
+  mareRegistrationReference: "M-REG-2048",
+  mareBreed: "Warmblood",
+  mareOwnerName: "Ava Breeder",
+  intendedInseminationContext: "Fresh semen insemination at home yard.",
+  vetOrRecipientContact: "Dr. Ndlovu, +27 82 555 0102",
   shippingContactName: "Avery Stone",
   shippingContactPhone: "+27 21 555 0100",
   shippingAddressLine1: "42 Blue Oak Road",
@@ -149,6 +155,10 @@ const shipment = {
   providerName: "Manual logistics record",
   providerTrackingId: "MANUAL-001",
   trackingUrl: null,
+  deliveredAt: null,
+  confirmedReceivedAt: null,
+  confirmedByUserId: null,
+  confirmationSource: null,
   createdByUserId: "user-station-a",
   updatedByUserId: "user-station-a",
   createdAt: confirmedAt,
@@ -360,6 +370,8 @@ test("breeder can view own order detail with history, shipment, documents and pr
 
   assert.equal(detail.organizationContext.organizationId, breederOrganizationId);
   assert.equal(detail.order.orderNumber, "SO-20260609-000001");
+  assert.equal(detail.order.mareName, "Willow Queen");
+  assert.equal(detail.order.mareRegistrationReference, "M-REG-2048");
   assert.equal(detail.currentStatus.status, "CONFIRMED");
   assert.equal(detail.currentStatus.latestChange?.id, "history-confirmed");
   assert.deepEqual(
@@ -367,6 +379,11 @@ test("breeder can view own order detail with history, shipment, documents and pr
     ["history-draft", "history-submitted", "history-confirmed"],
   );
   assert.equal(detail.sections.shipments.items[0].status, "IN_TRANSIT");
+  assert.equal(detail.sections.shipments.items[0].canConfirmReceived, true);
+  assert.equal(
+    detail.sections.shipments.items[0].confirmationSummary,
+    "Receipt confirmation available",
+  );
   assert.deepEqual(
     detail.sections.shipments.items[0].trackingEvents.map((event) => event.id),
     ["tracking-prepared", "tracking-transit"],
@@ -380,8 +397,10 @@ test("breeder can view own order detail with history, shipment, documents and pr
     ["proof-submitted", "proof-shipment"],
   );
   assert.match(html, /Order SO-20260609-000001/);
+  assert.match(html, /Willow Queen/);
   assert.match(html, /Status history/);
   assert.match(html, /Shipment information/);
+  assert.match(html, /Receipt confirmation available/);
   assert.match(html, /shipment-handoff.pdf/);
   assert.match(html, /Proof events/);
   assert.match(html, /station confirmed/);

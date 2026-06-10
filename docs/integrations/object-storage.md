@@ -6,8 +6,8 @@ CoriTech uses commodity S3-compatible object storage for document bytes while
 the application owns document access logic, metadata, audit hooks and proof-layer
 decisions.
 
-This prerequisite adds MinIO for local development before Ticket 6.1 integrates
-document uploads.
+This integration adds MinIO for local development and wires runtime document
+upload/download flows through the shared object-storage provider.
 
 ## Local Provider
 
@@ -48,15 +48,15 @@ from a CoriTech-controlled secret manager or future vault.
 The reusable storage foundation lives in
 `packages/domain/src/storage/object-storage.mjs`.
 
-Ticket 6.1 should:
+Runtime document storage now:
 
 - load the shared environment config;
 - create object storage config through `createObjectStorageConfig`;
-- initialize the selected S3-compatible SDK using CoriTech-controlled
+- initialize the selected S3-compatible client using CoriTech-controlled
   credentials;
 - wrap the SDK with the object-storage provider abstraction;
-- write document upload, metadata, validation, controlled-access and audit logic
-  outside the storage provider.
+- keep document upload, metadata, validation, controlled-access and audit logic
+  outside the storage provider in the document services and web routes.
 
 The provider abstraction supports infrastructure-level object operations:
 
@@ -74,7 +74,13 @@ The provider abstraction supports infrastructure-level object operations:
 - Local MinIO credentials are development-only and must not be reused for
   staging or production.
 - Buckets must remain private by default.
-- Raw public document links must not be exposed.
+- Raw public document links must not be exposed. The web runtime creates
+  controlled, short-lived access URLs only after document authorization passes
+  and a view audit hook is recorded.
+- Uploads validate allowed file types and size before metadata persistence.
+- Malware scanning is represented by an explicit Phase 1 placeholder result
+  (`NOT_SCANNED_PLACEHOLDER`); no clean-file claim is made without a real
+  scanner adapter.
 - Production object storage accounts, buckets, access keys, backup
   administrators and recovery paths must be CoriTech-controlled.
 - Vendor-owned production-critical account assumptions are not accepted without
@@ -82,9 +88,8 @@ The provider abstraction supports infrastructure-level object operations:
 
 ## Known Limitation
 
-This prerequisite does not implement document upload endpoints, document
-metadata persistence, controlled access URLs, upload/view audit hooks, file type
-validation, file size validation, malware scanning placeholder behavior,
-document authorization logic, buyer access rules, public sharing, AI,
-blockchain/token logic or federation automation. Those remain Ticket 6.1 or
-future ticket responsibilities.
+The current runtime integration does not implement a production malware scanner,
+public sharing, AI, blockchain/token logic, federation automation or unrestricted
+buyer access. Local MinIO remains the development provider; staging and
+production storage accounts must be configured with CoriTech-controlled
+credentials outside version control.

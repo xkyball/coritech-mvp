@@ -3,18 +3,22 @@ import assert from "node:assert/strict";
 
 import {
   SHIPMENT_ROUTES,
+  SHIPMENT_SERVICE_COMMANDS,
   SHIPMENT_STATUSES,
   SHIPMENT_TRACKING_EVENT_SOURCES,
   ShipmentAuthorizationError,
   ShipmentValidationError,
+  canConfirmShipmentReceived,
   canManageShipment,
   canViewShipment,
+  createShipmentService,
   createShipmentEndpoint,
   createShipmentTrackingEventEndpoint,
   getShipmentEndpoint,
   listOrderShipmentsEndpoint,
   listShipmentTrackingEventsEndpoint,
   prepareCreateShipment,
+  prepareConfirmShipmentReceived,
   prepareCreateShipmentTrackingEvent,
 } from "./shipment.mjs";
 
@@ -111,6 +115,10 @@ const preparedShipment = {
   providerName: "Manual Courier",
   providerTrackingId: "TRACK-1",
   trackingUrl: "https://carrier.example/track/TRACK-1",
+  deliveredAt: null,
+  confirmedReceivedAt: null,
+  confirmedByUserId: null,
+  confirmationSource: null,
   createdByUserId: "user-station",
   updatedByUserId: "user-station",
   createdAt: timestamp,
@@ -131,6 +139,14 @@ test("shipment route contract and enums stay inside the Phase 1 tracking model",
     "MANUAL",
     "LOGISTICS_PROVIDER",
     "SYSTEM",
+  ]);
+  assert.deepEqual(SHIPMENT_SERVICE_COMMANDS, [
+    "CREATE_SHIPMENT",
+    "UPDATE_SHIPMENT_STATUS",
+    "ATTACH_TRACKING_REFERENCE",
+    "MARK_DELIVERED",
+    "MARK_DELAYED",
+    "CONFIRM_RECEIVED",
   ]);
   assert.deepEqual(
     SHIPMENT_ROUTES.map((route) => `${route.method} ${route.path}`),
@@ -287,6 +303,43 @@ test("shipment view permissions include breeder, assigned station and platform a
   assert.equal(canViewShipment(futureBuyerActor, preparedShipment), false);
 });
 
+test("breeder can confirm receipt for in-transit or delivered shipment", () => {
+  const inTransitShipment = {
+    ...preparedShipment,
+    status: "IN_TRANSIT",
+  };
+  const prepared = prepareConfirmShipmentReceived({
+    trackingEventId: "tracking-event-receipt",
+    existingShipment: inTransitShipment,
+    notes: "Received at breeding yard",
+    actor: breederActor,
+    now: timestamp,
+  });
+
+  assert.equal(canConfirmShipmentReceived(breederActor, preparedShipment), true);
+  assert.equal(canConfirmShipmentReceived(stationActor, preparedShipment), false);
+  assert.equal(prepared.shipment.status, "DELIVERED");
+  assert.equal(prepared.shipment.deliveredAt, timestamp);
+  assert.equal(prepared.shipment.confirmedReceivedAt, timestamp);
+  assert.equal(prepared.shipment.confirmedByUserId, "user-breeder");
+  assert.equal(prepared.shipment.confirmationSource, "BREEDER_CONFIRMED_RECEIVED");
+  assert.equal(prepared.trackingEvent.actorRoleCode, "BREEDER");
+  assert.equal(prepared.auditHook.action, "SHIPMENT_RECEIPT_CONFIRMED");
+  assert.equal(prepared.proofHook.triggerRef.toStatus, "DELIVERED");
+
+  assert.throws(
+    () =>
+      prepareConfirmShipmentReceived({
+        existingShipment: preparedShipment,
+        actor: otherStationActor,
+        now: timestamp,
+      }),
+    (error) =>
+      error instanceof ShipmentValidationError &&
+      error.issues.includes("actor must be the active BREEDER user for the shipment order."),
+  );
+});
+
 test("shipment endpoints persist shipment and tracking event timeline", async () => {
   const repository = buildRepository({
     orders: [confirmedOrder],
@@ -322,6 +375,10 @@ test("shipment endpoints persist shipment and tracking event timeline", async ()
   assert.equal(created.auditLog?.objectId, "shipment-1");
   assert.equal(created.auditLog?.ipAddress, "203.0.113.11");
   assert.equal(created.proofHook?.triggerRef.trackingEventId, "tracking-event-1");
+  assert.equal(created.proofResult?.proofEvent.eventType, "SHIPMENT_CREATED");
+  assert.equal(created.proofResult?.proofEvent.shipmentId, "shipment-1");
+  assert.equal(created.proofResult?.proofEvent.semenOrderId, "order-confirmed");
+  assert.equal(created.proofResult?.proofEvent.auditLogId, created.auditLog?.id);
 
   const updated = await createShipmentTrackingEventEndpoint({
     actor: stationActor,
@@ -345,6 +402,9 @@ test("shipment endpoints persist shipment and tracking event timeline", async ()
   assert.equal(updated.auditLog?.action, "STATUS_CHANGE");
   assert.equal(updated.auditLog?.previousValues?.status, "PREPARED");
   assert.equal(updated.auditLog?.newValues?.status, "DELIVERED");
+  assert.equal(updated.proofResult?.proofEvent.eventType, "SHIPMENT_CONFIRMED");
+  assert.equal(updated.proofResult?.proofEvent.verificationLevel, "STATION_CONFIRMED");
+  assert.equal(updated.proofResult?.auditLog.action, "CREATE_PROOF_EVENT");
 
   const listedForOrder = await listOrderShipmentsEndpoint({
     actor: breederActor,
@@ -384,6 +444,10 @@ test("shipment endpoints persist shipment and tracking event timeline", async ()
   });
 
   assert.equal(fetched.body.shipment.status, "DELIVERED");
+  assert.deepEqual(
+    repository.listProofEvents().map((proofEvent) => proofEvent.eventType),
+    ["SHIPMENT_CREATED", "SHIPMENT_CONFIRMED"],
+  );
 
   await assert.rejects(
     () =>
@@ -399,14 +463,158 @@ test("shipment endpoints persist shipment and tracking event timeline", async ()
   );
 });
 
+test("ShipmentService centralizes create, provider reference and named status commands", async () => {
+  const repository = buildRepository({
+    orders: [confirmedOrder, draftOrder],
+  });
+  let transactionCount = 0;
+  const notifications = [];
+  const service = createShipmentService({
+    repository,
+    auditContext: {
+      userAgent: "node-test/shipment-service",
+    },
+    notificationService: {
+      recordShipmentNotificationHook(hook) {
+        notifications.push(hook);
+        return { recorded: true };
+      },
+    },
+    transaction: async (operation) => {
+      transactionCount += 1;
+      return operation(repository);
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.createShipment({
+        actor: stationActor,
+        orderId: "order-draft",
+        body: {
+          createdAt: timestamp,
+        },
+      }),
+    (error) =>
+      error instanceof ShipmentValidationError &&
+      error.issues.includes("shipment can only be created for a CONFIRMED semen order."),
+  );
+
+  const created = await service.createShipment({
+    actor: stationActor,
+    orderId: "order-confirmed",
+    body: {
+      providerName: "Manual Courier",
+      providerTrackingId: "TRACK-1",
+      trackingUrl: "https://carrier.example/track/TRACK-1",
+      notes: "Initial shipment prep",
+      createdAt: timestamp,
+    },
+  });
+
+  assert.equal(created.status, 201);
+  assert.equal(created.shipment.status, "PREPARED");
+  assert.equal(created.proofResult.proofEvent.eventType, "SHIPMENT_CREATED");
+  assert.equal(created.notificationHook.eventType, "SHIPMENT_CREATED");
+
+  const attached = await service.attachTrackingReference({
+    actor: stationActor,
+    shipmentId: "shipment-1",
+    body: {
+      providerTrackingId: "TRACK-2",
+      trackingUrl: "https://carrier.example/track/TRACK-2",
+      eventSource: "LOGISTICS_PROVIDER",
+      sourceEventId: "provider-event-42",
+      providerStatus: "tracking_reference_updated",
+      notes: "Provider tracking reference attached",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(attached.shipment.providerTrackingId, "TRACK-2");
+  assert.equal(attached.trackingEvent.eventSource, "LOGISTICS_PROVIDER");
+  assert.equal(attached.trackingEvent.sourceEventId, "provider-event-42");
+  assert.equal(attached.notificationHook.eventType, "SHIPMENT_TRACKING_REFERENCE_ATTACHED");
+
+  const delayed = await service.markDelayed({
+    actor: stationActor,
+    shipmentId: "shipment-1",
+    body: {
+      notes: "Courier delay",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(delayed.shipment.status, "DELAYED");
+  assert.equal(delayed.notificationHook.eventType, "SHIPMENT_DELAYED");
+
+  const delivered = await service.markDelivered({
+    actor: stationActor,
+    shipmentId: "shipment-1",
+    body: {
+      notes: "Delivered to breeder",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(delivered.shipment.status, "DELIVERED");
+  assert.equal(delivered.proofResult.proofEvent.eventType, "SHIPMENT_CONFIRMED");
+  assert.equal(delivered.proofResult.proofEvent.verificationLevel, "STATION_CONFIRMED");
+
+  const confirmedReceived = await service.confirmReceived({
+    actor: breederActor,
+    shipmentId: "shipment-1",
+    body: {
+      notes: "Breeder received shipment",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(confirmedReceived.shipment.confirmedReceivedAt, timestamp);
+  assert.equal(confirmedReceived.shipment.confirmedByUserId, "user-breeder");
+  assert.equal(confirmedReceived.notificationHook.eventType, "SHIPMENT_RECEIPT_CONFIRMED");
+  assert.equal(confirmedReceived.proofResult.proofEvent.eventType, "SHIPMENT_CONFIRMED");
+  assert.equal(confirmedReceived.proofResult.proofEvent.verificationLevel, "SYSTEM_RECORDED");
+  assert.equal(transactionCount, 6);
+  assert.deepEqual(
+    notifications.map((hook) => hook.eventType),
+    [
+      "SHIPMENT_CREATED",
+      "SHIPMENT_TRACKING_REFERENCE_ATTACHED",
+      "SHIPMENT_DELAYED",
+      "SHIPMENT_DELIVERED",
+      "SHIPMENT_RECEIPT_CONFIRMED",
+    ],
+  );
+
+  await assert.rejects(
+    () =>
+      service.markDelivered({
+        actor: otherStationActor,
+        shipmentId: "shipment-1",
+        body: {
+          notes: "Unauthorized delivery",
+          now: timestamp,
+        },
+      }),
+    (error) =>
+      error instanceof ShipmentValidationError &&
+      error.issues.includes(
+        "actor must be an active BREEDING_STATION user for the assigned station or PLATFORM_ADMIN.",
+      ),
+  );
+});
+
 function buildRepository({ orders }) {
   const orderStore = new Map(orders.map((order) => [order.id, order]));
   const shipmentStore = new Map();
   const eventStore = new Map();
   const auditLogStore = new Map();
+  const proofEventStore = new Map();
   let shipmentSequence = 1;
   let eventSequence = 1;
   let auditLogSequence = 1;
+  let proofEventSequence = 1;
 
   return {
     async findSemenOrderById(orderId) {
@@ -474,5 +682,58 @@ function buildRepository({ orders }) {
 
       return persistedAuditLog;
     },
+    async createProofEvent(proofEvent) {
+      const existingProofEvent = Array.from(proofEventStore.values()).find(
+        (existing) =>
+          existing.eventType === proofEvent.eventType &&
+          existing.source === proofEvent.source &&
+          existing.triggerType === proofEvent.triggerType &&
+          existing.shipmentId === proofEvent.shipmentId &&
+          existing.semenOrderId === proofEvent.semenOrderId &&
+          existing.orderNumber === proofEvent.orderNumber &&
+          stableJson(existing.triggerRef) === stableJson(proofEvent.triggerRef),
+      );
+
+      if (existingProofEvent) {
+        return existingProofEvent;
+      }
+
+      const persistedProofEvent = {
+        ...proofEvent,
+        id: proofEvent.id ?? `proof-event-${proofEventSequence++}`,
+      };
+
+      proofEventStore.set(persistedProofEvent.id, persistedProofEvent);
+
+      return persistedProofEvent;
+    },
+    async listProofEventsForShipment(shipmentId) {
+      return Array.from(proofEventStore.values()).filter(
+        (proofEvent) => proofEvent.shipmentId === shipmentId,
+      );
+    },
+    listProofEvents() {
+      return Array.from(proofEventStore.values());
+    },
   };
+}
+
+function stableJson(value) {
+  return JSON.stringify(sortJson(value));
+}
+
+function sortJson(value) {
+  if (Array.isArray(value)) {
+    return value.map(sortJson);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, sortJson(item)]),
+    );
+  }
+
+  return value;
 }

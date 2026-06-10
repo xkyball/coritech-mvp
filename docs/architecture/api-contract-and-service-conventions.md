@@ -122,7 +122,7 @@ service.
 type ActiveRequestContext = {
   userId: string;
   organizationId: string;
-  role: "BREEDER" | "STATION" | "PLATFORM_ADMIN";
+  role: "BREEDER" | "BREEDING_STATION" | "PLATFORM_ADMIN";
 };
 ```
 

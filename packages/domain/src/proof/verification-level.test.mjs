@@ -82,14 +82,14 @@ test("verification level derivation uses event type and actor role", () => {
       eventType: "DOCUMENT_UPLOADED",
       actorRoleCode: "BREEDER",
     }),
-    "SELF_REPORTED",
+    "SYSTEM_RECORDED",
   );
   assert.equal(
     deriveVerificationLevel({
       eventType: "DOCUMENT_UPLOADED",
       actorRoleCode: "BREEDING_STATION",
     }),
-    "STATION_CONFIRMED",
+    "SYSTEM_RECORDED",
   );
   assert.equal(
     deriveVerificationLevel({

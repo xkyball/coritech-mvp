@@ -96,6 +96,8 @@ test("station order management scopes orders to the active station organization"
     ["order-received", "order-submitted"],
   );
   assert.equal(viewModel.selectedOrder?.id, "order-received");
+  assert.equal(viewModel.selectedOrder?.mareName, "Willow Queen");
+  assert.equal(viewModel.selectedOrder?.mareRegistrationReference, "M-REG-2048");
   assert.deepEqual(
     viewModel.selectedOrder?.commandActions.map((action) => action.action),
     ["confirm", "reject"],
@@ -253,8 +255,14 @@ function createOrder(overrides) {
     breederOrganizationId,
     breedingStationOrganizationId: overrides.breedingStationOrganizationId ?? stationOrganizationId,
     status: overrides.status,
-    requestedDeliveryDate: "2026-06-12",
-    shippingContactName: "Avery Stone",
+  requestedDeliveryDate: "2026-06-12",
+  mareName: "Willow Queen",
+  mareRegistrationReference: "M-REG-2048",
+  mareBreed: "Warmblood",
+  mareOwnerName: "Ava Breeder",
+  intendedInseminationContext: "Fresh semen insemination at home yard.",
+  vetOrRecipientContact: "Dr. Ndlovu, +27 82 555 0102",
+  shippingContactName: "Avery Stone",
     shippingContactPhone: "+27 21 555 0100",
     shippingAddressLine1: "42 Blue Oak Road",
     shippingAddressLine2: null,

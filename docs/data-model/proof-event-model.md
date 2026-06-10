@@ -93,11 +93,14 @@ Phase 1 derivation rules:
 
 | Actor role | Event types | Derived level |
 | --- | --- | --- |
-| `BREEDER` | `SEMEN_ORDER_CREATED`, `SUBMITTED`, `DOCUMENT_UPLOADED` | `SELF_REPORTED` |
+| `BREEDER` | `SEMEN_ORDER_CREATED`, `SUBMITTED` | `SELF_REPORTED` |
 | `BREEDER` | Other Phase 1 proof event types | `SYSTEM_RECORDED` |
-| `BREEDING_STATION` | `CONFIRMED`, `REJECTED`, `SHIPMENT_CONFIRMED`, `DOCUMENT_UPLOADED` | `STATION_CONFIRMED` |
+| `BREEDING_STATION` | `CONFIRMED`, `REJECTED`, `SHIPMENT_CONFIRMED` | `STATION_CONFIRMED` |
 | `BREEDING_STATION` | Other Phase 1 proof event types | `SYSTEM_RECORDED` |
 | `PLATFORM_ADMIN` | Any Phase 1 proof event type | `ADMIN_REVIEWED` |
+
+Document-upload proof events remain `SYSTEM_RECORDED`. Uploaded documents are
+evidence attached to proof events, not high-verification proof by themselves.
 
 ## Deletion And Amendment Policy
 

@@ -95,6 +95,14 @@ export interface ObjectStorageProviderInput {
   client: ObjectStorageClient;
 }
 
+export interface S3CompatibleFetchClientInput {
+  config: ObjectStorageConfig;
+  accessKey: string;
+  secretKey: string;
+  fetch?: unknown;
+  now?: () => Date;
+}
+
 export interface ObjectStorageProvider {
   config: ObjectStorageConfig;
   putObject(input: PutObjectInput): Promise<Readonly<ObjectStorageReference>>;
@@ -130,6 +138,15 @@ export declare class ObjectStorageValidationError extends Error {
   constructor(issues: string[]);
 }
 
+export declare class ObjectStorageRuntimeError extends Error {
+  readonly status: number | null;
+  readonly body: string | null;
+  constructor(
+    message: string,
+    details?: { status?: number; body?: string | null },
+  );
+}
+
 export declare function isObjectStorageProviderName(
   value: unknown,
 ): value is ObjectStorageProviderName;
@@ -152,4 +169,8 @@ export declare function createObjectStorageProvider(
 
 export declare function createMinioClientAdapter(
   minioClient: unknown,
+): ObjectStorageClient;
+
+export declare function createS3CompatibleFetchClient(
+  input: S3CompatibleFetchClientInput,
 ): ObjectStorageClient;

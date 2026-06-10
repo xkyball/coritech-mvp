@@ -51,6 +51,12 @@ const stationActor = {
 
 const completeOrderDetails = {
   requestedDeliveryDate: "2026-06-12",
+  mareName: "Willow Queen",
+  mareRegistrationReference: "M-REG-2048",
+  mareBreed: "Warmblood",
+  mareOwnerName: "Ava Breeder",
+  intendedInseminationContext: "Fresh semen insemination at home yard.",
+  vetOrRecipientContact: "Dr. Ndlovu, +27 82 555 0102",
   shippingContactName: "Ava Breeder",
   shippingContactPhone: "+27 82 555 0101",
   shippingAddressLine1: "42 Foaling Barn Road",
@@ -280,7 +286,7 @@ test("direct proof event model supports later signatures and attestations", () =
     occurredAt: timestamp,
   });
 
-  assert.equal(prepared.proofEvent.verificationLevel, "STATION_CONFIRMED");
+  assert.equal(prepared.proofEvent.verificationLevel, "SYSTEM_RECORDED");
   assert.deepEqual(prepared.proofEvent.attestationRefs, [
     {
       type: "FUTURE_ATTESTATION_SLOT",

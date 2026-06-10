@@ -100,13 +100,11 @@ const BREEDING_STATION_CONFIRMED_EVENTS = Object.freeze([
   "CONFIRMED",
   "REJECTED",
   "SHIPMENT_CONFIRMED",
-  "DOCUMENT_UPLOADED",
 ]);
 
 const BREEDER_SELF_REPORTED_EVENTS = Object.freeze([
   "SEMEN_ORDER_CREATED",
   "SUBMITTED",
-  "DOCUMENT_UPLOADED",
 ]);
 
 const DERIVABLE_PROOF_EVENT_TYPES = Object.freeze([
@@ -182,6 +180,10 @@ export function deriveVerificationLevel(input) {
 
   if (actorRoleCode === "PLATFORM_ADMIN" || eventType === "ADMIN_CORRECTION_CREATED") {
     return "ADMIN_REVIEWED";
+  }
+
+  if (eventType === "DOCUMENT_UPLOADED") {
+    return "SYSTEM_RECORDED";
   }
 
   if (actorRoleCode === "BREEDING_STATION") {

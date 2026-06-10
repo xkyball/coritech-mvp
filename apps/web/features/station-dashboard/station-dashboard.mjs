@@ -26,7 +26,9 @@ export const STATION_DASHBOARD_ROUTES = Object.freeze({
   dashboard: "/station-dashboard",
   listingManagement: "/app/station/listings",
   orderManagement: "/app/station/orders",
+  shipmentManagement: "/app/station/shipments",
   documentDetail: "/app/documents",
+  documentUpload: "/app/documents/upload",
 });
 
 const SHIPMENT_TERMINAL_STATUSES = Object.freeze([
@@ -440,6 +442,12 @@ function resolveSelectedOrder(input) {
 
   return Object.freeze({
     ...row,
+    mareName: normalizeOptionalString(order.mareName),
+    mareRegistrationReference: normalizeOptionalString(order.mareRegistrationReference),
+    mareBreed: normalizeOptionalString(order.mareBreed),
+    mareOwnerName: normalizeOptionalString(order.mareOwnerName),
+    intendedInseminationContext: normalizeOptionalString(order.intendedInseminationContext),
+    vetOrRecipientContact: normalizeOptionalString(order.vetOrRecipientContact),
     shippingContactName: normalizeOptionalString(order.shippingContactName),
     shippingContactPhone: normalizeOptionalString(order.shippingContactPhone),
     shippingDestination: buildShippingDestination(order),
@@ -554,6 +562,7 @@ function toDocumentRow(document) {
     targetId: document.targetId,
     orderNumber: document.orderNumber,
     accessClassification: document.accessClassification,
+    status: document.status ?? "ACTIVE",
     createdAt: document.createdAt,
     detailHref: documentId
       ? `${STATION_DASHBOARD_ROUTES.documentDetail}/${encodeURIComponent(documentId)}`
@@ -949,6 +958,24 @@ function buildOrderHref(order) {
  */
 function buildOrderActionHref(order, action) {
   const orderLookupId = normalizeOptionalString(order.id) ?? order.orderNumber;
+
+  if (action === "create-shipment") {
+    const params = new URLSearchParams({
+      action: "create",
+      orderId: orderLookupId,
+    });
+
+    return `${STATION_DASHBOARD_ROUTES.shipmentManagement}?${params.toString()}`;
+  }
+
+  if (action === "upload-document") {
+    return buildDocumentUploadHref({
+      returnTo: STATION_DASHBOARD_ROUTES.dashboard,
+      targetId: orderLookupId,
+      targetType: "SemenOrder",
+    });
+  }
+
   const params = new URLSearchParams({
     orderId: orderLookupId,
     action,
@@ -963,17 +990,53 @@ function buildOrderActionHref(order, action) {
  * @returns {string}
  */
 function buildShipmentHref(shipment, action) {
+  const shipmentId = normalizeOptionalString(shipment.id);
+
+  if (action === "update-shipment") {
+    const params = new URLSearchParams({
+      action: "update",
+      orderId: shipment.semenOrderId,
+    });
+
+    if (shipmentId) {
+      params.set("shipmentId", shipmentId);
+    }
+
+    return `${STATION_DASHBOARD_ROUTES.shipmentManagement}?${params.toString()}`;
+  }
+
+  if (action === "upload-document") {
+    return buildDocumentUploadHref({
+      returnTo: STATION_DASHBOARD_ROUTES.dashboard,
+      targetId: shipmentId ?? shipment.semenOrderId,
+      targetType: "Shipment",
+    });
+  }
+
   const params = new URLSearchParams({
     orderId: shipment.semenOrderId,
     action,
   });
-  const shipmentId = normalizeOptionalString(shipment.id);
 
   if (shipmentId) {
     params.set("shipmentId", shipmentId);
   }
 
   return `${STATION_DASHBOARD_ROUTES.dashboard}?${params.toString()}`;
+}
+
+/**
+ * @param {{ returnTo: string, targetId: string, targetType: string }} input
+ * @returns {string}
+ */
+function buildDocumentUploadHref(input) {
+  const params = new URLSearchParams({
+    returnTo: input.returnTo,
+    targetId: input.targetId,
+    targetType: input.targetType,
+  });
+
+  return `${STATION_DASHBOARD_ROUTES.documentUpload}?${params.toString()}`;
 }
 
 /**

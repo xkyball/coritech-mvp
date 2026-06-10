@@ -125,6 +125,21 @@ function SelectedOrder({
       <div className="ct-detail-grid">
         <DetailItem label="Status" value={formatStatusLabel(order.status)} />
         <DetailItem label="Delivery" value={order.requestedDeliveryDate ?? "Not recorded"} />
+        <DetailItem label="Mare" value={order.mareName ?? "Not recorded"} />
+        <DetailItem
+          label="Mare registration"
+          value={order.mareRegistrationReference ?? "Not recorded"}
+        />
+        <DetailItem label="Mare breed" value={order.mareBreed ?? "Not recorded"} />
+        <DetailItem label="Mare owner" value={order.mareOwnerName ?? "Not recorded"} />
+        <DetailItem
+          label="Insemination context"
+          value={order.intendedInseminationContext ?? "Not recorded"}
+        />
+        <DetailItem
+          label="Vet or recipient contact"
+          value={order.vetOrRecipientContact ?? "Not recorded"}
+        />
         <DetailItem label="Contact" value={order.shippingContactName ?? "Not recorded"} />
         <DetailItem label="Destination" value={order.shippingDestination ?? "Not recorded"} />
       </div>

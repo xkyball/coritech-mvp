@@ -6,6 +6,10 @@ import {
   isActiveRoleAssignment,
   isPhase1RoleCode,
 } from "../identity/role-model.mjs";
+import {
+  ProofEventValidationError,
+  createProofEventFromHook,
+} from "../proof/proof-event.mjs";
 
 export const SEMEN_ORDER_STATUSES = /** @type {const} */ ([
   "DRAFT",
@@ -56,6 +60,7 @@ export const ORDER_SERVICE_COMMANDS = /** @type {const} */ ([
   "REJECT_ORDER",
   "MOVE_TO_FULFILMENT",
   "COMPLETE_ORDER",
+  "CANCEL_ORDER",
   "TRANSITION_ORDER_STATUS",
 ]);
 
@@ -66,6 +71,7 @@ export const ORDER_SERVICE_COMMAND_STATUS_TARGETS = Object.freeze({
   REJECT_ORDER: "REJECTED",
   MOVE_TO_FULFILMENT: "IN_FULFILMENT",
   COMPLETE_ORDER: "COMPLETED",
+  CANCEL_ORDER: "CANCELLED",
 });
 
 export const SEMEN_ORDER_ROUTES = Object.freeze([
@@ -194,6 +200,12 @@ export class OrderService {
       const prepared = prepareCreateDraftSemenOrder({
         breederOrganizationId: command.body.breederOrganizationId,
         requestedDeliveryDate: command.body.requestedDeliveryDate,
+        mareName: command.body.mareName,
+        mareRegistrationReference: command.body.mareRegistrationReference,
+        mareBreed: command.body.mareBreed,
+        mareOwnerName: command.body.mareOwnerName,
+        intendedInseminationContext: command.body.intendedInseminationContext,
+        vetOrRecipientContact: command.body.vetOrRecipientContact,
         shippingContactName: command.body.shippingContactName,
         shippingContactPhone: command.body.shippingContactPhone,
         shippingAddressLine1: command.body.shippingAddressLine1,
@@ -260,6 +272,12 @@ export class OrderService {
       const updatedOrder = Object.freeze({
         ...existingOrder,
         requestedDeliveryDate: normalizeOptionalDateOnly(command.body.requestedDeliveryDate),
+        mareName: normalizeOptionalString(command.body.mareName),
+        mareRegistrationReference: normalizeOptionalString(command.body.mareRegistrationReference),
+        mareBreed: normalizeOptionalString(command.body.mareBreed),
+        mareOwnerName: normalizeOptionalString(command.body.mareOwnerName),
+        intendedInseminationContext: normalizeOptionalString(command.body.intendedInseminationContext),
+        vetOrRecipientContact: normalizeOptionalString(command.body.vetOrRecipientContact),
         shippingContactName: normalizeOptionalString(command.body.shippingContactName),
         shippingContactPhone: normalizeOptionalString(command.body.shippingContactPhone),
         shippingAddressLine1: normalizeOptionalString(command.body.shippingAddressLine1),
@@ -392,6 +410,8 @@ export class OrderService {
   }
 
   async rejectOrder(command) {
+    requireCommandReason(command.body.reason, "reason is required when rejecting a semen order.");
+
     return this.transitionOrder({
       ...command,
       commandName: "REJECT_ORDER",
@@ -415,6 +435,16 @@ export class OrderService {
     });
   }
 
+  async cancelOrder(command) {
+    requireCommandReason(command.body.reason, "reason is required when cancelling a semen order.");
+
+    return this.transitionOrder({
+      ...command,
+      commandName: "CANCEL_ORDER",
+      toStatus: "CANCELLED",
+    });
+  }
+
   /**
    * @param {object} input
    * @param {import("./semen-order.d.ts").OrderServiceCommandName} input.commandName
@@ -430,7 +460,11 @@ export class OrderService {
       auditHook: input.change.auditHook,
       requestContext: this.auditContext,
     });
-    const proofResult = await this.dispatchProofHook(input.change.proofHook);
+    const proofResult = await this.dispatchProofHook({
+      proofHook: input.change.proofHook,
+      repository: input.repository,
+      auditLog,
+    });
     const notificationHook = buildOrderNotificationHook({
       commandName: input.commandName,
       change: input.change,
@@ -469,11 +503,38 @@ export class OrderService {
   }
 
   /**
-   * @param {import("./semen-order.d.ts").SemenOrderProofHook | null} proofHook
+   * @param {object} input
+   * @param {import("./semen-order.d.ts").SemenOrderProofHook | null} input.proofHook
+   * @param {import("./semen-order.d.ts").SemenOrderRepository} input.repository
+   * @param {import("../audit/audit-log.d.ts").AuditLog | null} input.auditLog
    * @returns {Promise<unknown>}
    */
-  async dispatchProofHook(proofHook) {
+  async dispatchProofHook(input) {
+    const proofHook = input.proofHook;
+
     if (!proofHook || !this.proofService) {
+      if (input.repository && typeof input.repository.createProofEvent === "function") {
+        try {
+          return await createProofEventFromHook({
+            repository: /** @type {import("../proof/proof-event.d.ts").ProofEventRepository} */ (
+              input.repository
+            ),
+            proofHook,
+            auditContext: this.auditContext,
+            auditLogId: input.auditLog?.id ?? null,
+          });
+        } catch (error) {
+          if (
+            error instanceof ProofEventValidationError &&
+            error.issues.some((issue) => issue.includes("not a Ticket 1.6 proof-event milestone"))
+          ) {
+            return null;
+          }
+
+          throw error;
+        }
+      }
+
       return null;
     }
 
@@ -629,6 +690,16 @@ export function validateCreateDraftSemenOrderInput(input) {
   validateOptionalNonBlankString(input.statusHistoryId, "statusHistoryId", issues);
   validateOptionalNonBlankString(input.reason, "reason", issues);
   validateOptionalDateOnly(input.requestedDeliveryDate, "requestedDeliveryDate", issues);
+  validateOptionalNonBlankString(input.mareName, "mareName", issues);
+  validateOptionalNonBlankString(input.mareRegistrationReference, "mareRegistrationReference", issues);
+  validateOptionalNonBlankString(input.mareBreed, "mareBreed", issues);
+  validateOptionalNonBlankString(input.mareOwnerName, "mareOwnerName", issues);
+  validateOptionalNonBlankString(
+    input.intendedInseminationContext,
+    "intendedInseminationContext",
+    issues,
+  );
+  validateOptionalNonBlankString(input.vetOrRecipientContact, "vetOrRecipientContact", issues);
   validateOptionalNonBlankString(input.shippingContactName, "shippingContactName", issues);
   validateOptionalNonBlankString(input.shippingContactPhone, "shippingContactPhone", issues);
   validateOptionalNonBlankString(input.shippingAddressLine1, "shippingAddressLine1", issues);
@@ -687,6 +758,12 @@ export function prepareCreateDraftSemenOrder(input) {
     breedingStationOrganizationId: input.listing.breedingStationOrganizationId.trim(),
     status: /** @type {import("./semen-order.d.ts").SemenOrderStatus} */ ("DRAFT"),
     requestedDeliveryDate: normalizeOptionalDateOnly(input.requestedDeliveryDate),
+    mareName: normalizeOptionalString(input.mareName),
+    mareRegistrationReference: normalizeOptionalString(input.mareRegistrationReference),
+    mareBreed: normalizeOptionalString(input.mareBreed),
+    mareOwnerName: normalizeOptionalString(input.mareOwnerName),
+    intendedInseminationContext: normalizeOptionalString(input.intendedInseminationContext),
+    vetOrRecipientContact: normalizeOptionalString(input.vetOrRecipientContact),
     shippingContactName: normalizeOptionalString(input.shippingContactName),
     shippingContactPhone: normalizeOptionalString(input.shippingContactPhone),
     shippingAddressLine1: normalizeOptionalString(input.shippingAddressLine1),
@@ -739,6 +816,24 @@ export function validateSemenOrderSubmissionDetails(order) {
   validateRequiredDateOnly(
     order?.requestedDeliveryDate,
     "requestedDeliveryDate",
+    issues,
+  );
+  validateRequiredString(order?.mareName, "mareName", issues);
+  validateRequiredString(
+    order?.mareRegistrationReference,
+    "mareRegistrationReference",
+    issues,
+  );
+  validateRequiredString(order?.mareBreed, "mareBreed", issues);
+  validateOptionalNonBlankString(order?.mareOwnerName, "mareOwnerName", issues);
+  validateOptionalNonBlankString(
+    order?.intendedInseminationContext,
+    "intendedInseminationContext",
+    issues,
+  );
+  validateOptionalNonBlankString(
+    order?.vetOrRecipientContact,
+    "vetOrRecipientContact",
     issues,
   );
   validateRequiredString(
@@ -1178,6 +1273,8 @@ function orderServiceCommandNameForStatus(toStatus) {
       return "MOVE_TO_FULFILMENT";
     case "COMPLETED":
       return "COMPLETE_ORDER";
+    case "CANCELLED":
+      return "CANCEL_ORDER";
     default:
       return "TRANSITION_ORDER_STATUS";
   }
@@ -1329,6 +1426,12 @@ function orderAuditValue(order) {
     breedingStationOrganizationId: order.breedingStationOrganizationId,
     status: order.status,
     requestedDeliveryDate: normalizeOptionalDateOnly(order.requestedDeliveryDate),
+    mareName: normalizeOptionalString(order.mareName),
+    mareRegistrationReference: normalizeOptionalString(order.mareRegistrationReference),
+    mareBreed: normalizeOptionalString(order.mareBreed),
+    mareOwnerName: normalizeOptionalString(order.mareOwnerName),
+    intendedInseminationContext: normalizeOptionalString(order.intendedInseminationContext),
+    vetOrRecipientContact: normalizeOptionalString(order.vetOrRecipientContact),
     shippingContactName: normalizeOptionalString(order.shippingContactName),
     shippingContactPhone: normalizeOptionalString(order.shippingContactPhone),
     shippingAddressLine1: normalizeOptionalString(order.shippingAddressLine1),
@@ -1457,6 +1560,12 @@ function requireBodyField(body, fieldName) {
   }
 
   return value;
+}
+
+function requireCommandReason(value, message) {
+  if (!normalizeOptionalString(value)) {
+    throw new SemenOrderValidationError([message]);
+  }
 }
 
 /**

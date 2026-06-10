@@ -103,6 +103,12 @@ const stationOrganizations = [
 const completeForm = {
   semenListingId: "listing-active",
   requestedDeliveryDate: "2026-06-12",
+  mareName: "Willow Queen",
+  mareRegistrationReference: "M-REG-2048",
+  mareBreed: "Warmblood",
+  mareOwnerName: "Ava Breeder",
+  intendedInseminationContext: "Fresh semen insemination at home yard.",
+  vetOrRecipientContact: "Dr. Ndlovu, +27 82 555 0102",
   shippingContactName: "Ava Breeder",
   shippingContactPhone: "+27 82 555 0101",
   shippingAddressLine1: "42 Foaling Barn Road",
@@ -134,6 +140,7 @@ test("order creation view renders listing selection, review and draft/submit con
   assert.match(html, /Review stallion and station/);
   assert.match(html, /North Valley Station \(org-station-a\)/);
   assert.match(html, /name="requestedDeliveryDate" type="date" value="2026-06-12" required/);
+  assert.match(html, /name="mareName" type="text" value="Willow Queen" required/);
   assert.match(html, /value="draft" formnovalidate/);
   assert.match(html, /value="submit"/);
 });
@@ -209,6 +216,7 @@ test("breeder can create a draft from the order form", async () => {
   assert.equal(result.order.status, "DRAFT");
   assert.equal(result.order.orderNumber, "SO-20260609-000010");
   assert.equal(result.order.requestedDeliveryDate, null);
+  assert.equal(result.order.mareName, null);
   assert.equal(result.statusHistory[0].toStatus, "DRAFT");
   assert.equal(result.auditHook?.action, "SEMEN_ORDER_DRAFT_CREATED");
   assert.equal(result.auditLog?.sourceAction, "SEMEN_ORDER_DRAFT_CREATED");
@@ -310,6 +318,9 @@ test("submit validates required delivery and shipping fields before creating an 
     result.issues,
     [
       "requestedDeliveryDate must be a valid YYYY-MM-DD date.",
+      "mareName is required before submitting semen order.",
+      "mareRegistrationReference is required before submitting semen order.",
+      "mareBreed is required before submitting semen order.",
       "shippingContactName is required before submitting semen order.",
       "shippingContactPhone is required before submitting semen order.",
       "shippingAddressLine1 is required before submitting semen order.",
@@ -476,6 +487,7 @@ test("breeder can cancel an own draft without deleting order evidence", async ()
     form: {
       ...completeForm,
       orderId: draft.order.id,
+      cancellationReason: "Breeder needs to revise mare details.",
     },
     now: "2026-06-09T08:50:00.000Z",
     auditContext: {
@@ -491,6 +503,39 @@ test("breeder can cancel an own draft without deleting order evidence", async ()
   );
   assert.equal(cancelled.auditHook?.action, "SEMEN_ORDER_CANCELLED");
   assert.equal(cancelled.proofHook?.triggerRef.toStatus, "CANCELLED");
+});
+
+test("breeder cancellation requires a reason before closing an own draft", async () => {
+  const repository = createRepository();
+  const draft = await createSemenOrderFromForm({
+    action: "draft",
+    actor: breederActor,
+    breederOrganizationId,
+    repository,
+    form: {
+      semenListingId: "listing-active",
+    },
+    now: timestamp,
+  });
+
+  assert.equal(draft.ok, true);
+
+  const cancelled = await createSemenOrderFromForm({
+    action: "cancel",
+    actor: breederActor,
+    breederOrganizationId,
+    repository,
+    form: {
+      ...completeForm,
+      orderId: draft.order.id,
+    },
+    now: "2026-06-09T08:55:00.000Z",
+  });
+
+  assert.equal(cancelled.ok, false);
+  assert.deepEqual(cancelled.issues, [
+    "cancellationReason is required before canceling a draft order.",
+  ]);
 });
 
 function createRepository() {

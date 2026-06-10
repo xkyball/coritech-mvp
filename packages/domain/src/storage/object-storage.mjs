@@ -1,5 +1,7 @@
 // @ts-check
 
+import { createHash, createHmac } from "node:crypto";
+
 export const OBJECT_STORAGE_PROVIDER_KIND = "S3_COMPATIBLE_OBJECT_STORAGE";
 
 export const SUPPORTED_OBJECT_STORAGE_PROVIDERS = /** @type {const} */ ([
@@ -47,6 +49,19 @@ export class ObjectStorageValidationError extends Error {
     super(`Invalid CoriTech object storage input:\n- ${issues.join("\n- ")}`);
     this.name = "ObjectStorageValidationError";
     this.issues = issues;
+  }
+}
+
+export class ObjectStorageRuntimeError extends Error {
+  /**
+   * @param {string} message
+   * @param {{ status?: number, body?: string | null }} [details]
+   */
+  constructor(message, details = {}) {
+    super(message);
+    this.name = "ObjectStorageRuntimeError";
+    this.status = details.status ?? null;
+    this.body = details.body ?? null;
   }
 }
 
@@ -333,6 +348,128 @@ export function createMinioClientAdapter(minioClient) {
 
       return client.presignedGetObject(bucket, key, expiresInSeconds);
     },
+  });
+}
+
+/**
+ * @param {import("./object-storage.d.ts").S3CompatibleFetchClientInput} input
+ * @returns {import("./object-storage.d.ts").ObjectStorageClient}
+ */
+export function createS3CompatibleFetchClient(input) {
+  const issues = [];
+
+  if (!input || typeof input !== "object") {
+    throw new ObjectStorageConfigError([
+      "S3-compatible fetch client input is required.",
+    ]);
+  }
+
+  validateObjectStorageConfig(input.config, issues);
+  validateRequiredProviderValue(input.accessKey, ACCESS_KEY_ENVIRONMENT_KEY, issues);
+  validateRequiredProviderValue(input.secretKey, SECRET_KEY_ENVIRONMENT_KEY, issues);
+
+  const fetchFn = input.fetch ?? globalThis.fetch;
+
+  if (typeof fetchFn !== "function") {
+    issues.push("fetch implementation is required for S3-compatible storage.");
+  }
+
+  if (issues.length > 0) {
+    throw new ObjectStorageConfigError(issues);
+  }
+
+  const config = input.config;
+  const accessKey = normalizeRequiredString(input.accessKey);
+  const secretKey = normalizeRequiredString(input.secretKey);
+  const now = typeof input.now === "function" ? input.now : () => new Date();
+
+  return Object.freeze({
+    putObject: async ({ bucket, key, body, contentType, metadata }) => {
+      const objectUrl = createPathStyleObjectUrl(config, bucket, key);
+      const bodyBytes = await normalizeFetchBody(body);
+      const contentHash = sha256Hex(bodyBytes);
+      const headers = {
+        ...normalizeMetadataHeaders(metadata),
+        "content-type": normalizeOptionalString(contentType) || "application/octet-stream",
+        "x-amz-content-sha256": contentHash,
+      };
+      const response = await signedFetch({
+        fetchFn,
+        config,
+        accessKey,
+        secretKey,
+        now,
+        method: "PUT",
+        url: objectUrl,
+        headers,
+        body: bodyBytes,
+      });
+
+      await assertStorageResponseOk(response, "put object");
+
+      return {
+        etag: normalizeResponseHeader(response, "etag"),
+        versionId: normalizeResponseHeader(response, "x-amz-version-id"),
+      };
+    },
+    getObject: async ({ bucket, key }) => {
+      const response = await signedFetch({
+        fetchFn,
+        config,
+        accessKey,
+        secretKey,
+        now,
+        method: "GET",
+        url: createPathStyleObjectUrl(config, bucket, key),
+      });
+
+      await assertStorageResponseOk(response, "get object");
+
+      return response.body ?? response;
+    },
+    deleteObject: async ({ bucket, key }) => {
+      const response = await signedFetch({
+        fetchFn,
+        config,
+        accessKey,
+        secretKey,
+        now,
+        method: "DELETE",
+        url: createPathStyleObjectUrl(config, bucket, key),
+      });
+
+      await assertStorageResponseOk(response, "delete object");
+    },
+    headObject: async ({ bucket, key }) => {
+      const response = await signedFetch({
+        fetchFn,
+        config,
+        accessKey,
+        secretKey,
+        now,
+        method: "HEAD",
+        url: createPathStyleObjectUrl(config, bucket, key),
+      });
+
+      await assertStorageResponseOk(response, "head object");
+
+      return {
+        etag: normalizeResponseHeader(response, "etag"),
+        versionId: normalizeResponseHeader(response, "x-amz-version-id"),
+        contentType: normalizeResponseHeader(response, "content-type"),
+        contentLength: normalizeResponseHeader(response, "content-length"),
+      };
+    },
+    createPresignedGetUrl: ({ bucket, key, expiresInSeconds }) =>
+      createPresignedS3Url({
+        config,
+        accessKey,
+        secretKey,
+        now,
+        method: "GET",
+        url: createPathStyleObjectUrl(config, bucket, key),
+        expiresInSeconds,
+      }),
   });
 }
 
@@ -673,6 +810,354 @@ function isObjectNotFoundError(error) {
     code === "NotFound" ||
     httpStatusCode === 404
   );
+}
+
+/**
+ * @param {import("./object-storage.d.ts").ObjectStorageConfig} config
+ * @param {string} bucket
+ * @param {string} key
+ * @returns {URL}
+ */
+function createPathStyleObjectUrl(config, bucket, key) {
+  const issues = [];
+  const normalizedBucket = normalizeRequiredString(bucket);
+  const normalizedKey = normalizeObjectKey(key, "key", issues);
+
+  if (!normalizedBucket) {
+    issues.push("bucket is required.");
+  } else if (normalizedBucket !== config.bucket) {
+    issues.push("bucket must match the configured CoriTech object storage bucket.");
+  }
+
+  if (issues.length > 0) {
+    throw new ObjectStorageValidationError(issues);
+  }
+
+  return new URL(
+    `${config.baseUrl}/${encodeRfc3986(normalizedBucket)}/${encodeObjectKeyPath(normalizedKey)}`,
+  );
+}
+
+/**
+ * @param {unknown} body
+ * @returns {Promise<Uint8Array>}
+ */
+async function normalizeFetchBody(body) {
+  if (body instanceof Uint8Array) {
+    return body;
+  }
+
+  if (body instanceof ArrayBuffer) {
+    return new Uint8Array(body);
+  }
+
+  if (typeof body === "string") {
+    return new TextEncoder().encode(body);
+  }
+
+  if (typeof Blob !== "undefined" && body instanceof Blob) {
+    return new Uint8Array(await body.arrayBuffer());
+  }
+
+  throw new ObjectStorageValidationError([
+    "body must be a string, Uint8Array, ArrayBuffer or Blob for S3-compatible storage.",
+  ]);
+}
+
+/**
+ * @param {Record<string, string> | null | undefined} metadata
+ * @returns {Record<string, string>}
+ */
+function normalizeMetadataHeaders(metadata) {
+  if (!metadata) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(metadata)
+      .filter(([key, value]) => normalizeRequiredString(key) && normalizeRequiredString(value))
+      .map(([key, value]) => {
+        const headerName = key.toLowerCase().startsWith("x-amz-")
+          ? key.toLowerCase()
+          : `x-amz-meta-${key.toLowerCase()}`;
+
+        return [headerName, normalizeRequiredString(value)];
+      }),
+  );
+}
+
+/**
+ * @param {{
+ *   fetchFn: Function,
+ *   config: import("./object-storage.d.ts").ObjectStorageConfig,
+ *   accessKey: string,
+ *   secretKey: string,
+ *   now: () => Date,
+ *   method: string,
+ *   url: URL,
+ *   headers?: Record<string, string>,
+ *   body?: Uint8Array,
+ * }} input
+ * @returns {Promise<Response>}
+ */
+async function signedFetch(input) {
+  const headers = buildSignedHeaders({
+    config: input.config,
+    accessKey: input.accessKey,
+    secretKey: input.secretKey,
+    date: input.now(),
+    method: input.method,
+    url: input.url,
+    headers: input.headers ?? {},
+    payloadHash: input.headers?.["x-amz-content-sha256"] ?? sha256Hex(new Uint8Array()),
+  });
+  const fetchInput = {
+    method: input.method,
+    headers,
+    ...(input.body ? { body: input.body } : {}),
+  };
+
+  return input.fetchFn(input.url, fetchInput);
+}
+
+/**
+ * @param {{
+ *   config: import("./object-storage.d.ts").ObjectStorageConfig,
+ *   accessKey: string,
+ *   secretKey: string,
+ *   date: Date,
+ *   method: string,
+ *   url: URL,
+ *   headers: Record<string, string>,
+ *   payloadHash: string,
+ * }} input
+ * @returns {Record<string, string>}
+ */
+function buildSignedHeaders(input) {
+  const amzDate = toAmzDate(input.date);
+  const dateStamp = amzDate.slice(0, 8);
+  const credentialScope = `${dateStamp}/${input.config.region}/s3/aws4_request`;
+  const headers = {
+    ...input.headers,
+    host: input.url.host,
+    "x-amz-date": amzDate,
+  };
+  const canonicalHeaders = canonicalizeHeaders(headers);
+  const canonicalRequest = [
+    input.method,
+    input.url.pathname,
+    canonicalQueryString(input.url.searchParams),
+    canonicalHeaders.value,
+    canonicalHeaders.signedHeaders,
+    input.payloadHash,
+  ].join("\n");
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join("\n");
+  const signature = hmacHex(
+    createSigningKey(input.secretKey, dateStamp, input.config.region),
+    stringToSign,
+  );
+
+  return {
+    ...headers,
+    authorization: [
+      "AWS4-HMAC-SHA256",
+      `Credential=${input.accessKey}/${credentialScope},`,
+      `SignedHeaders=${canonicalHeaders.signedHeaders},`,
+      `Signature=${signature}`,
+    ].join(" "),
+  };
+}
+
+/**
+ * @param {{
+ *   config: import("./object-storage.d.ts").ObjectStorageConfig,
+ *   accessKey: string,
+ *   secretKey: string,
+ *   now: () => Date,
+ *   method: "GET",
+ *   url: URL,
+ *   expiresInSeconds: number,
+ * }} input
+ * @returns {string}
+ */
+function createPresignedS3Url(input) {
+  const expiresInSeconds = normalizePort(input.expiresInSeconds);
+
+  if (!Number.isInteger(expiresInSeconds) || expiresInSeconds <= 0) {
+    throw new ObjectStorageValidationError([
+      "expiresInSeconds must be a positive integer.",
+    ]);
+  }
+
+  const url = new URL(input.url.toString());
+  const amzDate = toAmzDate(input.now());
+  const dateStamp = amzDate.slice(0, 8);
+  const credentialScope = `${dateStamp}/${input.config.region}/s3/aws4_request`;
+
+  url.searchParams.set("X-Amz-Algorithm", "AWS4-HMAC-SHA256");
+  url.searchParams.set("X-Amz-Credential", `${input.accessKey}/${credentialScope}`);
+  url.searchParams.set("X-Amz-Date", amzDate);
+  url.searchParams.set("X-Amz-Expires", String(expiresInSeconds));
+  url.searchParams.set("X-Amz-SignedHeaders", "host");
+
+  const canonicalRequest = [
+    input.method,
+    url.pathname,
+    canonicalQueryString(url.searchParams),
+    `host:${url.host}\n`,
+    "host",
+    "UNSIGNED-PAYLOAD",
+  ].join("\n");
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join("\n");
+  const signature = hmacHex(
+    createSigningKey(input.secretKey, dateStamp, input.config.region),
+    stringToSign,
+  );
+
+  url.searchParams.set("X-Amz-Signature", signature);
+
+  return url.toString();
+}
+
+/**
+ * @param {Response} response
+ * @param {string} operation
+ * @returns {Promise<void>}
+ */
+async function assertStorageResponseOk(response, operation) {
+  if (response?.ok) {
+    return;
+  }
+
+  const status = typeof response?.status === "number" ? response.status : undefined;
+  const body = typeof response?.text === "function"
+    ? await response.text().catch(() => null)
+    : null;
+
+  throw new ObjectStorageRuntimeError(
+    `Could not ${operation} in object storage.`,
+    { status, body },
+  );
+}
+
+/**
+ * @param {Response} response
+ * @param {string} headerName
+ * @returns {string | null}
+ */
+function normalizeResponseHeader(response, headerName) {
+  const value = response?.headers?.get?.(headerName);
+
+  return normalizeOptionalString(value);
+}
+
+/**
+ * @param {Record<string, string>} headers
+ * @returns {{ value: string, signedHeaders: string }}
+ */
+function canonicalizeHeaders(headers) {
+  const entries = Object.entries(headers)
+    .map(([key, value]) => [
+      key.toLowerCase(),
+      String(value).trim().replace(/\s+/g, " "),
+    ])
+    .sort(([left], [right]) => left.localeCompare(right));
+
+  return {
+    value: `${entries.map(([key, value]) => `${key}:${value}`).join("\n")}\n`,
+    signedHeaders: entries.map(([key]) => key).join(";"),
+  };
+}
+
+/**
+ * @param {URLSearchParams} searchParams
+ * @returns {string}
+ */
+function canonicalQueryString(searchParams) {
+  return Array.from(searchParams.entries())
+    .sort(([leftKey, leftValue], [rightKey, rightValue]) =>
+      leftKey === rightKey
+        ? leftValue.localeCompare(rightValue)
+        : leftKey.localeCompare(rightKey),
+    )
+    .map(([key, value]) => `${encodeRfc3986(key)}=${encodeRfc3986(value)}`)
+    .join("&");
+}
+
+/**
+ * @param {string} key
+ * @returns {string}
+ */
+function encodeObjectKeyPath(key) {
+  return key.split("/").map(encodeRfc3986).join("/");
+}
+
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+function encodeRfc3986(value) {
+  return encodeURIComponent(value).replace(/[!'()*]/g, (character) =>
+    `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+}
+
+/**
+ * @param {Date} date
+ * @returns {string}
+ */
+function toAmzDate(date) {
+  return date.toISOString().replace(/[:-]|\.\d{3}/g, "");
+}
+
+/**
+ * @param {string | Uint8Array} value
+ * @returns {string}
+ */
+function sha256Hex(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+/**
+ * @param {string} secretKey
+ * @param {string} dateStamp
+ * @param {string} region
+ * @returns {Buffer}
+ */
+function createSigningKey(secretKey, dateStamp, region) {
+  const dateKey = hmac(`AWS4${secretKey}`, dateStamp);
+  const regionKey = hmac(dateKey, region);
+  const serviceKey = hmac(regionKey, "s3");
+
+  return hmac(serviceKey, "aws4_request");
+}
+
+/**
+ * @param {string | Buffer} key
+ * @param {string} value
+ * @returns {Buffer}
+ */
+function hmac(key, value) {
+  return createHmac("sha256", key).update(value).digest();
+}
+
+/**
+ * @param {string | Buffer} key
+ * @param {string} value
+ * @returns {string}
+ */
+function hmacHex(key, value) {
+  return createHmac("sha256", key).update(value).digest("hex");
 }
 
 /**

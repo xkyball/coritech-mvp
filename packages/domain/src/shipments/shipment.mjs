@@ -1,8 +1,12 @@
 // @ts-check
 
 import { createAuditLogFromHook } from "../audit/audit-log.mjs";
-import { isActiveRoleAssignment } from "../identity/role-model.mjs";
+import {
+  isActiveRoleAssignment,
+  isPhase1RoleCode,
+} from "../identity/role-model.mjs";
 import { isSemenOrderStatus } from "../orders/semen-order.mjs";
+import { createProofEventFromHook } from "../proof/proof-event.mjs";
 
 export const SHIPMENT_STATUSES = /** @type {const} */ ([
   "PREPARED",
@@ -23,7 +27,26 @@ export const SHIPMENT_TRACKING_EVENT_SOURCES = /** @type {const} */ ([
 export const SHIPMENT_TRACKING_AUDIT_ACTIONS = /** @type {const} */ ([
   "SHIPMENT_CREATED",
   "SHIPMENT_STATUS_UPDATED",
+  "SHIPMENT_RECEIPT_CONFIRMED",
 ]);
+
+export const SHIPMENT_SERVICE_COMMANDS = /** @type {const} */ ([
+  "CREATE_SHIPMENT",
+  "UPDATE_SHIPMENT_STATUS",
+  "ATTACH_TRACKING_REFERENCE",
+  "MARK_DELIVERED",
+  "MARK_DELAYED",
+  "CONFIRM_RECEIVED",
+]);
+
+const SHIPMENT_NOTIFICATION_EVENT_BY_COMMAND = Object.freeze({
+  CREATE_SHIPMENT: "SHIPMENT_CREATED",
+  UPDATE_SHIPMENT_STATUS: "SHIPMENT_STATUS_UPDATED",
+  ATTACH_TRACKING_REFERENCE: "SHIPMENT_TRACKING_REFERENCE_ATTACHED",
+  MARK_DELIVERED: "SHIPMENT_DELIVERED",
+  MARK_DELAYED: "SHIPMENT_DELAYED",
+  CONFIRM_RECEIVED: "SHIPMENT_RECEIPT_CONFIRMED",
+});
 
 export const SHIPMENT_ROUTES = Object.freeze([
   Object.freeze({
@@ -92,6 +115,380 @@ export class ShipmentNotFoundError extends Error {
   }
 }
 
+export class ShipmentService {
+  /**
+   * @param {import("./shipment.d.ts").ShipmentServiceOptions} options
+   */
+  constructor(options) {
+    if (!options?.repository) {
+      throw new TypeError("ShipmentService requires a repository.");
+    }
+
+    this.repository = options.repository;
+    this.auditContext = options.auditContext ?? null;
+    this.proofService = options.proofService ?? null;
+    this.notificationService = options.notificationService ?? null;
+    this.transaction = options.transaction ?? null;
+  }
+
+  /**
+   * @param {import("./shipment.d.ts").ShipmentServiceCreateCommand} command
+   * @returns {Promise<import("./shipment.d.ts").ShipmentServiceCommandResult>}
+   */
+  async createShipment(command) {
+    const actor = resolveSingleActiveContextActor(command.actor);
+
+    return this.runInTransaction(async (repository) => {
+      const findSemenOrderById = requireRepositoryMethod(
+        repository,
+        "findSemenOrderById",
+      );
+      const createShipmentWithTrackingEvent = requireRepositoryMethod(
+        repository,
+        "createShipmentWithTrackingEvent",
+      );
+      const existingOrder = await findRequiredEntity(
+        () => findSemenOrderById(command.orderId),
+        "SemenOrder",
+        command.orderId,
+      );
+      const prepared = prepareCreateShipment({
+        status: command.body.status,
+        providerName: command.body.providerName,
+        providerTrackingId: command.body.providerTrackingId,
+        trackingUrl: command.body.trackingUrl,
+        eventSource: command.body.eventSource,
+        sourceEventId: command.body.sourceEventId,
+        providerStatus: command.body.providerStatus,
+        location: command.body.location,
+        notes: command.body.notes,
+        occurredAt: command.body.occurredAt,
+        createdAt: command.body.createdAt,
+        now: command.body.now,
+        existingOrder,
+        actor,
+      });
+      const persisted = await createShipmentWithTrackingEvent(
+        prepared.shipment,
+        prepared.trackingEvent,
+      );
+      const refreshed = rebuildPersistedChange(
+        prepared,
+        persisted,
+        null,
+        "SHIPMENT_CREATED",
+      );
+
+      return this.finalizeShipmentChange({
+        commandName: "CREATE_SHIPMENT",
+        change: refreshed,
+        previousShipment: null,
+        repository,
+        status: 201,
+      });
+    });
+  }
+
+  /**
+   * @param {import("./shipment.d.ts").ShipmentServiceUpdateStatusCommand} command
+   * @returns {Promise<import("./shipment.d.ts").ShipmentServiceCommandResult>}
+   */
+  async updateShipmentStatus(command) {
+    return this.applyTrackingEventCommand({
+      ...command,
+      commandName: "UPDATE_SHIPMENT_STATUS",
+      toStatus: command.toStatus,
+    });
+  }
+
+  /**
+   * @param {import("./shipment.d.ts").ShipmentServiceAttachTrackingReferenceCommand} command
+   * @returns {Promise<import("./shipment.d.ts").ShipmentServiceCommandResult>}
+   */
+  async attachTrackingReference(command) {
+    const providerName = normalizeOptionalString(command.body.providerName);
+    const providerTrackingId = normalizeOptionalString(command.body.providerTrackingId);
+    const trackingUrl = normalizeOptionalString(command.body.trackingUrl);
+
+    if (!providerName && !providerTrackingId && !trackingUrl) {
+      throw new ShipmentValidationError([
+        "providerName, providerTrackingId or trackingUrl is required to attach a tracking reference.",
+      ]);
+    }
+
+    return this.applyTrackingEventCommand({
+      actor: command.actor,
+      shipmentId: command.shipmentId,
+      commandName: "ATTACH_TRACKING_REFERENCE",
+      body: {
+        ...command.body,
+        toStatus: command.body.toStatus,
+      },
+    });
+  }
+
+  /**
+   * @param {import("./shipment.d.ts").ShipmentServiceNamedStatusCommand} command
+   * @returns {Promise<import("./shipment.d.ts").ShipmentServiceCommandResult>}
+   */
+  async markDelivered(command) {
+    return this.applyTrackingEventCommand({
+      ...command,
+      commandName: "MARK_DELIVERED",
+      toStatus: "DELIVERED",
+    });
+  }
+
+  /**
+   * @param {import("./shipment.d.ts").ShipmentServiceNamedStatusCommand} command
+   * @returns {Promise<import("./shipment.d.ts").ShipmentServiceCommandResult>}
+   */
+  async markDelayed(command) {
+    return this.applyTrackingEventCommand({
+      ...command,
+      commandName: "MARK_DELAYED",
+      toStatus: "DELAYED",
+    });
+  }
+
+  /**
+   * @param {import("./shipment.d.ts").ShipmentServiceConfirmReceivedCommand} command
+   * @returns {Promise<import("./shipment.d.ts").ShipmentServiceCommandResult>}
+   */
+  async confirmReceived(command) {
+    const actor = resolveSingleActiveContextActor(command.actor);
+
+    return this.runInTransaction(async (repository) => {
+      const findShipmentById = requireRepositoryMethod(
+        repository,
+        "findShipmentById",
+      );
+      const updateShipmentWithTrackingEvent = requireRepositoryMethod(
+        repository,
+        "updateShipmentWithTrackingEvent",
+      );
+      const existingShipment = await findRequiredEntity(
+        () => findShipmentById(command.shipmentId),
+        "Shipment",
+        command.shipmentId,
+      );
+      const prepared = prepareConfirmShipmentReceived({
+        toStatus: "DELIVERED",
+        eventSource: command.body.eventSource,
+        sourceEventId: command.body.sourceEventId,
+        providerStatus: command.body.providerStatus,
+        location: command.body.location,
+        notes: command.body.notes,
+        occurredAt: command.body.occurredAt,
+        now: command.body.now,
+        existingShipment,
+        actor,
+      });
+      const persisted = await updateShipmentWithTrackingEvent(
+        prepared.shipment,
+        prepared.trackingEvent,
+      );
+      const refreshed = rebuildPersistedChange(
+        prepared,
+        persisted,
+        existingShipment,
+        "SHIPMENT_RECEIPT_CONFIRMED",
+      );
+
+      return this.finalizeShipmentChange({
+        commandName: "CONFIRM_RECEIVED",
+        change: refreshed,
+        previousShipment: existingShipment,
+        repository,
+        status: 200,
+      });
+    });
+  }
+
+  /**
+   * @param {object} command
+   * @param {import("./shipment.d.ts").ShipmentActorContext} command.actor
+   * @param {string} command.shipmentId
+   * @param {import("./shipment.d.ts").ShipmentServiceCommandName} command.commandName
+   * @param {import("./shipment.d.ts").ShipmentStatus | string} [command.toStatus]
+   * @param {Partial<import("./shipment.d.ts").CreateShipmentTrackingEventInputBody>} command.body
+   * @returns {Promise<import("./shipment.d.ts").ShipmentServiceCommandResult>}
+   */
+  async applyTrackingEventCommand(command) {
+    const actor = resolveSingleActiveContextActor(command.actor);
+
+    return this.runInTransaction(async (repository) => {
+      const findShipmentById = requireRepositoryMethod(
+        repository,
+        "findShipmentById",
+      );
+      const updateShipmentWithTrackingEvent = requireRepositoryMethod(
+        repository,
+        "updateShipmentWithTrackingEvent",
+      );
+      const existingShipment = await findRequiredEntity(
+        () => findShipmentById(command.shipmentId),
+        "Shipment",
+        command.shipmentId,
+      );
+      const prepared = prepareCreateShipmentTrackingEvent({
+        toStatus: command.toStatus ?? command.body.toStatus ?? existingShipment.status,
+        providerName: command.body.providerName,
+        providerTrackingId: command.body.providerTrackingId,
+        trackingUrl: command.body.trackingUrl,
+        eventSource: command.body.eventSource,
+        sourceEventId: command.body.sourceEventId,
+        providerStatus: command.body.providerStatus,
+        location: command.body.location,
+        notes: command.body.notes,
+        occurredAt: command.body.occurredAt,
+        now: command.body.now,
+        existingShipment,
+        actor,
+      });
+      const persisted = await updateShipmentWithTrackingEvent(
+        prepared.shipment,
+        prepared.trackingEvent,
+      );
+      const refreshed = rebuildPersistedChange(
+        prepared,
+        persisted,
+        existingShipment,
+        "SHIPMENT_STATUS_UPDATED",
+      );
+
+      return this.finalizeShipmentChange({
+        commandName: command.commandName,
+        change: refreshed,
+        previousShipment: existingShipment,
+        repository,
+        status: 200,
+      });
+    });
+  }
+
+  /**
+   * @param {object} input
+   * @param {import("./shipment.d.ts").ShipmentServiceCommandName} input.commandName
+   * @param {import("./shipment.d.ts").PreparedShipmentTrackingChange} input.change
+   * @param {import("./shipment.d.ts").ShipmentLike | null} input.previousShipment
+   * @param {import("./shipment.d.ts").ShipmentRepository} input.repository
+   * @param {number} input.status
+   * @returns {Promise<import("./shipment.d.ts").ShipmentServiceCommandResult>}
+   */
+  async finalizeShipmentChange(input) {
+    const auditLog = await createAuditLogFromHook({
+      repository: input.repository,
+      auditHook: input.change.auditHook,
+      requestContext: this.auditContext,
+    });
+    const proofResult = await this.dispatchProofHook({
+      proofHook: input.change.proofHook,
+      repository: input.repository,
+      auditLog,
+    });
+    const notificationHook = buildShipmentNotificationHook({
+      commandName: input.commandName,
+      change: input.change,
+      previousShipment: input.previousShipment,
+    });
+    const notificationResult = await this.dispatchNotificationHook(notificationHook);
+
+    return deepFreeze({
+      status: input.status,
+      body: {
+        shipment: input.change.shipment,
+        trackingEvent: input.change.trackingEvent,
+      },
+      shipment: input.change.shipment,
+      trackingEvent: input.change.trackingEvent,
+      auditHook: input.change.auditHook,
+      auditLog,
+      proofHook: input.change.proofHook,
+      proofResult,
+      notificationHook,
+      notificationResult,
+      idempotent: false,
+    });
+  }
+
+  /**
+   * @param {(repository: import("./shipment.d.ts").ShipmentRepository) => Promise<import("./shipment.d.ts").ShipmentServiceCommandResult>} operation
+   * @returns {Promise<import("./shipment.d.ts").ShipmentServiceCommandResult>}
+   */
+  async runInTransaction(operation) {
+    if (typeof this.transaction === "function") {
+      return this.transaction((repository) => operation(repository ?? this.repository));
+    }
+
+    return operation(this.repository);
+  }
+
+  /**
+   * @param {object} input
+   * @param {import("./shipment.d.ts").ShipmentProofHook | null} input.proofHook
+   * @param {import("./shipment.d.ts").ShipmentRepository} input.repository
+   * @param {import("../audit/audit-log.d.ts").AuditLog | null} input.auditLog
+   * @returns {Promise<unknown>}
+   */
+  async dispatchProofHook(input) {
+    const proofHook = input.proofHook;
+
+    if (!proofHook || !this.proofService) {
+      if (input.repository && typeof input.repository.createProofEvent === "function") {
+        return createProofEventFromHook({
+          repository: /** @type {import("../proof/proof-event.d.ts").ProofEventRepository} */ (
+            input.repository
+          ),
+          proofHook,
+          auditContext: this.auditContext,
+          auditLogId: input.auditLog?.id ?? null,
+        });
+      }
+
+      return null;
+    }
+
+    if (typeof this.proofService.recordProofHook === "function") {
+      return this.proofService.recordProofHook(proofHook);
+    }
+
+    if (typeof this.proofService.createProofEventFromHook === "function") {
+      return this.proofService.createProofEventFromHook(proofHook);
+    }
+
+    return null;
+  }
+
+  /**
+   * @param {import("./shipment.d.ts").ShipmentNotificationHook | null} notificationHook
+   * @returns {Promise<unknown>}
+   */
+  async dispatchNotificationHook(notificationHook) {
+    if (!notificationHook || !this.notificationService) {
+      return null;
+    }
+
+    if (typeof this.notificationService.recordShipmentNotificationHook === "function") {
+      return this.notificationService.recordShipmentNotificationHook(notificationHook);
+    }
+
+    if (typeof this.notificationService.enqueueShipmentNotification === "function") {
+      return this.notificationService.enqueueShipmentNotification(notificationHook);
+    }
+
+    return null;
+  }
+}
+
+/**
+ * @param {import("./shipment.d.ts").ShipmentServiceOptions} options
+ * @returns {ShipmentService}
+ */
+export function createShipmentService(options) {
+  return new ShipmentService(options);
+}
+
 /**
  * @param {unknown} value
  * @returns {value is import("./shipment.d.ts").ShipmentStatus}
@@ -128,6 +525,15 @@ export function canViewShipment(actor, target) {
  */
 export function canManageShipment(actor, target) {
   return Boolean(findManageShipmentActorRole(actor, target));
+}
+
+/**
+ * @param {import("./shipment.d.ts").ShipmentActorContext} actor
+ * @param {import("./shipment.d.ts").ShipmentAccessTarget} target
+ * @returns {boolean}
+ */
+export function canConfirmShipmentReceived(actor, target) {
+  return Boolean(findConfirmShipmentActorRole(actor, target));
 }
 
 /**
@@ -226,6 +632,10 @@ export function prepareCreateShipment(input) {
     providerName: normalizeOptionalString(input.providerName),
     providerTrackingId: normalizeOptionalString(input.providerTrackingId),
     trackingUrl: normalizeOptionalString(input.trackingUrl),
+    deliveredAt: status === "DELIVERED" ? occurredAt : null,
+    confirmedReceivedAt: null,
+    confirmedByUserId: null,
+    confirmationSource: status === "DELIVERED" ? "STATION_MARKED_DELIVERED" : null,
     createdByUserId: input.actor.userId.trim(),
     updatedByUserId: input.actor.userId.trim(),
     createdAt: recordedAt,
@@ -292,10 +702,13 @@ export function validateCreateShipmentTrackingEventInput(input) {
   }
 
   validateOptionalNonBlankString(input.trackingEventId, "trackingEventId", issues);
+  validateOptionalNonBlankString(input.providerName, "providerName", issues);
+  validateOptionalNonBlankString(input.providerTrackingId, "providerTrackingId", issues);
   validateOptionalNonBlankString(input.sourceEventId, "sourceEventId", issues);
   validateOptionalNonBlankString(input.providerStatus, "providerStatus", issues);
   validateOptionalNonBlankString(input.location, "location", issues);
   validateOptionalNonBlankString(input.notes, "notes", issues);
+  validateOptionalTrackingUrl(input.trackingUrl, issues);
   validateOptionalTimestamp(input.occurredAt, "occurredAt", issues);
   validateOptionalTimestamp(input.now, "now", issues);
 
@@ -342,6 +755,18 @@ export function prepareCreateShipmentTrackingEvent(input) {
   const shipment = Object.freeze({
     ...input.existingShipment,
     status: toStatus,
+    providerName: normalizeOptionalString(input.providerName) ?? input.existingShipment.providerName,
+    providerTrackingId: normalizeOptionalString(input.providerTrackingId) ??
+      input.existingShipment.providerTrackingId,
+    trackingUrl: normalizeOptionalString(input.trackingUrl) ?? input.existingShipment.trackingUrl,
+    deliveredAt: toStatus === "DELIVERED"
+      ? input.existingShipment.deliveredAt ?? occurredAt
+      : input.existingShipment.deliveredAt ?? null,
+    confirmedReceivedAt: input.existingShipment.confirmedReceivedAt ?? null,
+    confirmedByUserId: input.existingShipment.confirmedByUserId ?? null,
+    confirmationSource: toStatus === "DELIVERED"
+      ? input.existingShipment.confirmationSource ?? "STATION_MARKED_DELIVERED"
+      : input.existingShipment.confirmationSource ?? null,
     updatedByUserId: input.actor.userId.trim(),
     updatedAt: recordedAt,
   });
@@ -361,6 +786,120 @@ export function prepareCreateShipmentTrackingEvent(input) {
   });
   const auditHook = buildShipmentTrackingAuditHook({
     action: "SHIPMENT_STATUS_UPDATED",
+    shipment,
+    previousShipment: input.existingShipment,
+    trackingEvent,
+  });
+
+  return Object.freeze({
+    shipment,
+    trackingEvent,
+    auditHook,
+    proofHook: buildShipmentProofHook({
+      shipment,
+      trackingEvent,
+      auditHook,
+    }),
+  });
+}
+
+/**
+ * @param {import("./shipment.d.ts").CreateShipmentTrackingEventInput} input
+ * @returns {string[]}
+ */
+export function validateConfirmShipmentReceivedInput(input) {
+  const issues = [];
+  const actorIssues = validateActor(input.actor);
+  const eventSource = input.eventSource === undefined
+    ? "MANUAL"
+    : normalizeRequiredString(input.eventSource);
+
+  issues.push(...actorIssues);
+  validateShipmentForTrackingEvent(input.existingShipment, issues);
+
+  if (input.existingShipment && !["IN_TRANSIT", "DELIVERED"].includes(input.existingShipment.status)) {
+    issues.push("breeder receipt confirmation is allowed only for IN_TRANSIT or DELIVERED shipments.");
+  }
+
+  if (input.existingShipment?.confirmedReceivedAt) {
+    issues.push("shipment receipt has already been confirmed.");
+  }
+
+  if (eventSource && !isShipmentTrackingEventSource(eventSource)) {
+    issues.push(
+      `eventSource must be one of: ${SHIPMENT_TRACKING_EVENT_SOURCES.join(", ")}.`,
+    );
+  }
+
+  validateOptionalNonBlankString(input.trackingEventId, "trackingEventId", issues);
+  validateOptionalNonBlankString(input.sourceEventId, "sourceEventId", issues);
+  validateOptionalNonBlankString(input.providerStatus, "providerStatus", issues);
+  validateOptionalNonBlankString(input.location, "location", issues);
+  validateOptionalNonBlankString(input.notes, "notes", issues);
+  validateOptionalTimestamp(input.occurredAt, "occurredAt", issues);
+  validateOptionalTimestamp(input.now, "now", issues);
+
+  if (
+    input.existingShipment &&
+    actorIssues.length === 0 &&
+    !findConfirmShipmentActorRole(input.actor, input.existingShipment)
+  ) {
+    issues.push("actor must be the active BREEDER user for the shipment order.");
+  }
+
+  return issues;
+}
+
+/**
+ * @param {import("./shipment.d.ts").CreateShipmentTrackingEventInput} input
+ * @returns {import("./shipment.d.ts").PreparedShipmentTrackingChange}
+ */
+export function prepareConfirmShipmentReceived(input) {
+  const issues = validateConfirmShipmentReceivedInput(input);
+
+  if (issues.length > 0) {
+    throw new ShipmentValidationError(issues);
+  }
+
+  const actorRole = findConfirmShipmentActorRole(input.actor, input.existingShipment);
+
+  if (!actorRole) {
+    throw new ShipmentAuthorizationError(
+      "actor must be authorized before confirming shipment receipt.",
+    );
+  }
+
+  const occurredAt = toIsoTimestamp(input.occurredAt ?? input.now ?? new Date());
+  const recordedAt = toIsoTimestamp(input.now ?? input.occurredAt ?? new Date());
+  const eventSource = /** @type {import("./shipment.d.ts").ShipmentTrackingEventSource} */ (
+    normalizeRequiredString(input.eventSource) || "MANUAL"
+  );
+  const shipment = Object.freeze({
+    ...input.existingShipment,
+    status: "DELIVERED",
+    deliveredAt: input.existingShipment.deliveredAt ?? occurredAt,
+    confirmedReceivedAt: occurredAt,
+    confirmedByUserId: input.actor.userId.trim(),
+    confirmationSource: "BREEDER_CONFIRMED_RECEIVED",
+    updatedByUserId: input.actor.userId.trim(),
+    updatedAt: recordedAt,
+  });
+  const trackingEvent = buildTrackingEvent({
+    id: normalizeOptionalString(input.trackingEventId),
+    shipment,
+    fromStatus: input.existingShipment.status,
+    toStatus: "DELIVERED",
+    actorRole,
+    eventSource,
+    sourceEventId: normalizeOptionalString(input.sourceEventId),
+    providerStatus: normalizeOptionalString(input.providerStatus),
+    location: normalizeOptionalString(input.location),
+    notes: normalizeOptionalString(input.notes) ?? "Breeder confirmed shipment receipt.",
+    occurredAt,
+    recordedAt,
+  });
+  const auditHook = buildShipmentTrackingAuditHook({
+    action: "SHIPMENT_RECEIPT_CONFIRMED",
     shipment,
     previousShipment: input.existingShipment,
     trackingEvent,
@@ -455,66 +994,58 @@ export function buildShipmentProofHook(input) {
 }
 
 /**
+ * @param {import("./shipment.d.ts").ShipmentNotificationHookInput} input
+ * @returns {import("./shipment.d.ts").ShipmentNotificationHook | null}
+ */
+export function buildShipmentNotificationHook(input) {
+  const eventType = SHIPMENT_NOTIFICATION_EVENT_BY_COMMAND[input.commandName];
+
+  if (!eventType) {
+    return null;
+  }
+
+  return Object.freeze({
+    hookType: "SHIPMENT_NOTIFICATION_REQUEST",
+    eventType,
+    commandName: input.commandName,
+    shipmentId: input.change.shipment.id,
+    semenOrderId: input.change.shipment.semenOrderId,
+    orderNumber: input.change.shipment.orderNumber,
+    breederOrganizationId: input.change.shipment.breederOrganizationId,
+    breedingStationOrganizationId: input.change.shipment.breedingStationOrganizationId,
+    fromStatus: input.previousShipment?.status ?? input.change.trackingEvent.fromStatus,
+    toStatus: input.change.shipment.status,
+    trackingEventId: input.change.trackingEvent.id,
+    actorUserId: input.change.trackingEvent.actorUserId,
+    actorRoleCode: input.change.trackingEvent.actorRoleCode,
+    actorOrganizationId: input.change.trackingEvent.actorOrganizationId,
+    occurredAt: input.change.trackingEvent.occurredAt,
+  });
+}
+
+/**
  * @param {import("./shipment.d.ts").EndpointRequest<import("./shipment.d.ts").CreateShipmentInputBody>} request
  * @returns {Promise<import("./shipment.d.ts").EndpointResponse<{ shipment: import("./shipment.d.ts").Shipment, trackingEvent: import("./shipment.d.ts").ShipmentTrackingEvent }>>}
  */
 export async function createShipmentEndpoint(request) {
-  const findSemenOrderById = requireRepositoryMethod(
-    request.repository,
-    "findSemenOrderById",
-  );
-  const createShipmentWithTrackingEvent = requireRepositoryMethod(
-    request.repository,
-    "createShipmentWithTrackingEvent",
-  );
   const orderId = requireParam(request.params, "orderId");
-  const existingOrder = await findRequiredEntity(
-    () => findSemenOrderById(orderId),
-    "SemenOrder",
-    orderId,
-  );
-  const prepared = prepareCreateShipment({
-    status: request.body.status,
-    providerName: request.body.providerName,
-    providerTrackingId: request.body.providerTrackingId,
-    trackingUrl: request.body.trackingUrl,
-    eventSource: request.body.eventSource,
-    sourceEventId: request.body.sourceEventId,
-    providerStatus: request.body.providerStatus,
-    location: request.body.location,
-    notes: request.body.notes,
-    occurredAt: request.body.occurredAt,
-    createdAt: request.body.createdAt,
-    now: request.body.now,
-    existingOrder,
-    actor: request.actor,
-  });
-  const persisted = await createShipmentWithTrackingEvent(
-    prepared.shipment,
-    prepared.trackingEvent,
-  );
-  const refreshed = rebuildPersistedChange(
-    prepared,
-    persisted,
-    null,
-    "SHIPMENT_CREATED",
-  );
-
-  const auditLog = await createAuditLogFromHook({
+  const service = createShipmentService({
     repository: request.repository,
-    auditHook: refreshed.auditHook,
-    requestContext: request.auditContext,
+    auditContext: request.auditContext,
+  });
+  const result = await service.createShipment({
+    actor: request.actor,
+    orderId,
+    body: request.body,
   });
 
   return Object.freeze({
-    status: 201,
-    body: Object.freeze({
-      shipment: refreshed.shipment,
-      trackingEvent: refreshed.trackingEvent,
-    }),
-    auditHook: refreshed.auditHook,
-    auditLog,
-    proofHook: refreshed.proofHook,
+    status: result.status,
+    body: result.body,
+    auditHook: result.auditHook,
+    auditLog: result.auditLog,
+    proofHook: result.proofHook,
+    proofResult: result.proofResult,
   });
 }
 
@@ -523,58 +1054,25 @@ export async function createShipmentEndpoint(request) {
  * @returns {Promise<import("./shipment.d.ts").EndpointResponse<{ shipment: import("./shipment.d.ts").Shipment, trackingEvent: import("./shipment.d.ts").ShipmentTrackingEvent }>>}
  */
 export async function createShipmentTrackingEventEndpoint(request) {
-  const findShipmentById = requireRepositoryMethod(
-    request.repository,
-    "findShipmentById",
-  );
-  const updateShipmentWithTrackingEvent = requireRepositoryMethod(
-    request.repository,
-    "updateShipmentWithTrackingEvent",
-  );
   const shipmentId = requireParam(request.params, "shipmentId");
-  const existingShipment = await findRequiredEntity(
-    () => findShipmentById(shipmentId),
-    "Shipment",
-    shipmentId,
-  );
-  const prepared = prepareCreateShipmentTrackingEvent({
-    toStatus: request.body.toStatus,
-    eventSource: request.body.eventSource,
-    sourceEventId: request.body.sourceEventId,
-    providerStatus: request.body.providerStatus,
-    location: request.body.location,
-    notes: request.body.notes,
-    occurredAt: request.body.occurredAt,
-    now: request.body.now,
-    existingShipment,
-    actor: request.actor,
-  });
-  const persisted = await updateShipmentWithTrackingEvent(
-    prepared.shipment,
-    prepared.trackingEvent,
-  );
-  const refreshed = rebuildPersistedChange(
-    prepared,
-    persisted,
-    existingShipment,
-    "SHIPMENT_STATUS_UPDATED",
-  );
-
-  const auditLog = await createAuditLogFromHook({
+  const service = createShipmentService({
     repository: request.repository,
-    auditHook: refreshed.auditHook,
-    requestContext: request.auditContext,
+    auditContext: request.auditContext,
+  });
+  const result = await service.updateShipmentStatus({
+    actor: request.actor,
+    shipmentId,
+    toStatus: request.body.toStatus,
+    body: request.body,
   });
 
   return Object.freeze({
-    status: 200,
-    body: Object.freeze({
-      shipment: refreshed.shipment,
-      trackingEvent: refreshed.trackingEvent,
-    }),
-    auditHook: refreshed.auditHook,
-    auditLog,
-    proofHook: refreshed.proofHook,
+    status: result.status,
+    body: result.body,
+    auditHook: result.auditHook,
+    auditLog: result.auditLog,
+    proofHook: result.proofHook,
+    proofResult: result.proofResult,
   });
 }
 
@@ -773,6 +1271,15 @@ function findManageShipmentActorRole(actor, target) {
 
 /**
  * @param {import("./shipment.d.ts").ShipmentActorContext} actor
+ * @param {import("./shipment.d.ts").ShipmentAccessTarget} target
+ * @returns {import("../identity/role-model.d.ts").UserOrganizationRoleLike | undefined}
+ */
+function findConfirmShipmentActorRole(actor, target) {
+  return findActorRole(actor, "BREEDER", target.breederOrganizationId);
+}
+
+/**
+ * @param {import("./shipment.d.ts").ShipmentActorContext} actor
  * @param {import("../identity/role-model.d.ts").RoleCode} roleCode
  * @param {string} [organizationId]
  * @returns {import("../identity/role-model.d.ts").UserOrganizationRoleLike | undefined}
@@ -788,6 +1295,35 @@ function findActorRole(actor, roleCode, organizationId) {
     isActiveRoleAssignment(assignment) &&
     (organizationId === undefined || assignment.organizationId === organizationId),
   );
+}
+
+/**
+ * @param {import("./shipment.d.ts").ShipmentActorContext} actor
+ * @returns {import("./shipment.d.ts").ShipmentActorContext}
+ */
+function resolveSingleActiveContextActor(actor) {
+  const actorIssues = validateActor(actor);
+
+  if (actorIssues.length > 0) {
+    throw new ShipmentValidationError(actorIssues);
+  }
+
+  const activeRoles = actor.roles.filter((assignment) =>
+    assignment.userId === actor.userId &&
+    isActiveRoleAssignment(assignment) &&
+    isPhase1RoleCode(assignment.roleCode),
+  );
+
+  if (activeRoles.length !== 1) {
+    throw new ShipmentValidationError([
+      "actor.roles must contain exactly one validated active organization role context.",
+    ]);
+  }
+
+  return Object.freeze({
+    userId: actor.userId.trim(),
+    roles: Object.freeze([Object.freeze(activeRoles[0])]),
+  });
 }
 
 /**
@@ -843,6 +1379,10 @@ function shipmentAuditValue(shipment) {
     providerName: shipment.providerName,
     providerTrackingId: shipment.providerTrackingId,
     trackingUrl: shipment.trackingUrl,
+    deliveredAt: shipment.deliveredAt ?? null,
+    confirmedReceivedAt: shipment.confirmedReceivedAt ?? null,
+    confirmedByUserId: shipment.confirmedByUserId ?? null,
+    confirmationSource: shipment.confirmationSource ?? null,
   });
 }
 
@@ -1051,4 +1591,21 @@ function isValidTimestamp(value) {
  */
 function toIsoTimestamp(value) {
   return new Date(value).toISOString();
+}
+
+/**
+ * @template T
+ * @param {T} value
+ * @returns {Readonly<T>}
+ */
+function deepFreeze(value) {
+  if (value && typeof value === "object") {
+    Object.freeze(value);
+
+    for (const nestedValue of Object.values(value)) {
+      deepFreeze(nestedValue);
+    }
+  }
+
+  return value;
 }

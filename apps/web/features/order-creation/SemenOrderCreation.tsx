@@ -146,8 +146,8 @@ function OrderCreationForm({
           <SectionHeader
             actions={viewModel.draftOrder ? <StatusBadge value={viewModel.draftOrder.status} /> : null}
             id="order-details-heading"
-            subtitle="Shipping details are recorded as part of the order proof trail."
-            title="Delivery and shipping"
+            subtitle="Mare and delivery details are recorded as part of the order proof trail."
+            title="Order details"
           />
           <form className="ct-form-grid" method="post">
             <input type="hidden" name="orderId" value={viewModel.form.orderId} />
@@ -159,6 +159,51 @@ function OrderCreationForm({
               type="date"
               value={viewModel.form.requestedDeliveryDate}
             />
+            <OrderInput
+              label="Mare name"
+              name="mareName"
+              required
+              value={viewModel.form.mareName}
+            />
+            <OrderInput
+              label="Mare registration reference"
+              name="mareRegistrationReference"
+              required
+              value={viewModel.form.mareRegistrationReference}
+            />
+            <OrderInput
+              label="Mare breed"
+              name="mareBreed"
+              required
+              value={viewModel.form.mareBreed}
+            />
+            <OrderInput
+              label="Mare owner"
+              name="mareOwnerName"
+              value={viewModel.form.mareOwnerName}
+            />
+            <Field
+              className="ct-field--wide"
+              htmlFor="intendedInseminationContext"
+              label="Insemination context"
+            >
+              <Textarea
+                id="intendedInseminationContext"
+                name="intendedInseminationContext"
+                defaultValue={viewModel.form.intendedInseminationContext}
+              />
+            </Field>
+            <Field
+              className="ct-field--wide"
+              htmlFor="vetOrRecipientContact"
+              label="Vet or recipient contact"
+            >
+              <Textarea
+                id="vetOrRecipientContact"
+                name="vetOrRecipientContact"
+                defaultValue={viewModel.form.vetOrRecipientContact}
+              />
+            </Field>
             <OrderInput
               label="Shipping contact"
               name="shippingContactName"
@@ -213,6 +258,20 @@ function OrderCreationForm({
                 defaultValue={viewModel.form.specialInstructions}
               />
             </Field>
+            {viewModel.draftOrder ? (
+              <Field
+                className="ct-field--wide"
+                htmlFor="cancellationReason"
+                label="Cancellation reason"
+              >
+                <Textarea
+                  id="cancellationReason"
+                  name="cancellationReason"
+                  defaultValue={viewModel.form.cancellationReason}
+                  placeholder="Required when cancelling this draft"
+                />
+              </Field>
+            ) : null}
             <div className="ct-form-actions">
               <Button
                 disabled={formDisabled}
@@ -312,6 +371,12 @@ function ConfirmationState({
                 term: "Requested delivery",
                 value: viewModel.order.requestedDeliveryDate ?? "Not set",
               },
+              { term: "Mare", value: viewModel.order.mareName ?? "Not set" },
+              {
+                term: "Mare registration",
+                value: viewModel.order.mareRegistrationReference ?? "Not set",
+              },
+              { term: "Mare breed", value: viewModel.order.mareBreed ?? "Not set" },
             ]}
           />
           <div className="ct-form-actions">

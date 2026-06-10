@@ -5,6 +5,7 @@ import type {
 import type {
   OrderNotificationHook,
   OrderStatusHistory,
+  OrderServiceOptions,
   OrderServiceNotificationService,
   OrderServiceProofService,
   SemenOrder,
@@ -76,6 +77,7 @@ export interface StationOrderActionInput {
   auditContext?: AuditRequestContext | null;
   proofService?: OrderServiceProofService | null;
   notificationService?: OrderServiceNotificationService | null;
+  transaction?: OrderServiceOptions["transaction"] | null;
   now?: string | Date;
 }
 

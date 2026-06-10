@@ -61,6 +61,12 @@ const futureBuyerActor = {
 
 const completeOrderDetails = {
   requestedDeliveryDate: "2026-06-12",
+  mareName: "Willow Queen",
+  mareRegistrationReference: "M-REG-2048",
+  mareBreed: "Warmblood",
+  mareOwnerName: "Ava Breeder",
+  intendedInseminationContext: "Fresh semen insemination at home yard.",
+  vetOrRecipientContact: "Dr. Ndlovu, +27 82 555 0102",
   shippingContactName: "Ava Breeder",
   shippingContactPhone: "+27 82 555 0101",
   shippingAddressLine1: "42 Foaling Barn Road",

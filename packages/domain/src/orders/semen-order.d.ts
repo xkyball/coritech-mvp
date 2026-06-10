@@ -5,6 +5,7 @@ import type {
 } from "../audit/audit-log.d.ts";
 import type { UserOrganizationRoleLike } from "../identity/role-model.d.ts";
 import type { SemenListingLike } from "../catalog/semen-catalog.d.ts";
+import type { ProofEvent } from "../proof/proof-event.d.ts";
 
 export type SemenOrderStatus =
   | "DRAFT"
@@ -49,6 +50,12 @@ export interface SemenOrder {
   breedingStationOrganizationId: string;
   status: SemenOrderStatus;
   requestedDeliveryDate: string | null;
+  mareName: string | null;
+  mareRegistrationReference: string | null;
+  mareBreed: string | null;
+  mareOwnerName: string | null;
+  intendedInseminationContext: string | null;
+  vetOrRecipientContact: string | null;
   shippingContactName: string | null;
   shippingContactPhone: string | null;
   shippingAddressLine1: string | null;
@@ -72,6 +79,12 @@ export interface SemenOrderLike {
   breedingStationOrganizationId: string;
   status: SemenOrderStatus;
   requestedDeliveryDate?: string | null;
+  mareName?: string | null;
+  mareRegistrationReference?: string | null;
+  mareBreed?: string | null;
+  mareOwnerName?: string | null;
+  intendedInseminationContext?: string | null;
+  vetOrRecipientContact?: string | null;
   shippingContactName?: string | null;
   shippingContactPhone?: string | null;
   shippingAddressLine1?: string | null;
@@ -104,6 +117,12 @@ export interface CreateDraftSemenOrderInputBody {
   semenListingId: string;
   breederOrganizationId: string;
   requestedDeliveryDate?: string | null;
+  mareName?: string | null;
+  mareRegistrationReference?: string | null;
+  mareBreed?: string | null;
+  mareOwnerName?: string | null;
+  intendedInseminationContext?: string | null;
+  vetOrRecipientContact?: string | null;
   shippingContactName?: string | null;
   shippingContactPhone?: string | null;
   shippingAddressLine1?: string | null;
@@ -155,6 +174,12 @@ export interface SemenOrderAuditValue {
   breedingStationOrganizationId: string;
   status: SemenOrderStatus;
   requestedDeliveryDate: string | null;
+  mareName: string | null;
+  mareRegistrationReference: string | null;
+  mareBreed: string | null;
+  mareOwnerName: string | null;
+  intendedInseminationContext: string | null;
+  vetOrRecipientContact: string | null;
   shippingContactName: string | null;
   shippingContactPhone: string | null;
   shippingAddressLine1: string | null;
@@ -230,6 +255,7 @@ export type OrderServiceCommandName =
   | "REJECT_ORDER"
   | "MOVE_TO_FULFILMENT"
   | "COMPLETE_ORDER"
+  | "CANCEL_ORDER"
   | "TRANSITION_ORDER_STATUS";
 
 export type OrderNotificationEventType =
@@ -294,6 +320,8 @@ export interface SemenOrderRepository extends AuditLogWriteRepository {
   updateDraftSemenOrder?(order: SemenOrder): Promise<SemenOrder>;
   findSemenOrderById(orderId: string): Promise<SemenOrder | null>;
   listOrderStatusHistory(orderId: string): Promise<OrderStatusHistory[]>;
+  createProofEvent?(proofEvent: ProofEvent): Promise<ProofEvent>;
+  listProofEventsForOrder?(orderId: string): Promise<ProofEvent[]>;
 }
 
 export interface PreparedPersistedSemenOrderStatusChange {
@@ -441,6 +469,9 @@ export declare class OrderService {
     command: OrderServiceNamedTransitionCommand,
   ): Promise<OrderServiceCommandResult>;
   completeOrder(
+    command: OrderServiceNamedTransitionCommand,
+  ): Promise<OrderServiceCommandResult>;
+  cancelOrder(
     command: OrderServiceNamedTransitionCommand,
   ): Promise<OrderServiceCommandResult>;
 }

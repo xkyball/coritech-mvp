@@ -10,6 +10,7 @@ import type {
 import type { UserOrganizationRoleLike } from "@coritech/domain/identity/role-model.d.ts";
 import type {
   OrderStatusHistory,
+  OrderServiceOptions,
   SemenOrder,
   SemenOrderLike,
   SemenOrderProofHook,
@@ -56,6 +57,12 @@ export interface SemenOrderCreationFormInput {
   orderId?: string | null;
   semenListingId?: string | null;
   requestedDeliveryDate?: string | null;
+  mareName?: string | null;
+  mareRegistrationReference?: string | null;
+  mareBreed?: string | null;
+  mareOwnerName?: string | null;
+  intendedInseminationContext?: string | null;
+  vetOrRecipientContact?: string | null;
   shippingContactName?: string | null;
   shippingContactPhone?: string | null;
   shippingAddressLine1?: string | null;
@@ -65,12 +72,19 @@ export interface SemenOrderCreationFormInput {
   shippingPostalCode?: string | null;
   shippingCountry?: string | null;
   specialInstructions?: string | null;
+  cancellationReason?: string | null;
 }
 
 export interface SemenOrderCreationFormState {
   orderId: string;
   semenListingId: string;
   requestedDeliveryDate: string;
+  mareName: string;
+  mareRegistrationReference: string;
+  mareBreed: string;
+  mareOwnerName: string;
+  intendedInseminationContext: string;
+  vetOrRecipientContact: string;
   shippingContactName: string;
   shippingContactPhone: string;
   shippingAddressLine1: string;
@@ -80,6 +94,7 @@ export interface SemenOrderCreationFormState {
   shippingPostalCode: string;
   shippingCountry: string;
   specialInstructions: string;
+  cancellationReason: string;
 }
 
 export interface SemenOrderCreationOrganizationContext {
@@ -145,6 +160,9 @@ export interface SemenOrderCreationConfirmationViewModel {
     orderNumber: string;
     status: SemenOrderStatus;
     requestedDeliveryDate: string | null;
+    mareName: string | null;
+    mareRegistrationReference: string | null;
+    mareBreed: string | null;
     shippingCity: string | null;
     shippingCountry: string | null;
     detailHref: string | null;
@@ -180,6 +198,7 @@ export interface CreateSemenOrderFromFormInput {
   repository: SemenOrderRepository;
   form: SemenOrderCreationFormInput;
   auditContext?: AuditRequestContext | null;
+  transaction?: OrderServiceOptions["transaction"] | null;
   now?: string | Date;
 }
 

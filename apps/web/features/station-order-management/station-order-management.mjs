@@ -87,6 +87,7 @@ export async function executeStationOrderAction(input) {
       auditContext: input.auditContext,
       proofService: input.proofService,
       notificationService: input.notificationService,
+      transaction: input.transaction,
     });
     const command = {
       actor: input.actor,

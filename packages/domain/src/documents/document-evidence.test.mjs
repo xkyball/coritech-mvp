@@ -9,6 +9,7 @@ import {
   DocumentEvidenceAuthorizationError,
   DocumentEvidenceValidationError,
   canAttachEvidenceToProofEvent,
+  canManageDocumentLifecycle,
   canUploadDocument,
   canViewDocument,
   createDocumentEndpoint,
@@ -19,6 +20,8 @@ import {
   listShipmentDocumentsEndpoint,
   prepareCreateDocument,
   prepareCreateEvidenceAttachment,
+  prepareRevokeDocument,
+  prepareSupersedeDocument,
 } from "./document-evidence.mjs";
 
 const timestamp = "2026-06-09T08:00:00.000Z";
@@ -141,6 +144,8 @@ test("document route contract, classifications and audit actions stay inside Tic
   assert.deepEqual(DOCUMENT_AUDIT_ACTIONS, [
     "DOCUMENT_UPLOADED",
     "DOCUMENT_VIEWED",
+    "DOCUMENT_REVOKED",
+    "DOCUMENT_REPLACED",
     "EVIDENCE_ATTACHMENT_CREATED",
   ]);
   assert.deepEqual(
@@ -181,6 +186,14 @@ test("station can prepare shipment-linked document metadata with object-storage 
     storageRegion: "eu-west-1",
     storageVersionId: "version-1",
     accessClassification: "ORDER_PARTICIPANTS",
+    status: "ACTIVE",
+    replacedByDocumentId: null,
+    revocationReason: null,
+    replacementReason: null,
+    lifecycleChangedAt: null,
+    lifecycleChangedByUserId: null,
+    lifecycleChangedByRoleCode: null,
+    lifecycleChangedByOrganizationId: null,
     uploadedByUserId: "user-station",
     uploaderRoleCode: "BREEDING_STATION",
     uploaderOrganizationId: stationOrganizationId,
@@ -191,6 +204,7 @@ test("station can prepare shipment-linked document metadata with object-storage 
   assert.equal(prepared.auditHook.targetId, "document-1");
   assert.equal(prepared.auditHook.documentRef.storageProvider, "s3");
   assert.equal(prepared.auditHook.documentRef.fileSizeBytes, 123456);
+  assert.equal(prepared.auditHook.documentRef.status, "ACTIVE");
 });
 
 test("access classification is mandatory and local filesystem payloads are rejected", () => {
@@ -249,6 +263,77 @@ test("document visibility is controlled by classification without granting buyer
   assert.equal(canViewDocument(stationActor, restricted), true);
   assert.equal(canViewDocument(stationActor, adminOnly), false);
   assert.equal(canViewDocument(adminActor, adminOnly), true);
+});
+
+test("document lifecycle revoke and replacement require active authorized actors", () => {
+  const { document } = prepareCreateDocument(documentInput);
+
+  assert.equal(canManageDocumentLifecycle(stationActor, document), true);
+  assert.equal(canManageDocumentLifecycle(breederActor, document), false);
+  assert.equal(canManageDocumentLifecycle(adminActor, document), true);
+
+  const revoked = prepareRevokeDocument({
+    actor: stationActor,
+    document,
+    reason: "Incorrect file uploaded.",
+    now: "2026-06-09T09:00:00.000Z",
+  });
+
+  assert.equal(revoked.document.status, "REVOKED");
+  assert.equal(revoked.document.revocationReason, "Incorrect file uploaded.");
+  assert.equal(revoked.auditHook.action, "DOCUMENT_REVOKED");
+  assert.equal(revoked.auditHook.previousValue?.status, "ACTIVE");
+  assert.equal(revoked.auditHook.documentRef.status, "REVOKED");
+  assert.equal(canViewDocument(stationActor, revoked.document), false);
+  assert.equal(canViewDocument(adminActor, revoked.document), true);
+
+  const superseded = prepareSupersedeDocument({
+    actor: stationActor,
+    document,
+    replacementDocumentId: "document-2",
+    reason: "Updated certificate.",
+    now: "2026-06-09T10:00:00.000Z",
+  });
+
+  assert.equal(superseded.document.status, "SUPERSEDED");
+  assert.equal(superseded.document.replacedByDocumentId, "document-2");
+  assert.equal(superseded.document.replacementReason, "Updated certificate.");
+  assert.equal(superseded.auditHook.action, "DOCUMENT_REPLACED");
+
+  assert.throws(
+    () =>
+      prepareRevokeDocument({
+        actor: stationActor,
+        document: revoked.document,
+        reason: "Second revoke",
+      }),
+    (error) =>
+      error instanceof DocumentEvidenceValidationError &&
+      error.issues.includes("only active documents can be revoked."),
+  );
+
+  assert.throws(
+    () =>
+      prepareSupersedeDocument({
+        actor: stationActor,
+        document,
+        replacementDocumentId: "document-2",
+        reason: "",
+      }),
+    (error) =>
+      error instanceof DocumentEvidenceValidationError &&
+      error.issues.includes("reason is required."),
+  );
+
+  assert.throws(
+    () =>
+      prepareRevokeDocument({
+        actor: breederActor,
+        document,
+        reason: "Not my upload",
+      }),
+    DocumentEvidenceAuthorizationError,
+  );
 });
 
 test("evidence attachments can link existing documents to proof events", () => {

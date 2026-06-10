@@ -20,6 +20,7 @@ import type {
 import type { ActivePhase1VerificationLevel } from "@coritech/domain/proof/verification-level.d.ts";
 import type {
   ShipmentLike as ApiShipmentLike,
+  ShipmentConfirmationSource,
   ShipmentStatus,
   ShipmentTrackingEvent,
   ShipmentTrackingEventSource,
@@ -97,6 +98,12 @@ export interface BreederOrderSummary {
   breedingStationOrganizationId: string;
   status: SemenOrderStatus;
   requestedDeliveryDate: string | null;
+  mareName: string | null;
+  mareRegistrationReference: string | null;
+  mareBreed: string | null;
+  mareOwnerName: string | null;
+  intendedInseminationContext: string | null;
+  vetOrRecipientContact: string | null;
   shippingContactName: string | null;
   shippingContactPhone: string | null;
   shippingAddressLines: readonly string[];
@@ -141,6 +148,12 @@ export interface BreederOrderShipmentRow {
   providerName: string | null;
   providerTrackingId: string | null;
   trackingUrl: string | null;
+  deliveredAt: string | null;
+  confirmedReceivedAt: string | null;
+  confirmedByUserId: string | null;
+  confirmationSource: ShipmentConfirmationSource | string | null;
+  canConfirmReceived: boolean;
+  confirmationSummary: string;
   createdAt: string | null;
   updatedAt: string | null;
   trackingEvents: readonly BreederOrderShipmentTrackingEventRow[];
@@ -155,7 +168,7 @@ export interface BreederOrderShipmentTrackingEventRow {
   providerStatus: string | null;
   location: string | null;
   notes: string | null;
-  actorRoleCode: "BREEDING_STATION" | "PLATFORM_ADMIN";
+  actorRoleCode: "BREEDER" | "BREEDING_STATION" | "PLATFORM_ADMIN";
   actorOrganizationId: string;
   occurredAt: string;
 }
@@ -168,6 +181,7 @@ export interface BreederOrderDocumentRow {
   targetId: string;
   orderNumber: string | null;
   accessClassification: DocumentAccessClassification;
+  status: string;
   createdAt: string;
   detailHref: string | null;
 }

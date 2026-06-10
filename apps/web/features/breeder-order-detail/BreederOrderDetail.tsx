@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {
   Breadcrumbs,
+  Button,
   ButtonLink,
   Card,
   DashboardShell,
@@ -32,8 +33,10 @@ import type {
 } from "./breeder-order-detail.d.ts";
 
 export function BreederOrderDetail({
+  confirmReceivedAction,
   viewModel,
 }: Readonly<{
+  confirmReceivedAction?: (formData: FormData) => Promise<void>;
   viewModel: BreederOrderDetailRenderableViewModel;
 }>) {
   if (viewModel.state === "LOADING") {
@@ -44,12 +47,14 @@ export function BreederOrderDetail({
     return <ErrorState viewModel={viewModel} />;
   }
 
-  return <ReadyOrderDetail viewModel={viewModel} />;
+  return <ReadyOrderDetail confirmReceivedAction={confirmReceivedAction} viewModel={viewModel} />;
 }
 
 function ReadyOrderDetail({
+  confirmReceivedAction,
   viewModel,
 }: Readonly<{
+  confirmReceivedAction?: (formData: FormData) => Promise<void>;
   viewModel: BreederOrderDetailViewModel;
 }>) {
   const sections = viewModel.sections;
@@ -65,6 +70,18 @@ function ReadyOrderDetail({
         <PageHeader
           actions={(
             <>
+              {viewModel.order.id ? (
+                <ButtonLink
+                  href={buildDocumentUploadHref({
+                    returnTo: `/app/orders/${encodeURIComponent(viewModel.order.id)}`,
+                    targetId: viewModel.order.id,
+                    targetType: "SemenOrder",
+                  })}
+                  variant="secondary"
+                >
+                  Upload document
+                </ButtonLink>
+              ) : null}
               <ButtonLink href={viewModel.navigation.dashboardHref} variant="secondary">
                 Dashboard
               </ButtonLink>
@@ -89,7 +106,7 @@ function ReadyOrderDetail({
         <CurrentStatus viewModel={viewModel} />
         <SummarySection section={sections.orderSummary} />
         <StatusHistorySection section={sections.statusHistory} />
-        <ShipmentSection section={sections.shipments} />
+        <ShipmentSection confirmReceivedAction={confirmReceivedAction} section={sections.shipments} />
         <DocumentsSection section={sections.documents} />
         <ProofEventsSection orderNumber={viewModel.order.orderNumber} section={sections.proofEvents} />
         <SupportSection supportAction={viewModel.supportAction} />
@@ -182,8 +199,10 @@ function StatusHistorySection({
 }
 
 function ShipmentSection({
+  confirmReceivedAction,
   section,
 }: Readonly<{
+  confirmReceivedAction?: (formData: FormData) => Promise<void>;
   section: BreederOrderDetailSection<BreederOrderShipmentRow>;
 }>) {
   return (
@@ -197,6 +216,7 @@ function ShipmentSection({
               <th>Status</th>
               <th>Provider</th>
               <th>Tracking</th>
+              <th>Receipt</th>
               <th>Updated</th>
               <th>Events</th>
             </tr>
@@ -215,6 +235,12 @@ function ShipmentSection({
                     shipment.providerTrackingId ?? "Tracking not recorded"
                   )}
                 </td>
+                <td>
+                  <ReceiptCell
+                    confirmReceivedAction={confirmReceivedAction}
+                    shipment={shipment}
+                  />
+                </td>
                 <td>{shipment.updatedAt ?? "Not recorded"}</td>
                 <td>
                   <TrackingEvents events={shipment.trackingEvents} />
@@ -225,6 +251,28 @@ function ShipmentSection({
         </Table>
       )}
     </DetailSection>
+  );
+}
+
+function ReceiptCell({
+  confirmReceivedAction,
+  shipment,
+}: Readonly<{
+  confirmReceivedAction?: (formData: FormData) => Promise<void>;
+  shipment: BreederOrderShipmentRow;
+}>) {
+  if (!shipment.canConfirmReceived) {
+    return <span>{shipment.confirmationSummary}</span>;
+  }
+
+  return (
+    <form action={confirmReceivedAction}>
+      <input name="orderId" type="hidden" value={shipment.semenOrderId} />
+      <input name="shipmentId" type="hidden" value={shipment.id ?? ""} />
+      <Button type="submit">
+        Confirm received
+      </Button>
+    </form>
   );
 }
 
@@ -265,6 +313,7 @@ function DocumentsSection({
               <th>Document</th>
               <th>Type</th>
               <th>Access</th>
+              <th>Status</th>
               <th>Created</th>
               <th>Open</th>
             </tr>
@@ -275,6 +324,7 @@ function DocumentsSection({
                 <td>{document.originalFileName}</td>
                 <td>{document.documentType}</td>
                 <td><StatusBadge value={document.accessClassification} /></td>
+                <td><StatusBadge value={document.status} /></td>
                 <td>{document.createdAt}</td>
                 <td>
                   {isImplementedDocumentHref(document.detailHref) ? (
@@ -394,5 +444,19 @@ function formatStatus(value: unknown) {
 }
 
 function isImplementedDocumentHref(href: string | null) {
-  return Boolean(href && !href.startsWith("/app/documents/"));
+  return Boolean(href);
+}
+
+function buildDocumentUploadHref(input: {
+  returnTo: string;
+  targetId: string;
+  targetType: string;
+}) {
+  const params = new URLSearchParams({
+    returnTo: input.returnTo,
+    targetId: input.targetId,
+    targetType: input.targetType,
+  });
+
+  return `/app/documents/upload?${params.toString()}`;
 }

@@ -463,12 +463,17 @@ function mapHookToAuditAction(sourceAction, actorRoleCode) {
     return "VIEW_DOCUMENT";
   }
 
+  if (sourceAction === "DOCUMENT_REVOKED" || sourceAction === "DOCUMENT_REPLACED") {
+    return "UPDATE";
+  }
+
   if (sourceAction === "SEMEN_ORDER_DRAFT_CREATED") {
     return "CREATE";
   }
 
   if (
     sourceAction.startsWith("SEMEN_ORDER_") ||
+    sourceAction === "SHIPMENT_RECEIPT_CONFIRMED" ||
     sourceAction.includes("STATUS_UPDATED") ||
     sourceAction.includes("STATUS_CHANGE")
   ) {

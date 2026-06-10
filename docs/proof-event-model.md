@@ -41,8 +41,10 @@ levels inactive for Phase 1 proof events.
 
 Documents store metadata and object-storage references only. Evidence
 attachments link document metadata to proof events. Raw file storage, public
-document links and object-storage provider integration are intentionally outside
-this foundation task.
+document links and unrestricted buyer access are intentionally excluded.
+Document-upload proof events remain `SYSTEM_RECORDED`: an uploaded file can
+support a proof event as evidence, but it does not create high verification
+status by itself.
 
 ## Amendment Policy
 

@@ -390,6 +390,7 @@ function toDocumentRow(document) {
     targetId: document.targetId,
     orderNumber: document.orderNumber,
     accessClassification: document.accessClassification,
+    status: document.status ?? "ACTIVE",
     createdAt: document.createdAt,
     detailHref: documentId
       ? `${BREEDER_DASHBOARD_ROUTES.documentDetail}/${encodeURIComponent(documentId)}`
@@ -599,7 +600,7 @@ function renderDocumentsSection(section) {
     ? renderEmptyMessage(section.emptyMessage)
     : [
       "    <table>",
-      "      <thead><tr><th>Document</th><th>Type</th><th>Order</th><th>Access</th><th>Open</th></tr></thead>",
+      "      <thead><tr><th>Document</th><th>Type</th><th>Order</th><th>Access</th><th>Status</th><th>Open</th></tr></thead>",
       "      <tbody>",
       section.items.map((document) => [
         "        <tr>",
@@ -607,6 +608,7 @@ function renderDocumentsSection(section) {
         `          <td>${escapeHtml(document.documentType)}</td>`,
         `          <td>${escapeHtml(document.orderNumber ?? document.targetId)}</td>`,
         `          <td>${escapeHtml(formatStatus(document.accessClassification))}</td>`,
+        `          <td>${escapeHtml(formatStatus(document.status))}</td>`,
         `          <td>${document.detailHref ? `<a href="${escapeAttribute(document.detailHref)}">View</a>` : "Unavailable"}</td>`,
         "        </tr>",
       ].join("\n")).join("\n"),

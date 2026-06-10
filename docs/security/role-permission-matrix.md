@@ -25,7 +25,7 @@ document classification helpers.
 | Active context | `packages/domain/src/identity/active-context.mjs` | Resolves the active organization and role from server-side user role assignments; browser-selected context is not trusted until validated. |
 | Route-level RBAC | `packages/domain/src/auth/rbac-middleware.mjs` | Protected routes check role, organization and object context before handlers run. |
 | Object-level grants | `packages/domain/src/access/access-permission.mjs` | Grants are explicit, scoped, revocable, optionally expiring and audit logged. They do not create broad marketplace, buyer or data-space access. |
-| Document visibility | `packages/domain/src/documents/document-evidence.mjs` | Documents are filtered by classification and object participation. No public unrestricted document links are created. |
+| Document visibility | `packages/domain/src/documents/document-evidence.mjs` | Documents are filtered by classification, lifecycle status and object participation. No public unrestricted document links are created. |
 | Audit evidence | `packages/domain/src/audit/audit-log.mjs` and proof hooks | Denied RBAC decisions, elevated admin access and permission changes can be retained as review evidence. |
 
 ## Active Organization And Role Context
@@ -60,8 +60,8 @@ only the selected organization/role key as secure app state. That value is a
 preference, not proof of authority; each request must revalidate it against the
 server-resolved managed-auth session memberships before rendering protected
 workspace data or dispatching a service command. The context switch route
-therefore remains blocked until the provider session adapter supplies those
-memberships at runtime.
+validates the selected organization and role against those server-resolved
+session memberships before updating the secure app-state cookie.
 
 Audit and proof hooks use the same validated actor context for
 `actorUserId`, `actorRoleCode`, `actorOrganizationId` and the
@@ -101,7 +101,7 @@ Legend:
 | Create semen order | Allowed for the breeder's own organization. | No. | Support override for a breeder organization. |
 | View semen order | Context-limited to orders owned by the breeder organization. | Context-limited to orders assigned to the station. | Support override and review. |
 | Update order workflow status | Context-limited to breeder-owned transitions such as submit or cancel while allowed by workflow state. | Context-limited to assigned order transitions such as receive, confirm, reject and fulfillment progress. | Support override for allowed workflow transitions. |
-| Confirm operational event | No standalone confirmation authority beyond breeder-owned status transitions. | Context-limited station confirmation of assigned orders and fulfillment events. | Support override and admin-reviewed corrections where approved by implemented workflows. |
+| Confirm operational event | Context-limited receipt acknowledgement for own order shipments when the delivery-confirmation workflow allows it. | Context-limited station confirmation of assigned orders and fulfillment events. | Support override and admin-reviewed corrections where approved by implemented workflows. |
 | Manage stallions and semen listings | No. | Allowed for own station stallions and listings. | Support override and review. |
 | View shipment or tracking record | Context-limited to shipments linked to own orders. | Context-limited to assigned station shipments. | Support override and review. |
 | Create or update shipment record | No. | Context-limited to assigned station fulfillment records where implemented. | Support override and review. |
@@ -119,9 +119,9 @@ Legend:
 | --- | --- | --- | --- | --- | --- |
 | Catalog | Breeders can view active orderable listings; stations view own records; admins review. | Stations create own stallions/listings; admins may support. | Stations update own records; admins may support. | No Phase 1 catalog confirmation authority. | No catalog upload authority. |
 | Orders | Breeders view own orders; stations view assigned orders; admins review. | Breeders create own orders; admins may support. | Breeders and stations transition only allowed workflow states for their context; admins may support. | Stations confirm assigned orders; admins may support or review. | Order documents may be uploaded only by authorized participants and admins. |
-| Shipments | Breeders view own order shipments; stations view assigned shipments; admins review. | Stations create shipment records for confirmed assigned orders where implemented; admins may support. | Stations update assigned shipment status where implemented; admins may support. | Station-confirmed shipment proof events are workflow generated where approved. | Shipment documents may be uploaded only by authorized participants and admins. |
-| Documents | Visibility is classification-aware and object-context-aware. | Document records are created only through controlled upload workflows. | Metadata changes require an approved workflow; no public document editing is created here. | Documents do not create independent confirmation authority. | Uploads require role, object context, classification and storage metadata validation. |
-| Proof and audit | Visible only through role/object context or admin review. | Proof events are workflow generated by approved domain actions, not manually created by general users. | Corrections use amendment evidence rather than overwriting prior records. | Verification level is derived from the actor and workflow, not from unrestricted user choice. | Evidence attachments require access to both the document and proof event. |
+| Shipments | Breeders view own order shipments; stations view assigned shipments; admins review. | Stations create shipment records for confirmed assigned orders where implemented; admins may support. | Stations update assigned shipment status where implemented; admins may support. | Stations mark delivery; breeders may acknowledge receipt for their own order shipments without gaining station update authority. | Shipment documents may be uploaded only by authorized participants and admins. |
+| Documents | Visibility is classification-aware, lifecycle-aware and object-context-aware. | Document records are created only through controlled upload workflows. | Revocation and replacement require an authorized workflow and retain lifecycle evidence; no public document editing is created here. | Documents do not create independent confirmation authority. | Uploads require role, object context, classification, storage metadata and file validation. |
+| Proof and audit | Visible only through role/object context or admin review. | Proof events are workflow generated by approved domain actions, not manually created by general users. | Corrections use lifecycle/amendment evidence rather than overwriting prior records. | Verification level is derived from the actor and workflow, not from unrestricted user choice; document-upload proof events remain `SYSTEM_RECORDED`. | Evidence attachments require access to both the document and proof event. |
 
 ## Future Role Preparation
 
@@ -177,6 +177,10 @@ Any approved support access must follow these constraints:
 | `RESTRICTED` | Uploader organization and Platform Admin. |
 | `BUYER_VIEW_ELIGIBLE` | Future eligibility marker only. It does not grant buyer access in Phase 1. |
 | `ADMIN_ONLY` | Platform Admin only. |
+
+Revoked documents are blocked for normal participants. Platform Admin retains
+controlled review access for support and audit purposes. Replaced documents are
+kept as `SUPERSEDED` records with a replacement link rather than being deleted.
 
 ## Restrictions and Non-Goals
 

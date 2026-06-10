@@ -9,6 +9,7 @@ import {
   createMinioClientOptions,
   createObjectStorageConfig,
   createObjectStorageProvider,
+  createS3CompatibleFetchClient,
   validateObjectStorageEnvironment,
 } from "./object-storage.mjs";
 
@@ -331,4 +332,69 @@ test("createMinioClientAdapter adapts the MinIO SDK method names", async () => {
     "documents/file.pdf",
     60,
   ]);
+});
+
+test("createS3CompatibleFetchClient signs upload requests and controlled GET URLs", async () => {
+  const requests = [];
+  const config = createObjectStorageConfig(buildEnvironment());
+  const client = createS3CompatibleFetchClient({
+    config,
+    accessKey: "coritech_minio_dev",
+    secretKey: "coritech_minio_dev_password",
+    now: () => new Date("2026-06-10T12:34:56.000Z"),
+    fetch: async (url, init) => {
+      requests.push({ url: String(url), init });
+
+      return new Response("", {
+        status: 200,
+        headers: {
+          etag: "fetch-etag",
+          "x-amz-version-id": "fetch-version",
+        },
+      });
+    },
+  });
+
+  const result = await client.putObject({
+    bucket: config.bucket,
+    key: "orders/order-1/station-confirmation.pdf",
+    body: "file-bytes",
+    contentType: "application/pdf",
+    metadata: { source: "domain-test" },
+  });
+
+  assert.deepEqual(result, {
+    etag: "fetch-etag",
+    versionId: "fetch-version",
+  });
+  assert.equal(
+    requests[0].url,
+    "http://localhost:9000/coritech-local-dev/orders/order-1/station-confirmation.pdf",
+  );
+  assert.equal(requests[0].init.method, "PUT");
+  assert.equal(requests[0].init.headers["x-amz-date"], "20260610T123456Z");
+  assert.equal(requests[0].init.headers["content-type"], "application/pdf");
+  assert.equal(requests[0].init.headers["x-amz-meta-source"], "domain-test");
+  assert.match(
+    requests[0].init.headers.authorization,
+    /^AWS4-HMAC-SHA256 Credential=coritech_minio_dev\/20260610\/local-dev\/s3\/aws4_request,/,
+  );
+
+  const accessUrl = await client.createPresignedGetUrl({
+    bucket: config.bucket,
+    key: "orders/order-1/station-confirmation.pdf",
+    expiresInSeconds: 120,
+  });
+
+  const parsed = new URL(accessUrl);
+
+  assert.equal(parsed.origin, "http://localhost:9000");
+  assert.equal(
+    parsed.pathname,
+    "/coritech-local-dev/orders/order-1/station-confirmation.pdf",
+  );
+  assert.equal(parsed.searchParams.get("X-Amz-Algorithm"), "AWS4-HMAC-SHA256");
+  assert.equal(parsed.searchParams.get("X-Amz-Expires"), "120");
+  assert.equal(parsed.searchParams.get("X-Amz-SignedHeaders"), "host");
+  assert.ok(parsed.searchParams.get("X-Amz-Signature"));
 });

@@ -32,6 +32,9 @@ export const SEMEN_ORDER_CREATION_ROUTES = Object.freeze({
 
 const REQUIRED_SUBMIT_FIELDS = Object.freeze([
   "requestedDeliveryDate",
+  "mareName",
+  "mareRegistrationReference",
+  "mareBreed",
   "shippingContactName",
   "shippingContactPhone",
   "shippingAddressLine1",
@@ -136,6 +139,9 @@ export function createSemenOrderCreationConfirmationViewModel(input) {
       orderNumber: input.order.orderNumber,
       status: input.order.status,
       requestedDeliveryDate: input.order.requestedDeliveryDate ?? null,
+      mareName: input.order.mareName ?? null,
+      mareRegistrationReference: input.order.mareRegistrationReference ?? null,
+      mareBreed: input.order.mareBreed ?? null,
       shippingCity: input.order.shippingCity ?? null,
       shippingCountry: input.order.shippingCountry ?? null,
       detailHref: orderId
@@ -199,17 +205,16 @@ export async function createSemenOrderFromForm(input) {
     const service = createOrderService({
       repository: input.repository,
       auditContext: input.auditContext,
+      transaction: input.transaction,
     });
     const orderId = normalizeOptionalString(form.orderId);
 
     if (action === "cancel") {
-      const cancelled = await service.transitionOrder({
+      const cancelled = await service.cancelOrder({
         actor: input.actor,
         orderId: requireDraftOrderId(orderId),
-        commandName: "TRANSITION_ORDER_STATUS",
-        toStatus: "CANCELLED",
         body: {
-          reason: "Draft cancelled from breeder order creation flow.",
+          reason: nullIfEmpty(form.cancellationReason),
           now: input.now,
         },
       });
@@ -620,6 +625,12 @@ function orderToFormInput(order) {
     orderId: normalizeOptionalString(order.id),
     semenListingId: order.semenListingId,
     requestedDeliveryDate: normalizeOptionalString(order.requestedDeliveryDate),
+    mareName: normalizeOptionalString(order.mareName),
+    mareRegistrationReference: normalizeOptionalString(order.mareRegistrationReference),
+    mareBreed: normalizeOptionalString(order.mareBreed),
+    mareOwnerName: normalizeOptionalString(order.mareOwnerName),
+    intendedInseminationContext: normalizeOptionalString(order.intendedInseminationContext),
+    vetOrRecipientContact: normalizeOptionalString(order.vetOrRecipientContact),
     shippingContactName: normalizeOptionalString(order.shippingContactName),
     shippingContactPhone: normalizeOptionalString(order.shippingContactPhone),
     shippingAddressLine1: normalizeOptionalString(order.shippingAddressLine1),
@@ -693,6 +704,12 @@ function normalizeOrderCreationForm(form) {
     orderId: normalizeOptionalString(form?.orderId) ?? "",
     semenListingId: normalizeOptionalString(form?.semenListingId) ?? "",
     requestedDeliveryDate: normalizeOptionalString(form?.requestedDeliveryDate) ?? "",
+    mareName: normalizeOptionalString(form?.mareName) ?? "",
+    mareRegistrationReference: normalizeOptionalString(form?.mareRegistrationReference) ?? "",
+    mareBreed: normalizeOptionalString(form?.mareBreed) ?? "",
+    mareOwnerName: normalizeOptionalString(form?.mareOwnerName) ?? "",
+    intendedInseminationContext: normalizeOptionalString(form?.intendedInseminationContext) ?? "",
+    vetOrRecipientContact: normalizeOptionalString(form?.vetOrRecipientContact) ?? "",
     shippingContactName: normalizeOptionalString(form?.shippingContactName) ?? "",
     shippingContactPhone: normalizeOptionalString(form?.shippingContactPhone) ?? "",
     shippingAddressLine1: normalizeOptionalString(form?.shippingAddressLine1) ?? "",
@@ -702,6 +719,7 @@ function normalizeOrderCreationForm(form) {
     shippingPostalCode: normalizeOptionalString(form?.shippingPostalCode) ?? "",
     shippingCountry: normalizeOptionalString(form?.shippingCountry) ?? "",
     specialInstructions: normalizeOptionalString(form?.specialInstructions) ?? "",
+    cancellationReason: normalizeOptionalString(form?.cancellationReason) ?? "",
   });
 }
 
@@ -719,11 +737,29 @@ function validateOrderCreationForm(form, action) {
     issues.push("orderId is required before canceling a draft order.");
   }
 
+  if (action === "cancel" && !form.cancellationReason) {
+    issues.push("cancellationReason is required before canceling a draft order.");
+  }
+
   if (!form.semenListingId) {
     issues.push("semenListingId is required.");
   }
 
   validateOptionalDateOnly(form.requestedDeliveryDate, "requestedDeliveryDate", issues);
+  validateOptionalNonBlankString(form.mareName, "mareName", issues);
+  validateOptionalNonBlankString(
+    form.mareRegistrationReference,
+    "mareRegistrationReference",
+    issues,
+  );
+  validateOptionalNonBlankString(form.mareBreed, "mareBreed", issues);
+  validateOptionalNonBlankString(form.mareOwnerName, "mareOwnerName", issues);
+  validateOptionalNonBlankString(
+    form.intendedInseminationContext,
+    "intendedInseminationContext",
+    issues,
+  );
+  validateOptionalNonBlankString(form.vetOrRecipientContact, "vetOrRecipientContact", issues);
   validateOptionalNonBlankString(form.shippingContactName, "shippingContactName", issues);
   validateOptionalNonBlankString(form.shippingContactPhone, "shippingContactPhone", issues);
   validateOptionalNonBlankString(form.shippingAddressLine1, "shippingAddressLine1", issues);
@@ -733,6 +769,7 @@ function validateOrderCreationForm(form, action) {
   validateOptionalNonBlankString(form.shippingPostalCode, "shippingPostalCode", issues);
   validateOptionalNonBlankString(form.shippingCountry, "shippingCountry", issues);
   validateOptionalNonBlankString(form.specialInstructions, "specialInstructions", issues);
+  validateOptionalNonBlankString(form.cancellationReason, "cancellationReason", issues);
 
   if (action === "submit") {
     for (const fieldName of REQUIRED_SUBMIT_FIELDS) {
@@ -800,6 +837,12 @@ function confirmationSummary(status) {
 function formToServiceBody(form) {
   return {
     requestedDeliveryDate: nullIfEmpty(form.requestedDeliveryDate),
+    mareName: nullIfEmpty(form.mareName),
+    mareRegistrationReference: nullIfEmpty(form.mareRegistrationReference),
+    mareBreed: nullIfEmpty(form.mareBreed),
+    mareOwnerName: nullIfEmpty(form.mareOwnerName),
+    intendedInseminationContext: nullIfEmpty(form.intendedInseminationContext),
+    vetOrRecipientContact: nullIfEmpty(form.vetOrRecipientContact),
     shippingContactName: nullIfEmpty(form.shippingContactName),
     shippingContactPhone: nullIfEmpty(form.shippingContactPhone),
     shippingAddressLine1: nullIfEmpty(form.shippingAddressLine1),
@@ -901,6 +944,12 @@ function renderConfirmation(viewModel) {
     renderDetailTerm("Order number", viewModel.order.orderNumber, 6),
     renderDetailTerm("Status", formatStatus(viewModel.order.status), 6),
     renderDetailTerm("Requested delivery", viewModel.order.requestedDeliveryDate ?? "Not set", 6),
+    renderDetailTerm("Mare", viewModel.order.mareName ?? "Not set", 6),
+    renderDetailTerm(
+      "Mare registration",
+      viewModel.order.mareRegistrationReference ?? "Not set",
+      6,
+    ),
     "    </dl>",
     "    <div class=\"semen-order-creation__confirmation-actions\">",
     `      <a href="${escapeAttribute(viewModel.navigation.dashboardHref)}">Dashboard</a>`,
@@ -1019,6 +1068,18 @@ function renderCreationForm(viewModel) {
     `      <input type="hidden" name="orderId" value="${escapeAttribute(viewModel.form.orderId)}" />`,
     `      <input type="hidden" name="semenListingId" value="${escapeAttribute(viewModel.form.semenListingId)}" />`,
     renderInput("requestedDeliveryDate", "Requested delivery date", "date", viewModel.form.requestedDeliveryDate, true),
+    renderInput("mareName", "Mare name", "text", viewModel.form.mareName, true),
+    renderInput("mareRegistrationReference", "Mare registration reference", "text", viewModel.form.mareRegistrationReference, true),
+    renderInput("mareBreed", "Mare breed", "text", viewModel.form.mareBreed, true),
+    renderInput("mareOwnerName", "Mare owner", "text", viewModel.form.mareOwnerName, false),
+    "      <label class=\"semen-order-creation__wide\">",
+    "        <span>Insemination context</span>",
+    `        <textarea name="intendedInseminationContext">${escapeHtml(viewModel.form.intendedInseminationContext)}</textarea>`,
+    "      </label>",
+    "      <label class=\"semen-order-creation__wide\">",
+    "        <span>Vet or recipient contact</span>",
+    `        <textarea name="vetOrRecipientContact">${escapeHtml(viewModel.form.vetOrRecipientContact)}</textarea>`,
+    "      </label>",
     renderInput("shippingContactName", "Shipping contact", "text", viewModel.form.shippingContactName, true),
     renderInput("shippingContactPhone", "Contact phone", "tel", viewModel.form.shippingContactPhone, true),
     renderInput("shippingAddressLine1", "Address line 1", "text", viewModel.form.shippingAddressLine1, true),
@@ -1031,6 +1092,14 @@ function renderCreationForm(viewModel) {
     "        <span>Special instructions</span>",
     `        <textarea name="specialInstructions">${escapeHtml(viewModel.form.specialInstructions)}</textarea>`,
     "      </label>",
+    viewModel.draftOrder
+      ? [
+        "      <label class=\"semen-order-creation__wide\">",
+        "        <span>Cancellation reason</span>",
+        `        <textarea name="cancellationReason">${escapeHtml(viewModel.form.cancellationReason)}</textarea>`,
+        "      </label>",
+      ].join("\n")
+      : "",
     "      <div class=\"semen-order-creation__actions\">",
     `        <button type="submit" name="intent" value="draft" formnovalidate${disabled}>Save draft</button>`,
     `        <button type="submit" name="intent" value="submit"${disabled}>Submit order</button>`,
@@ -1102,6 +1171,12 @@ function normalizePersistedOrder(order) {
   return {
     ...order,
     requestedDeliveryDate: normalizeOptionalString(order.requestedDeliveryDate),
+    mareName: normalizeOptionalString(order.mareName),
+    mareRegistrationReference: normalizeOptionalString(order.mareRegistrationReference),
+    mareBreed: normalizeOptionalString(order.mareBreed),
+    mareOwnerName: normalizeOptionalString(order.mareOwnerName),
+    intendedInseminationContext: normalizeOptionalString(order.intendedInseminationContext),
+    vetOrRecipientContact: normalizeOptionalString(order.vetOrRecipientContact),
     shippingContactName: normalizeOptionalString(order.shippingContactName),
     shippingContactPhone: normalizeOptionalString(order.shippingContactPhone),
     shippingAddressLine1: normalizeOptionalString(order.shippingAddressLine1),

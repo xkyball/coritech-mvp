@@ -1,15 +1,17 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { requireActiveContextActor } from "../../features/auth/active-context-server";
 import { StationDashboard } from "../../features/station-dashboard/StationDashboard";
-import { stationDashboardDemoInput } from "../../features/station-dashboard/demo-data";
-import { getSemenOrderDemoRepository } from "../../features/order-creation/demo-store";
 import {
   createStationDashboardErrorState,
   createStationDashboardViewModel,
 } from "../../features/station-dashboard/view-model";
 import { AUTH_ROUTES } from "../../features/auth/auth-routes.mjs";
 import { readManagedAuthSessionFromCookieHeader } from "../../features/auth/server-session";
+import { createPrismaDocumentRepository } from "../../features/documents/prisma-document-repository";
+import { createPrismaSemenOrderRepository } from "../../features/order-creation/prisma-semen-order-repository";
+import { createPrismaShipmentRepository } from "../../features/shipments/prisma-shipment-repository";
 
 type StationDashboardSearchParams =
   | Promise<Record<string, string | string[] | undefined>>
@@ -34,20 +36,29 @@ export default async function StationDashboardPage({
 
 async function createViewModel(searchParams: Record<string, string | string[] | undefined>) {
   try {
-    const repository = getSemenOrderDemoRepository();
-    const orders = mergeByOrderKey([
-      ...(stationDashboardDemoInput.orders ?? []),
-      ...(await repository.listSemenOrders()),
-    ]);
-    const statusHistory = mergeByHistoryKey([
-      ...(stationDashboardDemoInput.statusHistory ?? []),
-      ...(await repository.listAllOrderStatusHistory()),
-    ]);
+    const activeContext = await requireActiveContextActor("BREEDING_STATION");
+    const documentRepository = createPrismaDocumentRepository();
+    const repository = createPrismaSemenOrderRepository();
+    const shipmentRepository = createPrismaShipmentRepository();
+    const filters = {
+      breedingStationOrganizationId: activeContext.organizationId,
+    };
+    const orders = await repository.listSemenOrders(filters);
+    const orderIds = orders.flatMap((order) => order.id ? [order.id] : []);
 
     return createStationDashboardViewModel({
-      ...stationDashboardDemoInput,
+      actor: activeContext,
+      organizationId: activeContext.organizationId,
+      organizationName: activeContext.organizationName,
+      listingRecords: (await repository.listOrderableSemenListingRecords())
+        .filter((record) =>
+          record.listing.breedingStationOrganizationId === activeContext.organizationId
+        ),
       orders,
-      statusHistory,
+      statusHistory: await repository.listAllOrderStatusHistory(filters),
+      shipments: await shipmentRepository.listShipments(filters),
+      shipmentTrackingEvents: await shipmentRepository.listShipmentTrackingEventsForOrders(orderIds),
+      documents: await documentRepository.listDocumentsForOrders(orderIds),
       selectedOrderId: firstSearchParam(searchParams.orderId),
     });
   } catch (error) {
@@ -57,36 +68,4 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
 
 function firstSearchParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function mergeByOrderKey<TOrder extends { id?: string | null; orderNumber: string }>(
-  orders: TOrder[],
-) {
-  const orderByKey = new Map<string, TOrder>();
-
-  for (const order of orders) {
-    orderByKey.set(order.id ?? `order-number:${order.orderNumber}`, order);
-  }
-
-  return [...orderByKey.values()];
-}
-
-function mergeByHistoryKey<THistory extends {
-  id?: string | null;
-  orderNumber: string;
-  toStatus: string;
-  changedAt: string;
-}>(
-  statusHistory: THistory[],
-) {
-  const historyByKey = new Map<string, THistory>();
-
-  for (const history of statusHistory) {
-    historyByKey.set(
-      history.id ?? `${history.orderNumber}:${history.toStatus}:${history.changedAt}`,
-      history,
-    );
-  }
-
-  return [...historyByKey.values()];
 }

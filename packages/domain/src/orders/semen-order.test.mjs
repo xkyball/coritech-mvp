@@ -95,6 +95,12 @@ const activeListing = {
 
 const completeOrderDetails = {
   requestedDeliveryDate: "2026-06-12",
+  mareName: "Willow Queen",
+  mareRegistrationReference: "M-REG-2048",
+  mareBreed: "Warmblood",
+  mareOwnerName: "Ava Breeder",
+  intendedInseminationContext: "Fresh semen insemination at home yard.",
+  vetOrRecipientContact: "Dr. Ndlovu, +27 82 555 0102",
   shippingContactName: "Ava Breeder",
   shippingContactPhone: "+27 82 555 0101",
   shippingAddressLine1: "42 Foaling Barn Road",
@@ -130,6 +136,7 @@ test("semen order route contract and transitions stay inside Phase 1 workflow", 
     "REJECT_ORDER",
     "MOVE_TO_FULFILMENT",
     "COMPLETE_ORDER",
+    "CANCEL_ORDER",
     "TRANSITION_ORDER_STATUS",
   ]);
 
@@ -209,6 +216,7 @@ test("breeder can create a draft semen order with order number, history, audit a
   assert.equal(prepared.auditHook.action, "SEMEN_ORDER_DRAFT_CREATED");
   assert.equal(prepared.auditHook.statusHistoryId, "history-draft");
   assert.equal(prepared.auditHook.newValue.requestedDeliveryDate, "2026-06-12");
+  assert.equal(prepared.auditHook.newValue.mareRegistrationReference, "M-REG-2048");
   assert.equal(prepared.proofHook.hookType, "PROOF_EVENT_REQUEST");
   assert.equal(prepared.proofHook.triggerRef.toStatus, "DRAFT");
   assert.deepEqual(prepared.proofHook.documentationRefs, []);
@@ -235,6 +243,9 @@ test("submission requires delivery and shipping details", () => {
   const incompleteDraft = {
     ...draftOrder,
     requestedDeliveryDate: null,
+    mareName: null,
+    mareRegistrationReference: null,
+    mareBreed: null,
     shippingContactName: null,
     shippingContactPhone: null,
     shippingAddressLine1: null,
@@ -247,6 +258,9 @@ test("submission requires delivery and shipping details", () => {
     validateSemenOrderSubmissionDetails(incompleteDraft),
     [
       "requestedDeliveryDate is required before submitting semen order.",
+      "mareName is required before submitting semen order.",
+      "mareRegistrationReference is required before submitting semen order.",
+      "mareBreed is required before submitting semen order.",
       "shippingContactName is required before submitting semen order.",
       "shippingContactPhone is required before submitting semen order.",
       "shippingAddressLine1 is required before submitting semen order.",
@@ -650,6 +664,63 @@ test("OrderService orchestrates create, update and status commands with audit, p
   assert.equal(duplicateComplete.statusHistory, null);
 });
 
+test("OrderService persists proof events through a proof-capable repository by default", async () => {
+  const repository = buildRepository({
+    listings: [activeListing],
+    sequenceStart: 21,
+  });
+  const service = createOrderService({
+    repository,
+    auditContext: {
+      userAgent: "node-test/order-proof-persistence",
+    },
+  });
+
+  const created = await service.createDraftOrder({
+    actor: breederActor,
+    body: {
+      semenListingId: "listing-active",
+      breederOrganizationId,
+      ...completeOrderDetails,
+      reason: "Create proof-backed order",
+      createdAt: timestamp,
+    },
+  });
+
+  assert.equal(created.proofResult.proofEvent.eventType, "SEMEN_ORDER_CREATED");
+  assert.equal(created.proofResult.proofEvent.semenOrderId, "order-1");
+  assert.equal(created.proofResult.proofEvent.auditLogId, created.auditLog.id);
+  assert.equal(created.proofResult.auditLog.action, "CREATE_PROOF_EVENT");
+
+  const submitted = await service.submitOrder({
+    actor: breederActor,
+    orderId: "order-1",
+    body: {
+      reason: "Submit proof-backed order",
+      now: "2026-06-09T08:10:00.000Z",
+    },
+  });
+
+  assert.equal(submitted.proofResult.proofEvent.eventType, "SUBMITTED");
+  assert.equal(submitted.proofResult.proofEvent.verificationLevel, "SELF_REPORTED");
+
+  const duplicateSubmit = await service.submitOrder({
+    actor: breederActor,
+    orderId: "order-1",
+    body: {
+      reason: "Duplicate submit",
+      now: "2026-06-09T08:20:00.000Z",
+    },
+  });
+
+  assert.equal(duplicateSubmit.idempotent, true);
+  assert.equal(duplicateSubmit.proofResult, null);
+  assert.deepEqual(
+    repository.listProofEvents().map((proofEvent) => proofEvent.eventType),
+    ["SEMEN_ORDER_CREATED", "SUBMITTED"],
+  );
+});
+
 test("OrderService rejects permission failures, ambiguous context and invalid transitions", async () => {
   const repository = buildRepository({
     listings: [activeListing],
@@ -771,6 +842,20 @@ test("OrderService can reject a received order with audit, proof and notificatio
     },
   });
 
+  await assert.rejects(
+    () =>
+      service.rejectOrder({
+        actor: stationActor,
+        orderId: "order-1",
+        body: {
+          now: timestamp,
+        },
+      }),
+    (error) =>
+      error instanceof SemenOrderValidationError &&
+      error.issues.includes("reason is required when rejecting a semen order."),
+  );
+
   const rejected = await service.rejectOrder({
     actor: stationActor,
     orderId: "order-1",
@@ -792,9 +877,11 @@ function buildRepository({ listings, sequenceStart }) {
   const orderStore = new Map();
   const historyStore = new Map();
   const auditLogStore = new Map();
+  const proofEventStore = new Map();
   let orderSequence = 1;
   let historySequence = 1;
   let auditLogSequence = 1;
+  let proofEventSequence = 1;
   let orderNumberSequence = sequenceStart;
 
   return {
@@ -868,6 +955,33 @@ function buildRepository({ listings, sequenceStart }) {
       auditLogStore.set(persistedAuditLog.objectId, objectLogs);
 
       return persistedAuditLog;
+    },
+    async createProofEvent(proofEvent) {
+      const existing = [...proofEventStore.values()].find((candidate) =>
+        candidate.eventType === proofEvent.eventType &&
+        candidate.source === proofEvent.source &&
+        candidate.triggerType === proofEvent.triggerType &&
+        candidate.semenOrderId === proofEvent.semenOrderId &&
+        candidate.shipmentId === proofEvent.shipmentId &&
+        candidate.orderNumber === proofEvent.orderNumber &&
+        JSON.stringify(candidate.triggerRef) === JSON.stringify(proofEvent.triggerRef)
+      );
+
+      if (existing) {
+        return existing;
+      }
+
+      const persistedProofEvent = {
+        ...proofEvent,
+        id: proofEvent.id ?? `proof-event-${proofEventSequence++}`,
+      };
+
+      proofEventStore.set(persistedProofEvent.id, persistedProofEvent);
+
+      return persistedProofEvent;
+    },
+    listProofEvents() {
+      return [...proofEventStore.values()];
     },
   };
 }

@@ -36,9 +36,10 @@ The former root `app/breeder-dashboard` module has been migrated to
 Ticket 3.3 adds `apps/web/features/order-creation` and the
 `/app/orders/new` route for breeder semen order creation. Phase 1.1 extends the
 route so breeders can create, edit, save, cancel and submit draft orders through
-the domain `OrderService`, including audit/proof hook emission. The route shares
-the demo order repository with breeder and station dashboards so newly submitted
-demo orders appear in the relevant workspaces.
+the domain `OrderService`, including audit/proof hook emission. The route now
+uses the Prisma-backed semen order repository and validated active breeder
+context, so saved drafts and submitted orders persist in PostgreSQL and appear
+in the breeder and assigned station workspaces.
 
 Ticket 3.4 adds `apps/web/features/breeder-order-detail` and the
 `/app/orders/[orderId]` route for breeder-owned order tracking. The view model
@@ -66,8 +67,10 @@ Ticket 4.3 adds `apps/web/features/station-order-management` and the
 orders assigned to the active station organization, opens station order detail
 and executes receive, confirm, reject and move-to-fulfilment status commands through
 `OrderService` with station reasons, status history, audit hooks and proof
-hooks. Shipment and document actions remain linked entry points until their
-dedicated workflow tickets implement the forms.
+hooks. Shipment actions now link to `/app/station/shipments`, which creates
+and updates durable shipment records through `ShipmentService`. Document actions
+link to `/app/documents/upload`, which uploads bytes through the object-storage
+provider and persists controlled metadata.
 
 Ticket 18.10 adds the station receive step. Submitted orders now expose a
 `Mark as received` action in the station dashboard and station order management
@@ -76,6 +79,16 @@ transition through `OrderService`, records the station actor context and
 optional note in status history, emits the `SEMEN_ORDER_RECEIVED` audit/proof
 hook contract and queues the optional `ORDER_RECEIVED` notification hook when a
 notification adapter is supplied.
+
+Document runtime workflows are now implemented for Phase 1 controlled evidence:
+`/app/documents/upload` and `/api/documents/upload` validate file type/size,
+write bytes to private S3-compatible storage, persist document metadata, record
+upload audit logs, and create document-upload proof/evidence links where the
+repository supports proof-event writes. `/app/documents/[documentId]` and
+`/api/documents/[documentId]/access` enforce document classification, record
+view audit logs and return short-lived controlled access URLs. The document
+detail route also supports authorized revocation and replacement, preserving
+document lifecycle evidence instead of deleting records.
 
 ## 4. Current database setup, if any
 

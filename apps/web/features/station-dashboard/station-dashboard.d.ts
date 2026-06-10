@@ -149,6 +149,12 @@ export interface StationDashboardOrderRow {
 }
 
 export interface StationDashboardSelectedOrder extends StationDashboardOrderRow {
+  mareName: string | null;
+  mareRegistrationReference: string | null;
+  mareBreed: string | null;
+  mareOwnerName: string | null;
+  intendedInseminationContext: string | null;
+  vetOrRecipientContact: string | null;
   shippingContactName: string | null;
   shippingContactPhone: string | null;
   shippingDestination: string | null;
@@ -225,6 +231,7 @@ export interface StationDashboardDocumentRow {
   targetId: string;
   orderNumber: string | null;
   accessClassification: DocumentAccessClassification;
+  status: string;
   createdAt: string;
   detailHref: string | null;
 }
@@ -268,7 +275,9 @@ export declare const STATION_DASHBOARD_ROUTES: Readonly<{
   dashboard: string;
   listingManagement: string;
   orderManagement: string;
+  shipmentManagement: string;
   documentDetail: string;
+  documentUpload: string;
 }>;
 
 export declare class StationDashboardValidationError extends Error {

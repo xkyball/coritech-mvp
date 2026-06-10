@@ -1,12 +1,17 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { getSemenOrderDemoRepository } from "../../../../features/order-creation/demo-store";
+import { requireActiveContextActor } from "../../../../features/auth/active-context-server";
+import {
+  createPrismaSemenOrderRepository,
+  createPrismaSemenOrderTransaction,
+} from "../../../../features/order-creation/prisma-semen-order-repository";
+import { createPrismaShipmentRepository } from "../../../../features/shipments/prisma-shipment-repository";
 import { StationOrderManagement } from "../../../../features/station-order-management/StationOrderManagement";
 import {
   createStationOrderManagementViewModel,
   executeStationOrderAction,
 } from "../../../../features/station-order-management/view-model";
-import { stationDashboardDemoInput } from "../../../../features/station-dashboard/demo-data";
 
 type StationOrdersSearchParams =
   | Promise<Record<string, string | string[] | undefined>>
@@ -31,16 +36,18 @@ export default async function StationOrdersPage({
 async function executeStationOrderCommand(formData: FormData) {
   "use server";
 
-  const repository = getSemenOrderDemoRepository();
+  const activeContext = await requireActiveContextActor("BREEDING_STATION");
+  const repository = createPrismaSemenOrderRepository();
   const orderId = formValue(formData, "orderId");
   const result = await executeStationOrderAction({
     action: formValue(formData, "action"),
-    actor: stationDashboardDemoInput.actor,
+    actor: activeContext,
     orderId,
     reason: formValue(formData, "reason"),
     repository,
+    transaction: createPrismaSemenOrderTransaction(),
     auditContext: {
-      userAgent: "coritech-demo-station-order-management",
+      userAgent: (await headers()).get("user-agent"),
     },
   });
 
@@ -58,22 +65,30 @@ async function executeStationOrderCommand(formData: FormData) {
 }
 
 async function createViewModel(searchParams: Record<string, string | string[] | undefined>) {
-  const repository = getSemenOrderDemoRepository();
-  const orders = mergeByOrderKey([
-    ...(stationDashboardDemoInput.orders ?? []),
-    ...(await repository.listSemenOrders()),
-  ]);
-  const statusHistory = mergeByHistoryKey([
-    ...(stationDashboardDemoInput.statusHistory ?? []),
-    ...(await repository.listAllOrderStatusHistory()),
-  ]);
+  const activeContext = await requireActiveContextActor("BREEDING_STATION");
+  const repository = createPrismaSemenOrderRepository();
+  const shipmentRepository = createPrismaShipmentRepository();
+  const filters = {
+    breedingStationOrganizationId: activeContext.organizationId,
+  };
+  const orders = await repository.listSemenOrders(filters);
+  const orderIds = orders.flatMap((order) => order.id ? [order.id] : []);
+  const statusHistory = await repository.listAllOrderStatusHistory(filters);
   const error = firstSearchParam(searchParams.error);
   const status = firstSearchParam(searchParams.status);
 
   return createStationOrderManagementViewModel({
-    ...stationDashboardDemoInput,
+    actor: activeContext,
+    organizationId: activeContext.organizationId,
+    organizationName: activeContext.organizationName,
+    listingRecords: (await repository.listOrderableSemenListingRecords())
+      .filter((record) =>
+        record.listing.breedingStationOrganizationId === activeContext.organizationId
+    ),
     orders,
     statusHistory,
+    shipments: await shipmentRepository.listShipments(filters),
+    shipmentTrackingEvents: await shipmentRepository.listShipmentTrackingEventsForOrders(orderIds),
     selectedOrderId: firstSearchParam(searchParams.orderId),
     actionFeedback: error
       ? {
@@ -123,36 +138,4 @@ function buildStationOrdersUrl(input: {
   const query = params.toString();
 
   return query ? `/app/station/orders?${query}` : "/app/station/orders";
-}
-
-function mergeByOrderKey<TOrder extends { id?: string | null; orderNumber: string }>(
-  orders: TOrder[],
-) {
-  const orderByKey = new Map<string, TOrder>();
-
-  for (const order of orders) {
-    orderByKey.set(order.id ?? `order-number:${order.orderNumber}`, order);
-  }
-
-  return [...orderByKey.values()];
-}
-
-function mergeByHistoryKey<THistory extends {
-  id?: string | null;
-  orderNumber: string;
-  toStatus: string;
-  changedAt: string;
-}>(
-  statusHistory: THistory[],
-) {
-  const historyByKey = new Map<string, THistory>();
-
-  for (const history of statusHistory) {
-    historyByKey.set(
-      history.id ?? `${history.orderNumber}:${history.toStatus}:${history.changedAt}`,
-      history,
-    );
-  }
-
-  return [...historyByKey.values()];
 }

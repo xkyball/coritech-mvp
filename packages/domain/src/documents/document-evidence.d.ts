@@ -4,6 +4,7 @@ import type {
   AuditRequestContext,
 } from "../audit/audit-log.d.ts";
 import type { UserOrganizationRoleLike } from "../identity/role-model.d.ts";
+import type { ProofEvent } from "../proof/proof-event.d.ts";
 
 export type DocumentAccessClassification =
   | "INTERNAL"
@@ -17,9 +18,16 @@ export type DocumentLinkTargetType =
   | "Shipment"
   | "ProofEvent";
 
+export type DocumentStatus =
+  | "ACTIVE"
+  | "SUPERSEDED"
+  | "REVOKED";
+
 export type DocumentAuditAction =
   | "DOCUMENT_UPLOADED"
-  | "DOCUMENT_VIEWED";
+  | "DOCUMENT_VIEWED"
+  | "DOCUMENT_REVOKED"
+  | "DOCUMENT_REPLACED";
 
 export type EvidenceAttachmentAuditAction = "EVIDENCE_ATTACHMENT_CREATED";
 
@@ -101,6 +109,14 @@ export interface Document {
   storageRegion: string | null;
   storageVersionId: string | null;
   accessClassification: DocumentAccessClassification;
+  status: DocumentStatus;
+  replacedByDocumentId: string | null;
+  revocationReason: string | null;
+  replacementReason: string | null;
+  lifecycleChangedAt: string | null;
+  lifecycleChangedByUserId: string | null;
+  lifecycleChangedByRoleCode: DocumentActorRoleCode | null;
+  lifecycleChangedByOrganizationId: string | null;
   uploadedByUserId: string;
   uploaderRoleCode: DocumentActorRoleCode;
   uploaderOrganizationId: string;
@@ -139,6 +155,23 @@ export interface CreateDocumentInputBody {
   accessClassification: DocumentAccessClassification | string;
   uploadedAt?: string | Date;
   createdAt?: string | Date;
+  now?: string | Date;
+}
+
+export interface RevokeDocumentInput {
+  actor: DocumentActorContext;
+  document: DocumentLike;
+  reason: string;
+  revokedAt?: string | Date;
+  now?: string | Date;
+}
+
+export interface SupersedeDocumentInput {
+  actor: DocumentActorContext;
+  document: DocumentLike;
+  replacementDocumentId: string;
+  reason: string;
+  supersededAt?: string | Date;
   now?: string | Date;
 }
 
@@ -198,6 +231,10 @@ export interface DocumentAuditValue {
   storageRegion: string | null;
   storageVersionId: string | null;
   accessClassification: DocumentAccessClassification;
+  status: DocumentStatus;
+  replacedByDocumentId: string | null;
+  revocationReason: string | null;
+  replacementReason: string | null;
 }
 
 export interface DocumentAuditHook {
@@ -209,6 +246,7 @@ export interface DocumentAuditHook {
   targetType: "Document";
   targetId: string | null;
   targetRef: Readonly<DocumentTargetRef>;
+  previousValue?: Readonly<DocumentAuditValue> | null;
   documentRef: Readonly<DocumentAuditValue>;
   reason: string | null;
   occurredAt: string;
@@ -259,12 +297,14 @@ export interface DocumentEvidenceRepository extends AuditLogWriteRepository {
   findShipmentById(shipmentId: string): Promise<ShipmentLinkTargetLike | null>;
   findProofEventById(proofEventId: string): Promise<ProofEventLinkTargetLike | null>;
   createDocument(document: Document): Promise<Document>;
+  updateDocument(document: Document): Promise<Document>;
   findDocumentById(documentId: string): Promise<Document | null>;
   listDocumentsForOrder(orderId: string): Promise<Document[]>;
   listDocumentsForShipment(shipmentId: string): Promise<Document[]>;
   createEvidenceAttachment(
     evidenceAttachment: EvidenceAttachment,
   ): Promise<EvidenceAttachment>;
+  createProofEvent?(proofEvent: ProofEvent): Promise<ProofEvent>;
   listEvidenceAttachmentsForProofEvent(
     proofEventId: string,
   ): Promise<EvidenceAttachment[]>;
@@ -291,6 +331,7 @@ export interface EndpointResponse<TBody, THook = never> {
 
 export declare const DOCUMENT_ACCESS_CLASSIFICATIONS: readonly DocumentAccessClassification[];
 export declare const DOCUMENT_LINK_TARGET_TYPES: readonly DocumentLinkTargetType[];
+export declare const DOCUMENT_STATUSES: readonly DocumentStatus[];
 export declare const DOCUMENT_AUDIT_ACTIONS: readonly (
   | DocumentAuditAction
   | EvidenceAttachmentAuditAction
@@ -323,12 +364,19 @@ export declare function isDocumentAccessClassification(
 export declare function isDocumentLinkTargetType(
   value: unknown,
 ): value is DocumentLinkTargetType;
+export declare function isDocumentStatus(
+  value: unknown,
+): value is DocumentStatus;
 export declare function canUploadDocument(
   actor: DocumentActorContext,
   target: DocumentLinkTargetLike,
   accessClassification: DocumentAccessClassification | string,
 ): boolean;
 export declare function canViewDocument(
+  actor: DocumentActorContext,
+  document: DocumentLike,
+): boolean;
+export declare function canManageDocumentLifecycle(
   actor: DocumentActorContext,
   document: DocumentLike,
 ): boolean;
@@ -342,6 +390,12 @@ export declare function validateCreateDocumentInput(
 ): string[];
 export declare function prepareCreateDocument(
   input: CreateDocumentInput,
+): PreparedDocumentChange;
+export declare function prepareRevokeDocument(
+  input: RevokeDocumentInput,
+): PreparedDocumentChange;
+export declare function prepareSupersedeDocument(
+  input: SupersedeDocumentInput,
 ): PreparedDocumentChange;
 export declare function validateCreateEvidenceAttachmentInput(
   input: CreateEvidenceAttachmentInput,

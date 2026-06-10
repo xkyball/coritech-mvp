@@ -1,16 +1,18 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
+import { requireActiveContextActor } from "../../../../features/auth/active-context-server";
 import { SemenOrderCreation } from "../../../../features/order-creation/SemenOrderCreation";
-import { breederDashboardDemoInput } from "../../../../features/breeder-dashboard/demo-data";
-import { semenCatalogDemoInput } from "../../../../features/catalog/demo-data";
-import { getSemenOrderDemoRepository } from "../../../../features/order-creation/demo-store";
 import {
   createSemenOrderCreationConfirmationViewModel,
   createSemenOrderCreationErrorState,
   createSemenOrderCreationViewModel,
   createSemenOrderFromForm,
 } from "../../../../features/order-creation/view-model";
-
-const demoBreederOrganizationId = breederDashboardDemoInput.organizationId ?? "";
+import {
+  createPrismaSemenOrderRepository,
+  createPrismaSemenOrderTransaction,
+} from "../../../../features/order-creation/prisma-semen-order-repository";
 
 type NewOrderSearchParams =
   | Promise<Record<string, string | string[] | undefined>>
@@ -54,14 +56,17 @@ async function cancelDraftOrder(formData: FormData) {
 
 async function handleOrderAction(action: "draft" | "submit" | "cancel", formData: FormData) {
   const form = formDataToOrderCreationForm(formData);
+  const activeContext = await requireActiveContextActor("BREEDER");
+  const repository = createPrismaSemenOrderRepository();
   const result = await createSemenOrderFromForm({
     action,
-    actor: semenCatalogDemoInput.actor,
-    breederOrganizationId: demoBreederOrganizationId,
-    repository: getSemenOrderDemoRepository(),
+    actor: activeContext,
+    breederOrganizationId: activeContext.organizationId,
+    repository,
+    transaction: createPrismaSemenOrderTransaction(),
     form,
     auditContext: {
-      userAgent: "coritech-demo-order-creation",
+      userAgent: (await headers()).get("user-agent"),
     },
   });
 
@@ -84,13 +89,18 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
   const draftOrderId = firstSearchParam(searchParams.draftOrderId);
 
   try {
-    const repository = getSemenOrderDemoRepository();
+    const activeContext = await requireActiveContextActor("BREEDER");
+    const repository = createPrismaSemenOrderRepository();
 
     if (confirmationOrderId) {
       const order = await repository.findSemenOrderById(confirmationOrderId);
 
       if (!order) {
         throw new Error(`Semen order was not found: ${confirmationOrderId}`);
+      }
+
+      if (order.breederOrganizationId !== activeContext.organizationId) {
+        throw new Error("Only the owning breeder organization can view this order confirmation.");
       }
 
       return createSemenOrderCreationConfirmationViewModel({
@@ -108,13 +118,13 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
     }
 
     return createSemenOrderCreationViewModel({
-      actor: semenCatalogDemoInput.actor,
-      organizationId: demoBreederOrganizationId,
-      organizationName: breederDashboardDemoInput.organizationName,
+      actor: activeContext,
+      organizationId: activeContext.organizationId,
+      organizationName: activeContext.organizationName,
       draftOrder,
       selectedListingId: firstSearchParam(searchParams.semenListingId),
-      listingRecords: semenCatalogDemoInput.listingRecords,
-      stationOrganizations: semenCatalogDemoInput.stationOrganizations,
+      listingRecords: await repository.listOrderableSemenListingRecords(),
+      stationOrganizations: await repository.listStationOrganizations(),
       validationIssues: parseErrorParam(firstSearchParam(searchParams.error)),
     });
   } catch (error) {
@@ -127,6 +137,12 @@ function formDataToOrderCreationForm(formData: FormData) {
     orderId: formValue(formData, "orderId"),
     semenListingId: formValue(formData, "semenListingId"),
     requestedDeliveryDate: formValue(formData, "requestedDeliveryDate"),
+    mareName: formValue(formData, "mareName"),
+    mareRegistrationReference: formValue(formData, "mareRegistrationReference"),
+    mareBreed: formValue(formData, "mareBreed"),
+    mareOwnerName: formValue(formData, "mareOwnerName"),
+    intendedInseminationContext: formValue(formData, "intendedInseminationContext"),
+    vetOrRecipientContact: formValue(formData, "vetOrRecipientContact"),
     shippingContactName: formValue(formData, "shippingContactName"),
     shippingContactPhone: formValue(formData, "shippingContactPhone"),
     shippingAddressLine1: formValue(formData, "shippingAddressLine1"),
@@ -136,6 +152,7 @@ function formDataToOrderCreationForm(formData: FormData) {
     shippingPostalCode: formValue(formData, "shippingPostalCode"),
     shippingCountry: formValue(formData, "shippingCountry"),
     specialInstructions: formValue(formData, "specialInstructions"),
+    cancellationReason: formValue(formData, "cancellationReason"),
   };
 }
 

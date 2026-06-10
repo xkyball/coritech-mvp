@@ -145,6 +145,7 @@ export interface BreederDashboardDocumentRow {
   targetId: string;
   orderNumber: string | null;
   accessClassification: DocumentAccessClassification;
+  status: string;
   createdAt: string;
   detailHref: string | null;
 }

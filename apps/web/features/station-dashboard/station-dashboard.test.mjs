@@ -126,6 +126,12 @@ const submittedOrder = {
   breedingStationOrganizationId: stationOrganizationId,
   status: "SUBMITTED",
   requestedDeliveryDate: "2026-06-12",
+  mareName: "Willow Queen",
+  mareRegistrationReference: "M-REG-2048",
+  mareBreed: "Warmblood",
+  mareOwnerName: "Ava Breeder",
+  intendedInseminationContext: "Fresh semen insemination at home yard.",
+  vetOrRecipientContact: "Dr. Ndlovu, +27 82 555 0102",
   shippingContactName: "Avery Stone",
   shippingContactPhone: "+27 21 555 0100",
   shippingAddressLine1: "42 Blue Oak Road",
@@ -197,6 +203,10 @@ const preparedShipment = {
   providerName: "Manual logistics record",
   providerTrackingId: "MANUAL-1",
   trackingUrl: null,
+  deliveredAt: null,
+  confirmedReceivedAt: null,
+  confirmedByUserId: null,
+  confirmationSource: null,
   createdByUserId: "user-station-a",
   updatedByUserId: "user-station-a",
   createdAt: confirmedAt,
@@ -381,6 +391,8 @@ test("station dashboard opens assigned order detail without exposing another sta
   });
 
   assert.equal(dashboard.selectedOrder?.id, "order-received");
+  assert.equal(dashboard.selectedOrder?.mareName, "Willow Queen");
+  assert.equal(dashboard.selectedOrder?.mareRegistrationReference, "M-REG-2048");
   assert.equal(dashboard.selectedOrder?.shippingDestination, "42 Blue Oak Road, Cape Town, Western Cape, 8001, South Africa");
   assert.deepEqual(
     dashboard.selectedOrder?.statusHistory.map((history) => history.id),
