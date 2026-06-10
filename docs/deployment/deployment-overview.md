@@ -12,7 +12,7 @@ Detailed environment-variable and secret-handling guidance is documented in
 
 | Environment | Purpose | Data policy | Status |
 | --- | --- | --- | --- |
-| Local development | Developer build and test work | No production data | `[PENDING_SETUP]` |
+| Local development | Developer build and test work | No production data | Docker Compose includes PostgreSQL, local MinIO and app services |
 | Staging | Pre-production validation and demo review | Sanitized or approved test data only | `[PENDING_SETUP]` |
 | Production | Live operational workflow | Production data under CoriTech control | `[PENDING_SETUP]` |
 
@@ -31,7 +31,7 @@ Detailed environment-variable and secret-handling guidance is documented in
 | --- | --- |
 | Hosting provider | `[PENDING_VENDOR_SELECTION]` |
 | Database provider | `[PENDING_VENDOR_SELECTION]` |
-| Object storage provider | `[PENDING_VENDOR_SELECTION]` |
+| Object storage provider | Local MinIO configured for development; production provider selection pending |
 | CI/CD provider | `[PENDING_VENDOR_SELECTION]` |
 | Secrets vault / secret manager | `[PENDING_VENDOR_SELECTION]` |
 | Backup schedule | `[PENDING_ARCHITECTURE_DECISION]` |

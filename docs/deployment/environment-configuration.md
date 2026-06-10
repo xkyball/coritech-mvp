@@ -49,7 +49,12 @@ ignored by git and must stay outside version control.
 | `AUTH_PROVIDER_CLIENT_SECRET` | Managed auth application secret | Must never appear in docs or commits |
 | `AUTH_PROVIDER_DOMAIN` | Managed auth issuer or tenant domain | Must point to the CoriTech-controlled provider tenant |
 | `EMAIL_PROVIDER_API_KEY` | Outbound email provider API key | Placeholder only until Ticket 9.1 |
-| `OBJECT_STORAGE_BUCKET` | Controlled document storage bucket/container name | Bucket name may change after vendor selection |
+| `OBJECT_STORAGE_PROVIDER` | Object storage provider selector | Use `minio` for local development; use `s3-compatible` for replaceable production-compatible storage |
+| `OBJECT_STORAGE_ENDPOINT` | Object storage endpoint host | Local Compose uses `minio`; developer-machine MinIO uses `localhost`; production must point to a CoriTech-controlled account endpoint |
+| `OBJECT_STORAGE_PORT` | Object storage API port | Local MinIO uses `9000`; TLS-backed production storage commonly uses `443` |
+| `OBJECT_STORAGE_USE_SSL` | Object storage TLS switch | `false` only for local MinIO; staging and production should use `true` |
+| `OBJECT_STORAGE_BUCKET` | Controlled document storage bucket/container name | Bucket is private by default and may change after provider selection |
+| `OBJECT_STORAGE_REGION` | Object storage region or local region label | Local MinIO uses `local-dev`; production should match the selected CoriTech-controlled storage region |
 | `OBJECT_STORAGE_ACCESS_KEY` | Object storage access key | Secret-managed outside local examples |
 | `OBJECT_STORAGE_SECRET_KEY` | Object storage secret key | Secret-managed outside local examples |
 | `PAYMENT_PROVIDER_SECRET` | Future payment-reference provider secret | Placeholder only until Ticket 10.2 |
@@ -78,6 +83,8 @@ It validates that:
 - all required variables are present;
 - `CORITECH_ENVIRONMENT` is one of `local`, `staging` or `production`;
 - `APP_BASE_URL` and `API_BASE_URL` are absolute URLs;
+- `OBJECT_STORAGE_PORT` is a positive integer;
+- `OBJECT_STORAGE_USE_SSL` is either `true` or `false`;
 - `AUDIT_LOG_RETENTION_DAYS` is a positive integer;
 - staging and production values are not placeholder strings;
 - staging and production base URLs do not point to `localhost`.
@@ -85,6 +92,23 @@ It validates that:
 The Ticket 2.1 managed auth contract adds a second guard that prevents hosted
 auth routes from being enabled with placeholder provider values, including in
 local development.
+
+The object storage foundation adds a second provider-level guard in
+`packages/domain/src/storage/object-storage.mjs`. It rejects placeholder object
+storage credentials before initializing the storage provider, even in local
+development. The example files therefore use MinIO-only development credentials
+that must not be reused outside a developer machine.
+
+## Object Storage Boundary
+
+Local development uses MinIO as S3-compatible commodity storage. The local
+bucket is private by default and raw public document links must not be exposed.
+Production object storage credentials, buckets and account administration must
+be CoriTech-controlled and managed outside version control.
+
+Ticket 6.1 will implement document upload, metadata persistence, controlled
+access URLs, file validation, malware-scanning placeholder behavior and audit
+hooks. This prerequisite only provides configuration and provider foundation.
 
 ## Secrets Vault Placeholder
 

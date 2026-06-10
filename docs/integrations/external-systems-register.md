@@ -12,7 +12,7 @@ status for Phase 1.
 | Source-control platform | Repository, review and ownership evidence | Code and documentation | CoriTech-controlled required | `[PENDING_CONFIRMATION]` |
 | Managed auth provider | User authentication and identity evidence through Ticket 2.1 hosted auth contract | Account data, auth events | CoriTech-controlled required | Contract implemented; provider selection and tenant evidence pending |
 | Database provider | Operational and proof records | Core data model records | CoriTech-controlled required | `[PENDING_VENDOR_SELECTION]` |
-| Object storage provider | Evidence documents | Uploaded documents and metadata | CoriTech-controlled required | `[PENDING_VENDOR_SELECTION]` |
+| Object storage provider | Evidence documents | Uploaded documents and metadata | CoriTech-controlled required | Local MinIO foundation added; production provider selection and account evidence pending |
 | Email provider | Notifications | Email address, template context, delivery metadata | CoriTech-controlled required | `[PENDING_VENDOR_SELECTION]` |
 | Hosting provider | Application and API deployment | Application runtime and logs | CoriTech-controlled required | `[PENDING_VENDOR_SELECTION]` |
 | Logistics provider | Shipment reference fields and future normalized tracking source | Shipment references and milestones when later approved | `[PENDING_PROVIDER_MODEL]` | `[STRUCTURAL_REFERENCE_ONLY]` |

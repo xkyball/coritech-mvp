@@ -13,7 +13,8 @@
     "./identity/*": "./src/identity/*",
     "./orders/*": "./src/orders/*",
     "./proof/*": "./src/proof/*",
-    "./shipments/*": "./src/shipments/*"
+    "./shipments/*": "./src/shipments/*",
+    "./storage/*": "./src/storage/*"
   },
   "dependencies": {
     "@coritech/config": "0.1.0"

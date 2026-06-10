@@ -1,6 +1,6 @@
 # Current Implementation Status
 
-Date inspected: 2026-06-09
+Date inspected: 2026-06-10
 
 ## 1. Current framework / runtime detected
 
@@ -66,6 +66,10 @@ PostgreSQL is the local development database. Docker Compose defines a `db`
 service using `postgres:16-alpine` and a persistent
 `coritech_postgres_data` volume.
 
+MinIO is the local/development S3-compatible object storage provider. Docker
+Compose defines a `minio` service, a persistent `coritech_minio_data` volume and
+a one-shot `minio-init` bucket initializer for the private local bucket.
+
 The historical raw SQL migrations from the original implementation are preserved
 under `packages/database/legacy-sql/migrations`.
 
@@ -99,6 +103,9 @@ Compose but not the Docker Compose plugin.
 Compose services:
 
 - `db` - PostgreSQL.
+- `minio` - local/development S3-compatible object storage on ports `9000` and
+  `9001`.
+- `minio-init` - one-shot private bucket initializer.
 - `migrate-seed` - Prisma migration and seed runner.
 - `web` - Next.js app.
 - `adminer` - database UI on port `8080`.
@@ -106,7 +113,7 @@ Compose services:
 ## 7. Current environment-variable setup
 
 `.env.example` contains local development defaults for PostgreSQL, Prisma,
-Next.js, managed-auth placeholders, object storage placeholders, email,
+Next.js, managed-auth placeholders, local MinIO object storage defaults, email,
 payment-reference and logistics placeholders.
 
 `.gitignore` ignores `.env` and `.env.*` while allowing example files.

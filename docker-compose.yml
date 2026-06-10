@@ -15,6 +15,37 @@ services:
       timeout: 5s
       retries: 20
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${OBJECT_STORAGE_ACCESS_KEY:-coritech_minio_dev}
+      MINIO_ROOT_PASSWORD: ${OBJECT_STORAGE_SECRET_KEY:-coritech_minio_dev_password}
+    ports:
+      - "${OBJECT_STORAGE_PORT:-9000}:9000"
+      - "${OBJECT_STORAGE_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - coritech_minio_data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    environment:
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-coritech-local-dev}
+      MINIO_ROOT_USER: ${OBJECT_STORAGE_ACCESS_KEY:-coritech_minio_dev}
+      MINIO_ROOT_PASSWORD: ${OBJECT_STORAGE_SECRET_KEY:-coritech_minio_dev_password}
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set coritech-local http://minio:9000 \"$${MINIO_ROOT_USER}\" \"$${MINIO_ROOT_PASSWORD}\"; do
+        sleep 2;
+      done;
+      mc mb --ignore-existing \"coritech-local/$${OBJECT_STORAGE_BUCKET}\";
+      mc anonymous set none \"coritech-local/$${OBJECT_STORAGE_BUCKET}\";
+      "
+    restart: "no"
+
   migrate-seed:
     build:
       context: .
@@ -38,6 +69,14 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-coritech}:${POSTGRES_PASSWORD:-coritech_dev_password}@db:5432/${POSTGRES_DB:-coritech_mvp}?schema=public
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-CoriTech MVP}
+      OBJECT_STORAGE_PROVIDER: ${OBJECT_STORAGE_PROVIDER:-minio}
+      OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT:-minio}
+      OBJECT_STORAGE_PORT: ${OBJECT_STORAGE_PORT:-9000}
+      OBJECT_STORAGE_USE_SSL: ${OBJECT_STORAGE_USE_SSL:-false}
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-coritech-local-dev}
+      OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION:-local-dev}
+      OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY:-coritech_minio_dev}
+      OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY:-coritech_minio_dev_password}
       NODE_ENV: development
     ports:
       - "${WEB_PORT:-3000}:3000"
@@ -45,6 +84,8 @@ services:
       db:
         condition: service_healthy
       migrate-seed:
+        condition: service_completed_successfully
+      minio-init:
         condition: service_completed_successfully
 
   adminer:
@@ -57,3 +98,4 @@ services:
 
 volumes:
   coritech_postgres_data:
+  coritech_minio_data:

@@ -14,7 +14,12 @@ import { pathToFileURL } from "node:url";
  * @property {string} AUTH_PROVIDER_CLIENT_SECRET
  * @property {string} AUTH_PROVIDER_DOMAIN
  * @property {string} EMAIL_PROVIDER_API_KEY
+ * @property {string} OBJECT_STORAGE_PROVIDER
+ * @property {string} OBJECT_STORAGE_ENDPOINT
+ * @property {number} OBJECT_STORAGE_PORT
+ * @property {boolean} OBJECT_STORAGE_USE_SSL
  * @property {string} OBJECT_STORAGE_BUCKET
+ * @property {string} OBJECT_STORAGE_REGION
  * @property {string} OBJECT_STORAGE_ACCESS_KEY
  * @property {string} OBJECT_STORAGE_SECRET_KEY
  * @property {string} PAYMENT_PROVIDER_SECRET
@@ -36,7 +41,12 @@ export const REQUIRED_ENVIRONMENT_KEYS = /** @type {const} */ ([
   "AUTH_PROVIDER_CLIENT_SECRET",
   "AUTH_PROVIDER_DOMAIN",
   "EMAIL_PROVIDER_API_KEY",
+  "OBJECT_STORAGE_PROVIDER",
+  "OBJECT_STORAGE_ENDPOINT",
+  "OBJECT_STORAGE_PORT",
+  "OBJECT_STORAGE_USE_SSL",
   "OBJECT_STORAGE_BUCKET",
+  "OBJECT_STORAGE_REGION",
   "OBJECT_STORAGE_ACCESS_KEY",
   "OBJECT_STORAGE_SECRET_KEY",
   "PAYMENT_PROVIDER_SECRET",
@@ -97,11 +107,21 @@ export function loadEnvironment(source = process.env) {
   validateUrl("APP_BASE_URL", values.APP_BASE_URL, issues);
   validateUrl("API_BASE_URL", values.API_BASE_URL, issues);
 
-  const retentionDays = Number.parseInt(values.AUDIT_LOG_RETENTION_DAYS ?? "", 10);
-
-  if (!Number.isInteger(retentionDays) || retentionDays <= 0) {
-    issues.push("AUDIT_LOG_RETENTION_DAYS must be a positive integer.");
-  }
+  const objectStoragePort = parsePositiveInteger(
+    values.OBJECT_STORAGE_PORT,
+    "OBJECT_STORAGE_PORT",
+    issues,
+  );
+  const objectStorageUseSsl = parseBoolean(
+    values.OBJECT_STORAGE_USE_SSL,
+    "OBJECT_STORAGE_USE_SSL",
+    issues,
+  );
+  const retentionDays = parsePositiveInteger(
+    values.AUDIT_LOG_RETENTION_DAYS,
+    "AUDIT_LOG_RETENTION_DAYS",
+    issues,
+  );
 
   if (environmentName !== "local") {
     for (const key of REQUIRED_ENVIRONMENT_KEYS) {
@@ -129,7 +149,12 @@ export function loadEnvironment(source = process.env) {
     AUTH_PROVIDER_CLIENT_SECRET: values.AUTH_PROVIDER_CLIENT_SECRET,
     AUTH_PROVIDER_DOMAIN: values.AUTH_PROVIDER_DOMAIN,
     EMAIL_PROVIDER_API_KEY: values.EMAIL_PROVIDER_API_KEY,
+    OBJECT_STORAGE_PROVIDER: values.OBJECT_STORAGE_PROVIDER,
+    OBJECT_STORAGE_ENDPOINT: values.OBJECT_STORAGE_ENDPOINT,
+    OBJECT_STORAGE_PORT: objectStoragePort,
+    OBJECT_STORAGE_USE_SSL: objectStorageUseSsl,
     OBJECT_STORAGE_BUCKET: values.OBJECT_STORAGE_BUCKET,
+    OBJECT_STORAGE_REGION: values.OBJECT_STORAGE_REGION,
     OBJECT_STORAGE_ACCESS_KEY: values.OBJECT_STORAGE_ACCESS_KEY,
     OBJECT_STORAGE_SECRET_KEY: values.OBJECT_STORAGE_SECRET_KEY,
     PAYMENT_PROVIDER_SECRET: values.PAYMENT_PROVIDER_SECRET,
@@ -164,6 +189,49 @@ function isSupportedEnvironment(value) {
  */
 function normalize(value) {
   return value?.trim() ?? "";
+}
+
+/**
+ * @param {string | undefined} value
+ * @param {string} key
+ * @param {string[]} issues
+ * @returns {number}
+ */
+function parsePositiveInteger(value, key, issues) {
+  if (!value) {
+    return NaN;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(parsed) || parsed <= 0 || String(parsed) !== value) {
+    issues.push(`${key} must be a positive integer.`);
+  }
+
+  return parsed;
+}
+
+/**
+ * @param {string | undefined} value
+ * @param {string} key
+ * @param {string[]} issues
+ * @returns {boolean}
+ */
+function parseBoolean(value, key, issues) {
+  if (!value) {
+    return false;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  issues.push(`${key} must be either true or false.`);
+  return false;
 }
 
 /**
