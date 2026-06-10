@@ -25,7 +25,7 @@ const ACTION_STATUS_COPY = Object.freeze({
   DRAFT: Object.freeze({
     title: "Draft order awaiting submission",
     description: "Review and submit the order when it is ready for station review.",
-    actionLabel: "Open order",
+    actionLabel: "Edit draft",
   }),
   REJECTED: Object.freeze({
     title: "Station response needs review",
@@ -347,6 +347,9 @@ function toOrderRow(order, statusHistory, ownOrderKeys) {
     detailHref: orderId
       ? `${BREEDER_DASHBOARD_ROUTES.orderDetail}/${encodeURIComponent(orderId)}`
       : null,
+    draftEditHref: order.status === "DRAFT" && orderId
+      ? `${BREEDER_DASHBOARD_ROUTES.newOrder}?draftOrderId=${encodeURIComponent(orderId)}`
+      : null,
     statusHistoryHref: orderId
       ? `${BREEDER_DASHBOARD_ROUTES.orderDetail}/${encodeURIComponent(orderId)}#status-history`
       : null,
@@ -417,7 +420,9 @@ function buildActionItems(orders, limit) {
         title: copy.title,
         description: copy.description,
         actionLabel: copy.actionLabel,
-        actionHref: orderId
+        actionHref: order.status === "DRAFT" && orderId
+          ? `${BREEDER_DASHBOARD_ROUTES.newOrder}?draftOrderId=${encodeURIComponent(orderId)}`
+          : orderId
           ? `${BREEDER_DASHBOARD_ROUTES.orderDetail}/${encodeURIComponent(orderId)}`
           : null,
       });
@@ -659,6 +664,10 @@ function renderOrderLinks(order) {
 
   if (order.detailHref) {
     links.push(`<a href="${escapeAttribute(order.detailHref)}">Details</a>`);
+  }
+
+  if (order.draftEditHref) {
+    links.push(`<a href="${escapeAttribute(order.draftEditHref)}">Edit draft</a>`);
   }
 
   if (order.statusHistoryHref) {

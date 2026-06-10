@@ -25,6 +25,7 @@ export type SemenOrderStatusActorRoleCode =
 
 export type SemenOrderStatusAuditAction =
   | "SEMEN_ORDER_DRAFT_CREATED"
+  | "SEMEN_ORDER_DRAFT_UPDATED"
   | "SEMEN_ORDER_SUBMITTED"
   | "SEMEN_ORDER_RECEIVED"
   | "SEMEN_ORDER_CONFIRMED"
@@ -220,6 +221,47 @@ export interface SemenOrderProofHook {
   occurredAt: string;
 }
 
+export type OrderServiceCommandName =
+  | "CREATE_DRAFT_ORDER"
+  | "UPDATE_DRAFT_ORDER"
+  | "SUBMIT_ORDER"
+  | "RECEIVE_ORDER"
+  | "CONFIRM_ORDER"
+  | "REJECT_ORDER"
+  | "MOVE_TO_FULFILMENT"
+  | "COMPLETE_ORDER"
+  | "TRANSITION_ORDER_STATUS";
+
+export type OrderNotificationEventType =
+  | "ORDER_SUBMITTED"
+  | "ORDER_RECEIVED"
+  | "ORDER_CONFIRMED"
+  | "ORDER_REJECTED"
+  | "ORDER_IN_FULFILMENT"
+  | "ORDER_COMPLETED";
+
+export interface OrderNotificationHook {
+  hookType: "NOTIFICATION_REQUEST";
+  source: "ORDER_COMMAND";
+  eventType: OrderNotificationEventType;
+  commandName: OrderServiceCommandName;
+  orderRef: {
+    orderId: string | null;
+    orderNumber: string;
+    semenListingId: string;
+    breederOrganizationId: string;
+    breedingStationOrganizationId: string;
+    previousStatus: SemenOrderStatus | null;
+    status: SemenOrderStatus;
+  };
+  actorRef: {
+    userId: string;
+    roleCode: SemenOrderStatusActorRoleCode;
+    organizationId: string;
+  };
+  occurredAt: string;
+}
+
 export interface SemenOrderNumberInput {
   sequence: number;
   occurredAt?: string | Date;
@@ -249,6 +291,7 @@ export interface SemenOrderRepository extends AuditLogWriteRepository {
     order: SemenOrder,
     statusHistory: OrderStatusHistory,
   ): Promise<PreparedPersistedSemenOrderStatusChange>;
+  updateDraftSemenOrder?(order: SemenOrder): Promise<SemenOrder>;
   findSemenOrderById(orderId: string): Promise<SemenOrder | null>;
   listOrderStatusHistory(orderId: string): Promise<OrderStatusHistory[]>;
 }
@@ -278,10 +321,76 @@ export interface EndpointResponse<TBody> {
   proofHook?: SemenOrderProofHook;
 }
 
+export interface OrderServiceProofService {
+  recordProofHook?(hook: SemenOrderProofHook): Promise<unknown> | unknown;
+  createProofEventFromHook?(hook: SemenOrderProofHook): Promise<unknown> | unknown;
+}
+
+export interface OrderServiceNotificationService {
+  recordOrderNotificationHook?(hook: OrderNotificationHook): Promise<unknown> | unknown;
+  enqueueOrderNotification?(hook: OrderNotificationHook): Promise<unknown> | unknown;
+}
+
+export interface OrderServiceOptions {
+  repository: SemenOrderRepository;
+  auditContext?: AuditRequestContext | null;
+  proofService?: OrderServiceProofService | null;
+  notificationService?: OrderServiceNotificationService | null;
+  transaction?: <T>(
+    operation: (repository?: SemenOrderRepository) => Promise<T>,
+  ) => Promise<T>;
+}
+
+export interface OrderServiceCreateDraftCommand {
+  actor: SemenOrderActorContext;
+  body: CreateDraftSemenOrderInputBody;
+}
+
+export interface OrderServiceUpdateDraftCommand {
+  actor: SemenOrderActorContext;
+  orderId: string;
+  body: Partial<CreateDraftSemenOrderInputBody>;
+}
+
+export interface OrderServiceTransitionCommand {
+  actor: SemenOrderActorContext;
+  orderId: string;
+  commandName: OrderServiceCommandName;
+  toStatus: SemenOrderStatus | string;
+  body: Omit<TransitionSemenOrderStatusInputBody, "toStatus">;
+}
+
+export interface OrderServiceNamedTransitionCommand {
+  actor: SemenOrderActorContext;
+  orderId: string;
+  body: Omit<TransitionSemenOrderStatusInputBody, "toStatus">;
+}
+
+export interface OrderServiceCommandResult {
+  status: number;
+  body: {
+    order: SemenOrder;
+    statusHistory: OrderStatusHistory | null;
+  };
+  order: SemenOrder;
+  statusHistory: OrderStatusHistory | null;
+  auditHook: SemenOrderStatusAuditHook | null;
+  auditLog: AuditLog | null;
+  proofHook: SemenOrderProofHook | null;
+  proofResult: unknown;
+  notificationHook: OrderNotificationHook | null;
+  notificationResult: unknown;
+  idempotent: boolean;
+}
+
 export declare const SEMEN_ORDER_STATUSES: readonly SemenOrderStatus[];
 export declare const SEMEN_ORDER_STATUS_AUDIT_ACTIONS: readonly SemenOrderStatusAuditAction[];
 export declare const SEMEN_ORDER_STATUS_TRANSITIONS: Readonly<
   Record<SemenOrderStatus, readonly SemenOrderStatus[]>
+>;
+export declare const ORDER_SERVICE_COMMANDS: readonly OrderServiceCommandName[];
+export declare const ORDER_SERVICE_COMMAND_STATUS_TARGETS: Readonly<
+  Partial<Record<OrderServiceCommandName, SemenOrderStatus>>
 >;
 export declare const SEMEN_ORDER_ROUTES: readonly {
   method: string;
@@ -305,6 +414,41 @@ export declare class SemenOrderNotFoundError extends Error {
   constructor(entityName: string, entityId: string);
 }
 
+export declare class OrderService {
+  constructor(options: OrderServiceOptions);
+  createDraftOrder(
+    command: OrderServiceCreateDraftCommand,
+  ): Promise<OrderServiceCommandResult>;
+  updateDraftOrder(
+    command: OrderServiceUpdateDraftCommand,
+  ): Promise<OrderServiceCommandResult>;
+  transitionOrder(
+    command: OrderServiceTransitionCommand,
+  ): Promise<OrderServiceCommandResult>;
+  submitOrder(
+    command: OrderServiceNamedTransitionCommand,
+  ): Promise<OrderServiceCommandResult>;
+  receiveOrder(
+    command: OrderServiceNamedTransitionCommand,
+  ): Promise<OrderServiceCommandResult>;
+  confirmOrder(
+    command: OrderServiceNamedTransitionCommand,
+  ): Promise<OrderServiceCommandResult>;
+  rejectOrder(
+    command: OrderServiceNamedTransitionCommand,
+  ): Promise<OrderServiceCommandResult>;
+  moveToFulfilment(
+    command: OrderServiceNamedTransitionCommand,
+  ): Promise<OrderServiceCommandResult>;
+  completeOrder(
+    command: OrderServiceNamedTransitionCommand,
+  ): Promise<OrderServiceCommandResult>;
+}
+
+export declare function createOrderService(
+  options: OrderServiceOptions,
+): OrderService;
+
 export declare function isSemenOrderStatus(
   value: unknown,
 ): value is SemenOrderStatus;
@@ -315,6 +459,10 @@ export declare function canViewSemenOrder(
 export declare function canTransitionSemenOrderStatus(
   actor: SemenOrderActorContext,
   order: SemenOrderLike,
+  toStatus: SemenOrderStatus,
+): boolean;
+export declare function isAllowedSemenOrderStatusTransition(
+  fromStatus: SemenOrderStatus,
   toStatus: SemenOrderStatus,
 ): boolean;
 export declare function generateSemenOrderNumber(
@@ -354,7 +502,7 @@ export declare function transitionSemenOrderStatusEndpoint(
 ): Promise<
   EndpointResponse<{
     order: SemenOrder;
-    statusHistory: OrderStatusHistory;
+    statusHistory: OrderStatusHistory | null;
   }>
 >;
 export declare function getSemenOrderEndpoint(

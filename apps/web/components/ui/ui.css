@@ -103,6 +103,39 @@
   justify-content: flex-end;
 }
 
+.ct-context-switcher {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
+  justify-content: flex-end;
+}
+
+.ct-context-switcher label {
+  color: var(--ct-color-muted);
+  font-size: var(--ct-text-xs);
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ct-context-switcher select {
+  background: var(--ct-color-surface);
+  border: 1px solid var(--ct-color-border-strong);
+  border-radius: var(--ct-radius-md);
+  color: var(--ct-color-text);
+  min-height: 34px;
+  padding: 5px 8px;
+}
+
+.ct-topbar__logout {
+  display: inline-flex;
+}
+
+.ct-topbar__logout .ct-button {
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
 .ct-main {
   display: grid;
   gap: var(--ct-space-6);
@@ -952,6 +985,50 @@
   border-bottom: 0;
 }
 
+.ct-auth {
+  align-items: start;
+  display: grid;
+  gap: var(--ct-space-8);
+  grid-template-columns: minmax(0, 0.95fr) minmax(320px, 440px);
+  min-height: 100vh;
+  padding: clamp(var(--ct-space-6), 8vw, 96px);
+}
+
+.ct-auth__intro {
+  display: grid;
+  gap: var(--ct-space-4);
+  max-width: 780px;
+}
+
+.ct-auth__intro h1 {
+  color: var(--ct-color-primary-strong);
+  font-size: var(--ct-text-3xl);
+  letter-spacing: 0;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.ct-auth__intro p {
+  color: var(--ct-color-muted);
+  font-size: var(--ct-text-lg);
+  margin: 0;
+}
+
+.ct-auth__panel {
+  background: var(--ct-color-surface);
+  border: 1px solid var(--ct-color-border);
+  border-radius: var(--ct-radius-lg);
+  box-shadow: var(--ct-shadow-soft);
+  display: grid;
+  gap: var(--ct-space-5);
+  padding: var(--ct-space-5);
+}
+
+.ct-auth__form {
+  display: grid;
+  gap: var(--ct-space-4);
+}
+
 .ct-compact-list {
   display: grid;
   gap: var(--ct-space-2);
@@ -996,7 +1073,8 @@
   }
 
   .ct-home__hero,
-  .ct-home__band--proof {
+  .ct-home__band--proof,
+  .ct-auth {
     grid-template-columns: 1fr;
   }
 
@@ -1044,8 +1122,13 @@
   }
 
   .ct-home__hero,
-  .ct-home__band {
+  .ct-home__band,
+  .ct-auth {
     padding: var(--ct-space-6) var(--ct-space-4);
+  }
+
+  .ct-auth__intro h1 {
+    font-size: var(--ct-text-2xl);
   }
 
   .ct-home__workflow {

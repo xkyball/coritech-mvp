@@ -17,6 +17,13 @@ export interface DashboardNavItem {
   label: string;
 }
 
+export interface DashboardContextOption {
+  key: string;
+  label: string;
+  organizationName: string;
+  roleLabel: string;
+}
+
 export interface DetailListItem {
   term: string;
   value: ReactNode;
@@ -44,7 +51,10 @@ export function cx(...classes: Array<string | false | null | undefined>) {
 
 export function DashboardShell({
   activeHref,
+  activeContextKey,
   children,
+  contextOptions,
+  contextSwitchAction,
   navigation,
   organizationName,
   roleLabel,
@@ -52,11 +62,16 @@ export function DashboardShell({
 }: Readonly<{
   activeHref?: string;
   children: ReactNode;
+  activeContextKey?: string;
+  contextOptions?: readonly DashboardContextOption[];
+  contextSwitchAction?: string;
   navigation: readonly DashboardNavItem[];
   organizationName?: string;
   roleLabel: string;
   userLabel?: string;
 }>) {
+  const hasContextSwitcher = Boolean(contextOptions && contextOptions.length > 1);
+
   return (
     <div className="ct-shell">
       <aside className="ct-sidebar" aria-label="Workspace navigation">
@@ -83,8 +98,37 @@ export function DashboardShell({
             <strong>{organizationName ?? "CoriTech workspace"}</strong>
           </div>
           <div className="ct-topbar__context" aria-label="Session context">
-            <Badge tone="info">{roleLabel}</Badge>
+            {hasContextSwitcher ? (
+              <form
+                action={contextSwitchAction ?? "/app/context/switch"}
+                className="ct-context-switcher"
+                method="post"
+              >
+                <label htmlFor="activeContextKey">Active context</label>
+                <select
+                  defaultValue={activeContextKey}
+                  id="activeContextKey"
+                  name="activeContextKey"
+                >
+                  {contextOptions?.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <Button type="submit" variant="secondary">
+                  Switch
+                </Button>
+              </form>
+            ) : (
+              <Badge tone="info">{roleLabel}</Badge>
+            )}
             <span>{userLabel}</span>
+            <form action="/auth/logout" className="ct-topbar__logout" method="post">
+              <Button type="submit" variant="ghost">
+                Sign out
+              </Button>
+            </form>
           </div>
         </header>
         <main className="ct-main">{children}</main>

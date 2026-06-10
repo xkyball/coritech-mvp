@@ -22,10 +22,44 @@ document classification helpers.
 | Control | Phase 1 source | Due-diligence note |
 | --- | --- | --- |
 | Role catalogue | `packages/domain/src/identity/role-model.mjs` | Only `BREEDER`, `BREEDING_STATION` and `PLATFORM_ADMIN` are assignable in Phase 1. |
+| Active context | `packages/domain/src/identity/active-context.mjs` | Resolves the active organization and role from server-side user role assignments; browser-selected context is not trusted until validated. |
 | Route-level RBAC | `packages/domain/src/auth/rbac-middleware.mjs` | Protected routes check role, organization and object context before handlers run. |
 | Object-level grants | `packages/domain/src/access/access-permission.mjs` | Grants are explicit, scoped, revocable, optionally expiring and audit logged. They do not create broad marketplace, buyer or data-space access. |
 | Document visibility | `packages/domain/src/documents/document-evidence.mjs` | Documents are filtered by classification and object participation. No public unrestricted document links are created. |
 | Audit evidence | `packages/domain/src/audit/audit-log.mjs` and proof hooks | Denied RBAC decisions, elevated admin access and permission changes can be retained as review evidence. |
+
+## Active Organization And Role Context
+
+Every authenticated action must run with one explicit active organization and
+one active Phase 1 role. The active-context resolver accepts the authenticated
+user ID, the user's server-side `UserOrganizationRole` assignments and optional
+organization status metadata.
+
+Resolution rules:
+
+- A user with one valid active Phase 1 organization role receives that context
+  automatically.
+- A user with multiple active contexts must select one before protected
+  workflow pages or service actions proceed.
+- A selected context is accepted only when it matches an active role assignment
+  for the authenticated user and, when organization metadata is supplied, an
+  active organization.
+- Future roles such as `BUYER`, revoked assignments and disabled organizations
+  do not become active contexts.
+- A user with no valid active context is routed to the no-role setup state.
+
+The validated context produces the actor shape consumed by RBAC and workflow
+services:
+
+```text
+userId + activeOrganizationId + activeRoleCode
+```
+
+Audit and proof hooks use the same validated actor context for
+`actorUserId`, `actorRoleCode`, `actorOrganizationId` and the
+`MANAGED_AUTH_ACTOR_CONTEXT` reference. UI forms must not pass arbitrary
+organization IDs for authorization when the organization can be derived from
+the active context.
 
 ## Role Readiness
 

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createBreederDashboardViewModel } from "../breeder-dashboard/breeder-dashboard.mjs";
+import { createStationDashboardViewModel } from "../station-dashboard/station-dashboard.mjs";
 import {
   SemenOrderCreationValidationError,
   createInMemorySemenOrderRepository,
@@ -22,6 +23,30 @@ const breederActor = {
       userId: "user-breeder-a",
       organizationId: breederOrganizationId,
       roleCode: "BREEDER",
+      revokedAt: null,
+    },
+  ],
+};
+
+const otherBreederActor = {
+  userId: "user-breeder-b",
+  roles: [
+    {
+      userId: "user-breeder-b",
+      organizationId: "org-breeder-b",
+      roleCode: "BREEDER",
+      revokedAt: null,
+    },
+  ],
+};
+
+const stationActor = {
+  userId: "user-station-a",
+  roles: [
+    {
+      userId: "user-station-a",
+      organizationId: stationOrganizationId,
+      roleCode: "BREEDING_STATION",
       revokedAt: null,
     },
   ],
@@ -113,6 +138,40 @@ test("order creation view renders listing selection, review and draft/submit con
   assert.match(html, /value="submit"/);
 });
 
+test("order creation view can load an existing draft for editing", async () => {
+  const repository = createRepository();
+  const draft = await createSemenOrderFromForm({
+    action: "draft",
+    actor: breederActor,
+    breederOrganizationId,
+    repository,
+    form: {
+      semenListingId: "listing-active",
+      shippingCity: "Pretoria",
+    },
+    now: timestamp,
+  });
+
+  assert.equal(draft.ok, true);
+
+  const viewModel = createSemenOrderCreationViewModel({
+    actor: breederActor,
+    organizationName: "Northern Breeding",
+    draftOrder: draft.order,
+    listingRecords,
+    stationOrganizations,
+  });
+  const html = renderSemenOrderCreation(viewModel);
+
+  assert.equal(viewModel.title, "Edit draft order");
+  assert.equal(viewModel.draftOrder?.orderNumber, "SO-20260609-000010");
+  assert.equal(viewModel.form.orderId, draft.order.id);
+  assert.equal(viewModel.form.shippingCity, "Pretoria");
+  assert.match(html, /name="draftOrderId" value="demo-order-1"/);
+  assert.match(html, /Draft status: draft/);
+  assert.match(html, /value="cancel" formnovalidate/);
+});
+
 test("order creation rejects unavailable or invisible selected listings", () => {
   assert.throws(
     () =>
@@ -154,6 +213,82 @@ test("breeder can create a draft from the order form", async () => {
   assert.equal(result.auditHook?.action, "SEMEN_ORDER_DRAFT_CREATED");
   assert.equal(result.auditLog?.sourceAction, "SEMEN_ORDER_DRAFT_CREATED");
   assert.equal(result.proofHook?.triggerRef.toStatus, "DRAFT");
+});
+
+test("breeder can update an own draft before submitting it to the assigned station", async () => {
+  const repository = createRepository();
+  const draft = await createSemenOrderFromForm({
+    action: "draft",
+    actor: breederActor,
+    breederOrganizationId,
+    repository,
+    form: {
+      semenListingId: "listing-active",
+      shippingCity: "Pretoria",
+    },
+    now: timestamp,
+  });
+
+  assert.equal(draft.ok, true);
+
+  const updated = await createSemenOrderFromForm({
+    action: "draft",
+    actor: breederActor,
+    breederOrganizationId,
+    repository,
+    form: {
+      ...completeForm,
+      orderId: draft.order.id,
+      specialInstructions: "Updated while still a draft.",
+    },
+    now: "2026-06-09T08:10:00.000Z",
+    auditContext: {
+      userAgent: "node-test/order-creation-update-draft",
+    },
+  });
+
+  assert.equal(updated.ok, true);
+  assert.equal(updated.order.status, "DRAFT");
+  assert.equal(updated.order.specialInstructions, "Updated while still a draft.");
+  assert.deepEqual(updated.statusHistory, []);
+  assert.equal(updated.auditHook?.action, "SEMEN_ORDER_DRAFT_UPDATED");
+  assert.equal(updated.proofHook, null);
+
+  const submitted = await createSemenOrderFromForm({
+    action: "submit",
+    actor: breederActor,
+    breederOrganizationId,
+    repository,
+    form: {
+      ...completeForm,
+      orderId: draft.order.id,
+    },
+    now: "2026-06-09T08:20:00.000Z",
+    auditContext: {
+      userAgent: "node-test/order-creation-submit-draft",
+    },
+  });
+
+  assert.equal(submitted.ok, true);
+  assert.equal(submitted.order.status, "SUBMITTED");
+  assert.deepEqual(
+    submitted.statusHistory.map((history) => history.toStatus),
+    ["SUBMITTED"],
+  );
+  assert.equal(submitted.draftAuditHook?.action, "SEMEN_ORDER_DRAFT_UPDATED");
+  assert.equal(submitted.auditHook?.action, "SEMEN_ORDER_SUBMITTED");
+  assert.equal(submitted.proofHook?.triggerRef.toStatus, "SUBMITTED");
+
+  const stationDashboard = createStationDashboardViewModel({
+    actor: stationActor,
+    orders: await repository.listSemenOrders(),
+    statusHistory: await repository.listAllOrderStatusHistory(),
+  });
+
+  assert.deepEqual(
+    stationDashboard.sections.incomingOrders.items.map((order) => order.id),
+    [draft.order.id],
+  );
 });
 
 test("submit validates required delivery and shipping fields before creating an order", async () => {
@@ -234,6 +369,128 @@ test("breeder can submit an order and see it in dashboard data", async () => {
 
   assert.match(html, /SO-20260609-000010/);
   assert.match(html, /submitted/);
+});
+
+test("duplicate submit of an already submitted draft is idempotent", async () => {
+  const repository = createRepository();
+  const submitted = await createSemenOrderFromForm({
+    action: "submit",
+    actor: breederActor,
+    breederOrganizationId,
+    repository,
+    form: completeForm,
+    now: timestamp,
+  });
+
+  assert.equal(submitted.ok, true);
+
+  const duplicate = await createSemenOrderFromForm({
+    action: "submit",
+    actor: breederActor,
+    breederOrganizationId,
+    repository,
+    form: {
+      ...completeForm,
+      orderId: submitted.order.id,
+    },
+    now: "2026-06-09T08:30:00.000Z",
+  });
+
+  assert.equal(duplicate.ok, true);
+  assert.equal(duplicate.idempotent, true);
+  assert.equal(duplicate.order.status, "SUBMITTED");
+  assert.deepEqual(duplicate.statusHistory, []);
+  assert.equal((await repository.listAllOrderStatusHistory()).length, 2);
+});
+
+test("cross-organization draft update and submit are denied", async () => {
+  const repository = createRepository();
+  const draft = await createSemenOrderFromForm({
+    action: "draft",
+    actor: breederActor,
+    breederOrganizationId,
+    repository,
+    form: {
+      semenListingId: "listing-active",
+    },
+    now: timestamp,
+  });
+
+  assert.equal(draft.ok, true);
+
+  const deniedUpdate = await createSemenOrderFromForm({
+    action: "draft",
+    actor: otherBreederActor,
+    breederOrganizationId: "org-breeder-b",
+    repository,
+    form: {
+      ...completeForm,
+      orderId: draft.order.id,
+    },
+    now: "2026-06-09T08:40:00.000Z",
+  });
+
+  assert.equal(deniedUpdate.ok, false);
+  assert.deepEqual(deniedUpdate.issues, [
+    "actor must be authorized before updating a draft semen order.",
+  ]);
+
+  const deniedSubmit = await createSemenOrderFromForm({
+    action: "submit",
+    actor: otherBreederActor,
+    breederOrganizationId: "org-breeder-b",
+    repository,
+    form: {
+      ...completeForm,
+      orderId: draft.order.id,
+    },
+    now: "2026-06-09T08:45:00.000Z",
+  });
+
+  assert.equal(deniedSubmit.ok, false);
+  assert.deepEqual(deniedSubmit.issues, [
+    "actor must be authorized before updating a draft semen order.",
+  ]);
+});
+
+test("breeder can cancel an own draft without deleting order evidence", async () => {
+  const repository = createRepository();
+  const draft = await createSemenOrderFromForm({
+    action: "draft",
+    actor: breederActor,
+    breederOrganizationId,
+    repository,
+    form: {
+      semenListingId: "listing-active",
+    },
+    now: timestamp,
+  });
+
+  assert.equal(draft.ok, true);
+
+  const cancelled = await createSemenOrderFromForm({
+    action: "cancel",
+    actor: breederActor,
+    breederOrganizationId,
+    repository,
+    form: {
+      ...completeForm,
+      orderId: draft.order.id,
+    },
+    now: "2026-06-09T08:50:00.000Z",
+    auditContext: {
+      userAgent: "node-test/order-creation-cancel-draft",
+    },
+  });
+
+  assert.equal(cancelled.ok, true);
+  assert.equal(cancelled.order.status, "CANCELLED");
+  assert.deepEqual(
+    (await repository.listAllOrderStatusHistory()).map((history) => history.toStatus),
+    ["DRAFT", "CANCELLED"],
+  );
+  assert.equal(cancelled.auditHook?.action, "SEMEN_ORDER_CANCELLED");
+  assert.equal(cancelled.proofHook?.triggerRef.toStatus, "CANCELLED");
 });
 
 function createRepository() {

@@ -115,6 +115,7 @@ export interface BreederDashboardOrderRow {
   createdAt: string | null;
   updatedAt: string | null;
   detailHref: string | null;
+  draftEditHref: string | null;
   statusHistoryHref: string | null;
   statusHistory: readonly BreederDashboardStatusHistoryRow[];
 }

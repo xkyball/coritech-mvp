@@ -24,7 +24,7 @@ export type SemenOrderCreationViewState =
   | "CONFIRMATION"
   | "ERROR";
 
-export type SemenOrderCreationAction = "draft" | "submit";
+export type SemenOrderCreationAction = "draft" | "submit" | "cancel";
 
 export interface SemenOrderCreationActorContext {
   userId: string;
@@ -35,6 +35,7 @@ export interface SemenOrderCreationInput {
   actor: SemenOrderCreationActorContext;
   organizationId?: string | null;
   organizationName?: string | null;
+  draftOrder?: SemenOrderLike | null;
   selectedListingId?: string | null;
   listingRecords?: SemenListingRecordLike[];
   stationOrganizations?: SemenOrderCreationStationOrganization[];
@@ -52,6 +53,7 @@ export interface SemenOrderCreationStationOrganization {
 }
 
 export interface SemenOrderCreationFormInput {
+  orderId?: string | null;
   semenListingId?: string | null;
   requestedDeliveryDate?: string | null;
   shippingContactName?: string | null;
@@ -66,6 +68,7 @@ export interface SemenOrderCreationFormInput {
 }
 
 export interface SemenOrderCreationFormState {
+  orderId: string;
   semenListingId: string;
   requestedDeliveryDate: string;
   shippingContactName: string;
@@ -111,6 +114,11 @@ export interface SemenOrderCreationFormViewModel {
   state: "FORM";
   actorUserId: string;
   organizationContext: SemenOrderCreationOrganizationContext;
+  draftOrder: {
+    id: string;
+    orderNumber: string;
+    status: "DRAFT";
+  } | null;
   title: string;
   summary: string;
   selectableListings: readonly SemenOrderCreationListingOption[];
@@ -187,6 +195,7 @@ export type CreateSemenOrderFromFormResult =
       proofHook: SemenOrderProofHook | null;
       draftAuditHook?: SemenOrderStatusAuditHook | null;
       draftProofHook?: SemenOrderProofHook | null;
+      idempotent?: boolean;
     }
   | {
       ok: false;

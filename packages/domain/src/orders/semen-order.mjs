@@ -2,7 +2,10 @@
 
 import { createAuditLogFromHook } from "../audit/audit-log.mjs";
 import { isSemenListingOrderable } from "../catalog/semen-catalog.mjs";
-import { isActiveRoleAssignment } from "../identity/role-model.mjs";
+import {
+  isActiveRoleAssignment,
+  isPhase1RoleCode,
+} from "../identity/role-model.mjs";
 
 export const SEMEN_ORDER_STATUSES = /** @type {const} */ ([
   "DRAFT",
@@ -19,6 +22,7 @@ export const SEMEN_ORDER_STATUSES = /** @type {const} */ ([
 
 export const SEMEN_ORDER_STATUS_AUDIT_ACTIONS = /** @type {const} */ ([
   "SEMEN_ORDER_DRAFT_CREATED",
+  "SEMEN_ORDER_DRAFT_UPDATED",
   "SEMEN_ORDER_SUBMITTED",
   "SEMEN_ORDER_RECEIVED",
   "SEMEN_ORDER_CONFIRMED",
@@ -41,6 +45,27 @@ export const SEMEN_ORDER_STATUS_TRANSITIONS = Object.freeze({
   DELIVERED: Object.freeze(["COMPLETED"]),
   COMPLETED: Object.freeze([]),
   CANCELLED: Object.freeze([]),
+});
+
+export const ORDER_SERVICE_COMMANDS = /** @type {const} */ ([
+  "CREATE_DRAFT_ORDER",
+  "UPDATE_DRAFT_ORDER",
+  "SUBMIT_ORDER",
+  "RECEIVE_ORDER",
+  "CONFIRM_ORDER",
+  "REJECT_ORDER",
+  "MOVE_TO_FULFILMENT",
+  "COMPLETE_ORDER",
+  "TRANSITION_ORDER_STATUS",
+]);
+
+export const ORDER_SERVICE_COMMAND_STATUS_TARGETS = Object.freeze({
+  SUBMIT_ORDER: "SUBMITTED",
+  RECEIVE_ORDER: "RECEIVED",
+  CONFIRM_ORDER: "CONFIRMED",
+  REJECT_ORDER: "REJECTED",
+  MOVE_TO_FULFILMENT: "IN_FULFILMENT",
+  COMPLETE_ORDER: "COMPLETED",
 });
 
 export const SEMEN_ORDER_ROUTES = Object.freeze([
@@ -83,6 +108,15 @@ const STATUS_AUDIT_ACTION_BY_STATUS = Object.freeze({
   CANCELLED: "SEMEN_ORDER_CANCELLED",
 });
 
+const NOTIFICATION_EVENT_BY_COMMAND = Object.freeze({
+  SUBMIT_ORDER: "ORDER_SUBMITTED",
+  RECEIVE_ORDER: "ORDER_RECEIVED",
+  CONFIRM_ORDER: "ORDER_CONFIRMED",
+  REJECT_ORDER: "ORDER_REJECTED",
+  MOVE_TO_FULFILMENT: "ORDER_IN_FULFILMENT",
+  COMPLETE_ORDER: "ORDER_COMPLETED",
+});
+
 export class SemenOrderValidationError extends Error {
   /**
    * @param {string[]} issues
@@ -115,6 +149,372 @@ export class SemenOrderNotFoundError extends Error {
     this.entityName = entityName;
     this.entityId = entityId;
   }
+}
+
+export class OrderService {
+  /**
+   * @param {import("./semen-order.d.ts").OrderServiceOptions} options
+   */
+  constructor(options) {
+    if (!options?.repository) {
+      throw new TypeError("OrderService requires a repository.");
+    }
+
+    this.repository = options.repository;
+    this.auditContext = options.auditContext ?? null;
+    this.proofService = options.proofService ?? null;
+    this.notificationService = options.notificationService ?? null;
+    this.transaction = options.transaction ?? null;
+  }
+
+  /**
+   * @param {import("./semen-order.d.ts").OrderServiceCreateDraftCommand} command
+   * @returns {Promise<import("./semen-order.d.ts").OrderServiceCommandResult>}
+   */
+  async createDraftOrder(command) {
+    const actor = resolveSingleActiveContextActor(command.actor);
+
+    return this.runInTransaction(async (repository) => {
+      const findSemenListingById = requireRepositoryMethod(repository, "findSemenListingById");
+      const nextSemenOrderNumberSequence = requireRepositoryMethod(
+        repository,
+        "nextSemenOrderNumberSequence",
+      );
+      const createSemenOrderWithStatusHistory = requireRepositoryMethod(
+        repository,
+        "createSemenOrderWithStatusHistory",
+      );
+      const semenListingId = requireBodyField(command.body, "semenListingId");
+      const listing = await findRequiredEntity(
+        () => findSemenListingById(semenListingId),
+        "SemenListing",
+        semenListingId,
+      );
+      const orderNumberSequence = await nextSemenOrderNumberSequence();
+      const prepared = prepareCreateDraftSemenOrder({
+        breederOrganizationId: command.body.breederOrganizationId,
+        requestedDeliveryDate: command.body.requestedDeliveryDate,
+        shippingContactName: command.body.shippingContactName,
+        shippingContactPhone: command.body.shippingContactPhone,
+        shippingAddressLine1: command.body.shippingAddressLine1,
+        shippingAddressLine2: command.body.shippingAddressLine2,
+        shippingCity: command.body.shippingCity,
+        shippingRegion: command.body.shippingRegion,
+        shippingPostalCode: command.body.shippingPostalCode,
+        shippingCountry: command.body.shippingCountry,
+        specialInstructions: command.body.specialInstructions,
+        reason: command.body.reason,
+        createdAt: command.body.createdAt,
+        now: command.body.now,
+        listing,
+        orderNumberSequence,
+        actor,
+      });
+      const persisted = await createSemenOrderWithStatusHistory(
+        prepared.order,
+        prepared.statusHistory,
+      );
+      const refreshed = rebuildPersistedChange(prepared, persisted, null);
+
+      return this.finalizeStatusChange({
+        commandName: "CREATE_DRAFT_ORDER",
+        change: refreshed,
+        previousOrder: null,
+        repository,
+        status: 201,
+      });
+    });
+  }
+
+  /**
+   * @param {import("./semen-order.d.ts").OrderServiceUpdateDraftCommand} command
+   * @returns {Promise<import("./semen-order.d.ts").OrderServiceCommandResult>}
+   */
+  async updateDraftOrder(command) {
+    const actor = resolveSingleActiveContextActor(command.actor);
+
+    return this.runInTransaction(async (repository) => {
+      const findSemenOrderById = requireRepositoryMethod(repository, "findSemenOrderById");
+      const updateDraftSemenOrder = requireRepositoryMethod(repository, "updateDraftSemenOrder");
+      const existingOrder = await findRequiredEntity(
+        () => findSemenOrderById(command.orderId),
+        "SemenOrder",
+        command.orderId,
+      );
+
+      if (existingOrder.status !== "DRAFT") {
+        throw new SemenOrderValidationError([
+          "only DRAFT semen orders can be updated without an explicit status transition.",
+        ]);
+      }
+
+      const actorRole = findCreateDraftActorRole(actor, existingOrder.breederOrganizationId);
+
+      if (!actorRole) {
+        throw new SemenOrderAuthorizationError(
+          "actor must be authorized before updating a draft semen order.",
+        );
+      }
+
+      const occurredAt = toIsoTimestamp(command.body.now ?? new Date());
+      const updatedOrder = Object.freeze({
+        ...existingOrder,
+        requestedDeliveryDate: normalizeOptionalDateOnly(command.body.requestedDeliveryDate),
+        shippingContactName: normalizeOptionalString(command.body.shippingContactName),
+        shippingContactPhone: normalizeOptionalString(command.body.shippingContactPhone),
+        shippingAddressLine1: normalizeOptionalString(command.body.shippingAddressLine1),
+        shippingAddressLine2: normalizeOptionalString(command.body.shippingAddressLine2),
+        shippingCity: normalizeOptionalString(command.body.shippingCity),
+        shippingRegion: normalizeOptionalString(command.body.shippingRegion),
+        shippingPostalCode: normalizeOptionalString(command.body.shippingPostalCode),
+        shippingCountry: normalizeOptionalString(command.body.shippingCountry),
+        specialInstructions: normalizeOptionalString(command.body.specialInstructions),
+        updatedByUserId: actor.userId.trim(),
+        updatedAt: occurredAt,
+      });
+      const persistedOrder = await updateDraftSemenOrder(updatedOrder);
+      const order = Object.freeze(persistedOrder ?? updatedOrder);
+      const auditHook = buildSemenOrderDraftUpdateAuditHook({
+        previousOrder: existingOrder,
+        order,
+        actorRole,
+        reason: normalizeOptionalString(command.body.reason),
+        occurredAt,
+      });
+      const auditLog = await createAuditLogFromHook({
+        repository,
+        auditHook,
+        requestContext: this.auditContext,
+      });
+
+      return deepFreeze({
+        status: 200,
+        body: {
+          order,
+          statusHistory: null,
+        },
+        order,
+        statusHistory: null,
+        auditHook,
+        auditLog,
+        proofHook: null,
+        proofResult: null,
+        notificationHook: null,
+        notificationResult: null,
+        idempotent: false,
+      });
+    });
+  }
+
+  /**
+   * @param {import("./semen-order.d.ts").OrderServiceTransitionCommand} command
+   * @returns {Promise<import("./semen-order.d.ts").OrderServiceCommandResult>}
+   */
+  async transitionOrder(command) {
+    const actor = resolveSingleActiveContextActor(command.actor);
+
+    return this.runInTransaction(async (repository) => {
+      const findSemenOrderById = requireRepositoryMethod(repository, "findSemenOrderById");
+      const updateSemenOrderWithStatusHistory = requireRepositoryMethod(
+        repository,
+        "updateSemenOrderWithStatusHistory",
+      );
+      const existingOrder = await findRequiredEntity(
+        () => findSemenOrderById(command.orderId),
+        "SemenOrder",
+        command.orderId,
+      );
+
+      if (existingOrder.status === command.toStatus) {
+        return deepFreeze({
+          status: 200,
+          body: {
+            order: existingOrder,
+            statusHistory: null,
+          },
+          order: existingOrder,
+          statusHistory: null,
+          auditHook: null,
+          auditLog: null,
+          proofHook: null,
+          proofResult: null,
+          notificationHook: null,
+          notificationResult: null,
+          idempotent: true,
+        });
+      }
+
+      const prepared = prepareTransitionSemenOrderStatus({
+        toStatus: command.toStatus,
+        reason: command.body.reason,
+        now: command.body.now,
+        existingOrder,
+        actor,
+      });
+      const persisted = await updateSemenOrderWithStatusHistory(
+        prepared.order,
+        prepared.statusHistory,
+      );
+      const refreshed = rebuildPersistedChange(prepared, persisted, existingOrder);
+
+      return this.finalizeStatusChange({
+        commandName: command.commandName,
+        change: refreshed,
+        previousOrder: existingOrder,
+        repository,
+        status: 200,
+      });
+    });
+  }
+
+  async submitOrder(command) {
+    return this.transitionOrder({
+      ...command,
+      commandName: "SUBMIT_ORDER",
+      toStatus: "SUBMITTED",
+    });
+  }
+
+  async receiveOrder(command) {
+    return this.transitionOrder({
+      ...command,
+      commandName: "RECEIVE_ORDER",
+      toStatus: "RECEIVED",
+    });
+  }
+
+  async confirmOrder(command) {
+    return this.transitionOrder({
+      ...command,
+      commandName: "CONFIRM_ORDER",
+      toStatus: "CONFIRMED",
+    });
+  }
+
+  async rejectOrder(command) {
+    return this.transitionOrder({
+      ...command,
+      commandName: "REJECT_ORDER",
+      toStatus: "REJECTED",
+    });
+  }
+
+  async moveToFulfilment(command) {
+    return this.transitionOrder({
+      ...command,
+      commandName: "MOVE_TO_FULFILMENT",
+      toStatus: "IN_FULFILMENT",
+    });
+  }
+
+  async completeOrder(command) {
+    return this.transitionOrder({
+      ...command,
+      commandName: "COMPLETE_ORDER",
+      toStatus: "COMPLETED",
+    });
+  }
+
+  /**
+   * @param {object} input
+   * @param {import("./semen-order.d.ts").OrderServiceCommandName} input.commandName
+   * @param {import("./semen-order.d.ts").PreparedSemenOrderStatusChange} input.change
+   * @param {import("./semen-order.d.ts").SemenOrderLike | null} input.previousOrder
+   * @param {import("./semen-order.d.ts").SemenOrderRepository} input.repository
+   * @param {number} input.status
+   * @returns {Promise<import("./semen-order.d.ts").OrderServiceCommandResult>}
+   */
+  async finalizeStatusChange(input) {
+    const auditLog = await createAuditLogFromHook({
+      repository: input.repository,
+      auditHook: input.change.auditHook,
+      requestContext: this.auditContext,
+    });
+    const proofResult = await this.dispatchProofHook(input.change.proofHook);
+    const notificationHook = buildOrderNotificationHook({
+      commandName: input.commandName,
+      change: input.change,
+      previousOrder: input.previousOrder,
+    });
+    const notificationResult = await this.dispatchNotificationHook(notificationHook);
+
+    return deepFreeze({
+      status: input.status,
+      body: {
+        order: input.change.order,
+        statusHistory: input.change.statusHistory,
+      },
+      order: input.change.order,
+      statusHistory: input.change.statusHistory,
+      auditHook: input.change.auditHook,
+      auditLog,
+      proofHook: input.change.proofHook,
+      proofResult,
+      notificationHook,
+      notificationResult,
+      idempotent: false,
+    });
+  }
+
+  /**
+   * @param {(repository: import("./semen-order.d.ts").SemenOrderRepository) => Promise<import("./semen-order.d.ts").OrderServiceCommandResult>} operation
+   * @returns {Promise<import("./semen-order.d.ts").OrderServiceCommandResult>}
+   */
+  async runInTransaction(operation) {
+    if (typeof this.transaction === "function") {
+      return this.transaction((repository) => operation(repository ?? this.repository));
+    }
+
+    return operation(this.repository);
+  }
+
+  /**
+   * @param {import("./semen-order.d.ts").SemenOrderProofHook | null} proofHook
+   * @returns {Promise<unknown>}
+   */
+  async dispatchProofHook(proofHook) {
+    if (!proofHook || !this.proofService) {
+      return null;
+    }
+
+    if (typeof this.proofService.recordProofHook === "function") {
+      return this.proofService.recordProofHook(proofHook);
+    }
+
+    if (typeof this.proofService.createProofEventFromHook === "function") {
+      return this.proofService.createProofEventFromHook(proofHook);
+    }
+
+    return null;
+  }
+
+  /**
+   * @param {import("./semen-order.d.ts").OrderNotificationHook | null} notificationHook
+   * @returns {Promise<unknown>}
+   */
+  async dispatchNotificationHook(notificationHook) {
+    if (!notificationHook || !this.notificationService) {
+      return null;
+    }
+
+    if (typeof this.notificationService.recordOrderNotificationHook === "function") {
+      return this.notificationService.recordOrderNotificationHook(notificationHook);
+    }
+
+    if (typeof this.notificationService.enqueueOrderNotification === "function") {
+      return this.notificationService.enqueueOrderNotification(notificationHook);
+    }
+
+    return null;
+  }
+}
+
+/**
+ * @param {import("./semen-order.d.ts").OrderServiceOptions} options
+ * @returns {OrderService}
+ */
+export function createOrderService(options) {
+  return new OrderService(options);
 }
 
 /**
@@ -151,7 +551,7 @@ export function canTransitionSemenOrderStatus(actor, order, toStatus) {
     return false;
   }
 
-  if (!isAllowedStatusTransition(order.status, toStatus)) {
+  if (!isAllowedSemenOrderStatusTransition(order.status, toStatus)) {
     return false;
   }
 
@@ -432,7 +832,7 @@ export function validateTransitionSemenOrderStatusInput(input) {
     isSemenOrderStatus(input.existingOrder.status) &&
     isSemenOrderStatus(toStatus)
   ) {
-    if (!isAllowedStatusTransition(input.existingOrder.status, toStatus)) {
+    if (!isAllowedSemenOrderStatusTransition(input.existingOrder.status, toStatus)) {
       issues.push(
         `cannot transition semen order from ${input.existingOrder.status} to ${toStatus}.`,
       );
@@ -546,6 +946,40 @@ export function buildSemenOrderStatusAuditHook(input) {
 }
 
 /**
+ * @param {object} input
+ * @param {import("./semen-order.d.ts").SemenOrderLike} input.previousOrder
+ * @param {import("./semen-order.d.ts").SemenOrderLike} input.order
+ * @param {import("../identity/role-model.d.ts").UserOrganizationRoleLike} input.actorRole
+ * @param {string | null} input.reason
+ * @param {string} input.occurredAt
+ * @returns {import("./semen-order.d.ts").SemenOrderStatusAuditHook}
+ */
+function buildSemenOrderDraftUpdateAuditHook(input) {
+  return Object.freeze({
+    eventType: "SEMEN_ORDER_STATUS_CHANGE",
+    action: "SEMEN_ORDER_DRAFT_UPDATED",
+    actorUserId: input.actorRole.userId,
+    actorRoleCode: /** @type {import("./semen-order.d.ts").SemenOrderStatusActorRoleCode} */ (
+      input.actorRole.roleCode
+    ),
+    actorOrganizationId: input.actorRole.organizationId,
+    targetType: "SemenOrder",
+    targetId: input.order.id,
+    targetRef: Object.freeze({
+      orderNumber: input.order.orderNumber,
+      semenListingId: input.order.semenListingId,
+      breederOrganizationId: input.order.breederOrganizationId,
+      breedingStationOrganizationId: input.order.breedingStationOrganizationId,
+    }),
+    statusHistoryId: null,
+    previousValue: orderAuditValue(input.previousOrder),
+    newValue: orderAuditValue(input.order),
+    reason: input.reason,
+    occurredAt: input.occurredAt,
+  });
+}
+
+/**
  * @param {import("./semen-order.d.ts").SemenOrderProofHookInput} input
  * @returns {import("./semen-order.d.ts").SemenOrderProofHook}
  */
@@ -586,69 +1020,53 @@ export function buildSemenOrderProofHook(input) {
 }
 
 /**
+ * @param {object} input
+ * @param {import("./semen-order.d.ts").OrderServiceCommandName} input.commandName
+ * @param {import("./semen-order.d.ts").PreparedSemenOrderStatusChange} input.change
+ * @param {import("./semen-order.d.ts").SemenOrderLike | null} input.previousOrder
+ * @returns {import("./semen-order.d.ts").OrderNotificationHook | null}
+ */
+function buildOrderNotificationHook(input) {
+  const eventType = NOTIFICATION_EVENT_BY_COMMAND[input.commandName];
+
+  if (!eventType) {
+    return null;
+  }
+
+  return deepFreeze({
+    hookType: "NOTIFICATION_REQUEST",
+    source: "ORDER_COMMAND",
+    eventType,
+    commandName: input.commandName,
+    orderRef: {
+      orderId: input.change.order.id,
+      orderNumber: input.change.order.orderNumber,
+      semenListingId: input.change.order.semenListingId,
+      breederOrganizationId: input.change.order.breederOrganizationId,
+      breedingStationOrganizationId: input.change.order.breedingStationOrganizationId,
+      previousStatus: input.previousOrder?.status ?? null,
+      status: input.change.order.status,
+    },
+    actorRef: {
+      userId: input.change.statusHistory.actorUserId,
+      roleCode: input.change.statusHistory.actorRoleCode,
+      organizationId: input.change.statusHistory.actorOrganizationId,
+    },
+    occurredAt: input.change.statusHistory.changedAt,
+  });
+}
+
+/**
  * @param {import("./semen-order.d.ts").EndpointRequest<import("./semen-order.d.ts").CreateDraftSemenOrderInputBody>} request
  * @returns {Promise<import("./semen-order.d.ts").EndpointResponse<{ order: import("./semen-order.d.ts").SemenOrder, statusHistory: import("./semen-order.d.ts").OrderStatusHistory }>>}
  */
 export async function createDraftSemenOrderEndpoint(request) {
-  const findSemenListingById = requireRepositoryMethod(
-    request.repository,
-    "findSemenListingById",
-  );
-  const nextSemenOrderNumberSequence = requireRepositoryMethod(
-    request.repository,
-    "nextSemenOrderNumberSequence",
-  );
-  const createSemenOrderWithStatusHistory = requireRepositoryMethod(
-    request.repository,
-    "createSemenOrderWithStatusHistory",
-  );
-  const semenListingId = requireBodyField(request.body, "semenListingId");
-  const listing = await findRequiredEntity(
-    () => findSemenListingById(semenListingId),
-    "SemenListing",
-    semenListingId,
-  );
-  const orderNumberSequence = await nextSemenOrderNumberSequence();
-  const prepared = prepareCreateDraftSemenOrder({
-    breederOrganizationId: request.body.breederOrganizationId,
-    requestedDeliveryDate: request.body.requestedDeliveryDate,
-    shippingContactName: request.body.shippingContactName,
-    shippingContactPhone: request.body.shippingContactPhone,
-    shippingAddressLine1: request.body.shippingAddressLine1,
-    shippingAddressLine2: request.body.shippingAddressLine2,
-    shippingCity: request.body.shippingCity,
-    shippingRegion: request.body.shippingRegion,
-    shippingPostalCode: request.body.shippingPostalCode,
-    shippingCountry: request.body.shippingCountry,
-    specialInstructions: request.body.specialInstructions,
-    reason: request.body.reason,
-    createdAt: request.body.createdAt,
-    now: request.body.now,
-    listing,
-    orderNumberSequence,
-    actor: request.actor,
-  });
-  const persisted = await createSemenOrderWithStatusHistory(
-    prepared.order,
-    prepared.statusHistory,
-  );
-  const refreshed = rebuildPersistedChange(prepared, persisted, null);
-
-  const auditLog = await createAuditLogFromHook({
+  return createOrderService({
     repository: request.repository,
-    auditHook: refreshed.auditHook,
-    requestContext: request.auditContext,
-  });
-
-  return Object.freeze({
-    status: 201,
-    body: Object.freeze({
-      order: refreshed.order,
-      statusHistory: refreshed.statusHistory,
-    }),
-    auditHook: refreshed.auditHook,
-    auditLog,
-    proofHook: refreshed.proofHook,
+    auditContext: request.auditContext,
+  }).createDraftOrder({
+    actor: request.actor,
+    body: request.body,
   });
 }
 
@@ -657,48 +1075,17 @@ export async function createDraftSemenOrderEndpoint(request) {
  * @returns {Promise<import("./semen-order.d.ts").EndpointResponse<{ order: import("./semen-order.d.ts").SemenOrder, statusHistory: import("./semen-order.d.ts").OrderStatusHistory }>>}
  */
 export async function transitionSemenOrderStatusEndpoint(request) {
-  const findSemenOrderById = requireRepositoryMethod(
-    request.repository,
-    "findSemenOrderById",
-  );
-  const updateSemenOrderWithStatusHistory = requireRepositoryMethod(
-    request.repository,
-    "updateSemenOrderWithStatusHistory",
-  );
   const orderId = requireParam(request.params, "orderId");
-  const existingOrder = await findRequiredEntity(
-    () => findSemenOrderById(orderId),
-    "SemenOrder",
-    orderId,
-  );
-  const prepared = prepareTransitionSemenOrderStatus({
-    toStatus: request.body.toStatus,
-    reason: request.body.reason,
-    now: request.body.now,
-    existingOrder,
-    actor: request.actor,
-  });
-  const persisted = await updateSemenOrderWithStatusHistory(
-    prepared.order,
-    prepared.statusHistory,
-  );
-  const refreshed = rebuildPersistedChange(prepared, persisted, existingOrder);
 
-  const auditLog = await createAuditLogFromHook({
+  return createOrderService({
     repository: request.repository,
-    auditHook: refreshed.auditHook,
-    requestContext: request.auditContext,
-  });
-
-  return Object.freeze({
-    status: 200,
-    body: Object.freeze({
-      order: refreshed.order,
-      statusHistory: refreshed.statusHistory,
-    }),
-    auditHook: refreshed.auditHook,
-    auditLog,
-    proofHook: refreshed.proofHook,
+    auditContext: request.auditContext,
+  }).transitionOrder({
+    actor: request.actor,
+    orderId,
+    body: request.body,
+    commandName: orderServiceCommandNameForStatus(request.body.toStatus),
+    toStatus: request.body.toStatus,
   });
 }
 
@@ -769,8 +1156,31 @@ export async function listOrderStatusHistoryEndpoint(request) {
  * @param {import("./semen-order.d.ts").SemenOrderStatus} toStatus
  * @returns {boolean}
  */
-function isAllowedStatusTransition(fromStatus, toStatus) {
+export function isAllowedSemenOrderStatusTransition(fromStatus, toStatus) {
   return SEMEN_ORDER_STATUS_TRANSITIONS[fromStatus].includes(toStatus);
+}
+
+/**
+ * @param {unknown} toStatus
+ * @returns {import("./semen-order.d.ts").OrderServiceCommandName}
+ */
+function orderServiceCommandNameForStatus(toStatus) {
+  switch (toStatus) {
+    case "SUBMITTED":
+      return "SUBMIT_ORDER";
+    case "RECEIVED":
+      return "RECEIVE_ORDER";
+    case "CONFIRMED":
+      return "CONFIRM_ORDER";
+    case "REJECTED":
+      return "REJECT_ORDER";
+    case "IN_FULFILMENT":
+      return "MOVE_TO_FULFILMENT";
+    case "COMPLETED":
+      return "COMPLETE_ORDER";
+    default:
+      return "TRANSITION_ORDER_STATUS";
+  }
 }
 
 /**
@@ -791,6 +1201,35 @@ function statusAuditActionForStatus(toStatus) {
 function findCreateDraftActorRole(actor, breederOrganizationId) {
   return findActorRole(actor, "BREEDER", breederOrganizationId) ??
     findActorRole(actor, "PLATFORM_ADMIN");
+}
+
+/**
+ * @param {import("./semen-order.d.ts").SemenOrderActorContext} actor
+ * @returns {import("./semen-order.d.ts").SemenOrderActorContext}
+ */
+function resolveSingleActiveContextActor(actor) {
+  const actorIssues = validateActor(actor);
+
+  if (actorIssues.length > 0) {
+    throw new SemenOrderValidationError(actorIssues);
+  }
+
+  const activeRoles = actor.roles.filter((assignment) =>
+    assignment.userId === actor.userId &&
+    isActiveRoleAssignment(assignment) &&
+    isPhase1RoleCode(assignment.roleCode),
+  );
+
+  if (activeRoles.length !== 1) {
+    throw new SemenOrderValidationError([
+      "actor.roles must contain exactly one validated active organization role context.",
+    ]);
+  }
+
+  return Object.freeze({
+    userId: actor.userId.trim(),
+    roles: Object.freeze([Object.freeze(activeRoles[0])]),
+  });
 }
 
 /**
@@ -1162,4 +1601,21 @@ function isDateOnly(value) {
  */
 function toIsoTimestamp(value) {
   return new Date(value).toISOString();
+}
+
+/**
+ * @template T
+ * @param {T} value
+ * @returns {Readonly<T>}
+ */
+function deepFreeze(value) {
+  if (value && typeof value === "object") {
+    Object.freeze(value);
+
+    for (const nestedValue of Object.values(value)) {
+      deepFreeze(nestedValue);
+    }
+  }
+
+  return value;
 }

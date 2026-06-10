@@ -22,6 +22,29 @@ OIDC-compatible managed provider with CoriTech-controlled tenant ownership.
 | Email verification | `POST /auth/email-verification` | Verification email when supported by selected provider | Request provider-managed verification only |
 | Session | `GET /auth/session` | Provider identity source of truth | Read CoriTech session context and active organization memberships |
 
+## Web Application Routes
+
+Ticket 18.03 adds the usable Next.js route surfaces around the provider
+contract without adding local password logic:
+
+| Route | Purpose | Notes |
+| --- | --- | --- |
+| `/login` | Public login entry point | Shows app context, accepts an email login hint and posts no password fields. |
+| `/auth/login` | Provider redirect route | Creates short-lived state/nonce cookies and redirects to the hosted provider when configuration is valid. |
+| `/auth/callback` | Provider callback route | Validates callback state, handles provider errors and redirects only to controlled same-origin paths. Provider-specific token exchange remains the runtime adapter boundary. |
+| `/logout` | Public logout confirmation page | Gives users a visible sign-out entry point. |
+| `/auth/logout` | Logout action | Clears CoriTech session and auth-flow cookies and delegates upstream logout when provider configuration is valid. |
+| `/logged-out` | Logout completion page | Confirms local session state was cleared. |
+| `/password-reset` | Password reset entry page | Collects an email only so the provider-managed reset request can be prepared. |
+| `/auth/password-reset` | Password reset action | Validates email and delegates reset responsibility to the provider contract; no CoriTech reset token is created. |
+| `/auth/verification` | Email verification guidance | Documents provider-owned verification instructions when the provider requires email verification. |
+| `/auth/error` | Auth error display | Presents readable, non-secret error states for failed or incomplete auth flows. |
+
+Protected web routes under `/app`, `/breeder-dashboard` and
+`/station-dashboard` now redirect unauthenticated requests to `/login` before
+workspace content renders. The middleware only checks for the managed CoriTech
+session cookie presence; it does not parse, log or expose session tokens.
+
 ## Environment Configuration
 
 Ticket 0.3 variables are the source of configuration:
@@ -87,7 +110,9 @@ backup admin and evidence location.
 - The selected provider account is not named in this repository yet.
 - Provider-specific token exchange and management API calls are represented as
   framework-neutral contracts; the concrete HTTP adapter belongs with the API
-  runtime wiring.
+  runtime wiring. Until that adapter is configured, `/auth/callback` validates
+  state and reports a readable pending-adapter error rather than creating fake
+  sessions.
 - Ticket 2.2 RBAC enforcement is implemented as a framework-neutral middleware
   helper. The concrete HTTP adapter still needs to wire managed-auth sessions
   into that middleware at runtime.

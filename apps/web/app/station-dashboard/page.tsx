@@ -1,5 +1,6 @@
 import { StationDashboard } from "../../features/station-dashboard/StationDashboard";
 import { stationDashboardDemoInput } from "../../features/station-dashboard/demo-data";
+import { getSemenOrderDemoRepository } from "../../features/order-creation/demo-store";
 import {
   createStationDashboardErrorState,
   createStationDashboardViewModel,
@@ -22,8 +23,20 @@ export default async function StationDashboardPage({
 
 async function createViewModel(searchParams: Record<string, string | string[] | undefined>) {
   try {
+    const repository = getSemenOrderDemoRepository();
+    const orders = mergeByOrderKey([
+      ...(stationDashboardDemoInput.orders ?? []),
+      ...(await repository.listSemenOrders()),
+    ]);
+    const statusHistory = mergeByHistoryKey([
+      ...(stationDashboardDemoInput.statusHistory ?? []),
+      ...(await repository.listAllOrderStatusHistory()),
+    ]);
+
     return createStationDashboardViewModel({
       ...stationDashboardDemoInput,
+      orders,
+      statusHistory,
       selectedOrderId: firstSearchParam(searchParams.orderId),
     });
   } catch (error) {
@@ -33,4 +46,36 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
 
 function firstSearchParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function mergeByOrderKey<TOrder extends { id?: string | null; orderNumber: string }>(
+  orders: TOrder[],
+) {
+  const orderByKey = new Map<string, TOrder>();
+
+  for (const order of orders) {
+    orderByKey.set(order.id ?? `order-number:${order.orderNumber}`, order);
+  }
+
+  return [...orderByKey.values()];
+}
+
+function mergeByHistoryKey<THistory extends {
+  id?: string | null;
+  orderNumber: string;
+  toStatus: string;
+  changedAt: string;
+}>(
+  statusHistory: THistory[],
+) {
+  const historyByKey = new Map<string, THistory>();
+
+  for (const history of statusHistory) {
+    historyByKey.set(
+      history.id ?? `${history.orderNumber}:${history.toStatus}:${history.changedAt}`,
+      history,
+    );
+  }
+
+  return [...historyByKey.values()];
 }

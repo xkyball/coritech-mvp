@@ -1,8 +1,15 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import {
   Badge,
   ButtonLink,
   MetricCard,
 } from "../components/ui";
+import {
+  AUTH_ROUTES,
+  hasAuthenticatedSessionCookie,
+} from "../features/auth/auth-routes.mjs";
 
 const proofSteps = [
   "Trigger",
@@ -31,7 +38,13 @@ const foundation = [
   "Docker Compose",
 ] as const;
 
-export default function Home() {
+export default async function Home() {
+  const cookieHeader = (await headers()).get("cookie");
+
+  if (hasAuthenticatedSessionCookie(cookieHeader)) {
+    redirect(AUTH_ROUTES.appHome);
+  }
+
   return (
     <main className="ct-home">
       <section className="ct-home__hero" aria-labelledby="page-title">

@@ -1,6 +1,6 @@
 # CoriTech UI Status
 
-Date inspected: 2026-06-09
+Date inspected: 2026-06-10
 
 ## Current UI Exists Now
 
@@ -11,6 +11,20 @@ It renders the real Phase 1 MVP UI from feature modules in
 Current routes found:
 
 - `/`
+- `/login`
+- `/logout`
+- `/logged-out`
+- `/password-reset`
+- `/auth/callback`
+- `/auth/error`
+- `/auth/verification`
+- `/app`
+- `/app/breeder`
+- `/app/station`
+- `/app/admin`
+- `/app/no-role`
+- `/app/select-role`
+- `/unauthorized`
 - `/breeder-dashboard`
 - `/station-dashboard`
 - `/app/catalog`
@@ -21,17 +35,15 @@ Current routes found:
 
 Routes requested for inspection but not currently implemented:
 
-- `/login`
-- `/logout`
 - `/dashboard`
 - `/dashboard/breeder`
 - `/dashboard/station`
 - `/dashboard/admin`
-- `/unauthorized`
 
-No auth UI pages or dashboard role routes were found in the active app. Managed
-auth provider logic exists in the domain package, but there is no fake login
-flow in the UI.
+Managed auth UI pages now exist for login, logout, callback errors,
+provider-managed password reset and provider-managed email verification
+guidance. Role landing routes exist under `/app`; `/dashboard/*` aliases are
+still not implemented.
 
 ## Pages And Components Found
 
@@ -39,6 +51,20 @@ Active app files:
 
 - `apps/web/app/layout.tsx` - root layout and global CSS imports.
 - `apps/web/app/page.tsx` - root MVP status/overview page.
+- `apps/web/app/login/page.tsx` - managed auth login entry point.
+- `apps/web/app/logout/page.tsx` - logout confirmation page.
+- `apps/web/app/logged-out/page.tsx` - signed-out confirmation page.
+- `apps/web/app/password-reset/page.tsx` - provider-managed reset entry point.
+- `apps/web/app/auth/callback/route.ts` - auth callback validation route.
+- `apps/web/app/auth/error/page.tsx` - auth error display page.
+- `apps/web/app/auth/verification/page.tsx` - provider-managed verification guidance.
+- `apps/web/app/app/page.tsx` - protected app role landing redirect.
+- `apps/web/app/app/breeder/page.tsx` - protected breeder role route.
+- `apps/web/app/app/station/page.tsx` - protected station role route.
+- `apps/web/app/app/admin/page.tsx` - protected admin role route.
+- `apps/web/app/app/no-role/page.tsx` - no active role fallback page.
+- `apps/web/app/app/select-role/page.tsx` - multi-role selection fallback page.
+- `apps/web/app/unauthorized/page.tsx` - unauthorized role fallback page.
 - `apps/web/app/breeder-dashboard/page.tsx` - breeder dashboard page.
 - `apps/web/app/breeder-dashboard/loading.tsx` - breeder dashboard loading UI.
 - `apps/web/app/station-dashboard/page.tsx` - breeding station dashboard page.
@@ -139,7 +165,7 @@ button, card, table and form rules.
 - Domain package business rules.
 - Database seed logic except where UI data contracts would require it; none are
   currently required.
-- Auth provider implementation.
+- Auth provider credential handling or custom password implementation.
 - Missing future feature pages for station, admin, documents, proof events,
   audit logs, users, organizations or system status.
 - Docker and infrastructure configuration unless needed to run the existing UI.
@@ -156,8 +182,8 @@ tests and traceability, so they should not be removed in this task.
   components at once.
 - Existing `.mjs` renderers and tests may continue to reflect older HTML/CSS
   patterns even after React components are migrated.
-- Current pages rely on demo input modules; the migration should not imply a
-  production auth/session flow.
+- Current pages rely on demo input modules; auth route protection now exists,
+  but provider-specific token exchange still belongs to runtime adapter wiring.
 - Introducing Tailwind would require new dependencies and configuration; given
   the current restricted environment and existing CSS foundation, a semantic CSS
   variable and shared component system is the lower-risk path.
@@ -188,17 +214,19 @@ Implemented after inspection:
   inactive listings are hidden after station-side deactivation.
 - Preserved feature view-models, demo-state behavior, semantic tables, loading
   states and error states.
+- Added managed-auth login, logout, callback, reset and error route surfaces
+  without custom password handling.
+- Added `/app` role landing, breeder/station/admin role route placeholders,
+  no-role, multi-role and unauthorized fallbacks without leaking protected
+  dashboard data when active context is unresolved.
 - Did not add preview routes, fake auth flows, backend schema changes or new
   product features.
 
 Pages intentionally not migrated because they do not exist in the current app:
 
-- `/login`
-- `/logout`
 - `/dashboard`
 - `/dashboard/breeder`
 - `/dashboard/station`
 - `/dashboard/admin`
-- `/unauthorized`
 - Future documents, proof events, audit, users, organizations and system status
   routes.

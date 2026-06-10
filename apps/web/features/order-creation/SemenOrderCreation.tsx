@@ -30,10 +30,12 @@ import type {
 type FormAction = (formData: FormData) => void | Promise<void>;
 
 export function SemenOrderCreation({
+  cancelDraftAction,
   createDraftAction,
   submitOrderAction,
   viewModel,
 }: Readonly<{
+  cancelDraftAction?: FormAction;
   createDraftAction?: FormAction;
   submitOrderAction?: FormAction;
   viewModel: SemenOrderCreationRenderableViewModel;
@@ -52,6 +54,7 @@ export function SemenOrderCreation({
 
   return (
     <OrderCreationForm
+      cancelDraftAction={cancelDraftAction}
       createDraftAction={createDraftAction}
       submitOrderAction={submitOrderAction}
       viewModel={viewModel}
@@ -60,15 +63,18 @@ export function SemenOrderCreation({
 }
 
 function OrderCreationForm({
+  cancelDraftAction,
   createDraftAction,
   submitOrderAction,
   viewModel,
 }: Readonly<{
+  cancelDraftAction?: FormAction;
   createDraftAction?: FormAction;
   submitOrderAction?: FormAction;
   viewModel: SemenOrderCreationFormViewModel;
 }>) {
   const formDisabled = !viewModel.selectedListing;
+  const isEditingDraft = Boolean(viewModel.draftOrder);
 
   return (
     <DashboardShell
@@ -101,8 +107,12 @@ function OrderCreationForm({
         <Card aria-labelledby="order-listing-selector-heading">
           <SectionHeader id="order-listing-selector-heading" title="Listing" />
           <form className="ct-form-grid" method="get" action={viewModel.navigation.newOrderHref}>
+            {viewModel.draftOrder?.id ? (
+              <input type="hidden" name="draftOrderId" value={viewModel.draftOrder.id} />
+            ) : null}
             <Field htmlFor="order-semenListingId" label="Select listing">
               <Select
+                disabled={isEditingDraft}
                 id="order-semenListingId"
                 name="semenListingId"
                 defaultValue={viewModel.form.semenListingId}
@@ -116,7 +126,7 @@ function OrderCreationForm({
               </Select>
             </Field>
             <div className="ct-form-actions">
-              <Button type="submit">Review listing</Button>
+              <Button disabled={isEditingDraft} type="submit">Review listing</Button>
             </div>
           </form>
         </Card>
@@ -134,11 +144,13 @@ function OrderCreationForm({
 
         <Card aria-labelledby="order-details-heading">
           <SectionHeader
+            actions={viewModel.draftOrder ? <StatusBadge value={viewModel.draftOrder.status} /> : null}
             id="order-details-heading"
             subtitle="Shipping details are recorded as part of the order proof trail."
             title="Delivery and shipping"
           />
           <form className="ct-form-grid" method="post">
+            <input type="hidden" name="orderId" value={viewModel.form.orderId} />
             <input type="hidden" name="semenListingId" value={viewModel.form.semenListingId} />
             <OrderInput
               label="Requested delivery date"
@@ -222,6 +234,19 @@ function OrderCreationForm({
               >
                 Submit order
               </Button>
+              {viewModel.draftOrder ? (
+                <Button
+                  disabled={formDisabled}
+                  formAction={cancelDraftAction}
+                  formNoValidate
+                  name="intent"
+                  type="submit"
+                  value="cancel"
+                  variant="danger"
+                >
+                  Cancel draft
+                </Button>
+              ) : null}
             </div>
           </form>
         </Card>
@@ -276,7 +301,7 @@ function ConfirmationState({
         <Card aria-labelledby="order-confirmation-heading">
           <SectionHeader
             id="order-confirmation-heading"
-            title="Submitted order"
+            title={viewModel.order.status === "SUBMITTED" ? "Submitted order" : "Draft order"}
             actions={<StatusBadge value={viewModel.order.status} />}
           />
           <DetailList

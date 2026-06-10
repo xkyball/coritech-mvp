@@ -34,10 +34,11 @@ The former root `app/breeder-dashboard` module has been migrated to
 `apps/web/features/breeder-dashboard`.
 
 Ticket 3.3 adds `apps/web/features/order-creation` and the
-`/app/orders/new` route for breeder semen order creation. The route uses the
-existing order domain endpoints for draft creation and submission, including
-audit/proof hook emission, and shares the demo order repository with the
-breeder dashboard so newly created demo orders appear in "My orders".
+`/app/orders/new` route for breeder semen order creation. Phase 1.1 extends the
+route so breeders can create, edit, save, cancel and submit draft orders through
+the domain `OrderService`, including audit/proof hook emission. The route shares
+the demo order repository with breeder and station dashboards so newly submitted
+demo orders appear in the relevant workspaces.
 
 Ticket 3.4 adds `apps/web/features/breeder-order-detail` and the
 `/app/orders/[orderId]` route for breeder-owned order tracking. The view model

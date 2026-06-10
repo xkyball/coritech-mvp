@@ -5,8 +5,11 @@ Phase 1 breeder flow for creating semen orders from active, orderable listings.
 Implemented behavior:
 
 - Listing selection and stallion/station review.
-- Draft creation through the domain order endpoint.
-- Submit flow that creates a draft, validates delivery/shipping details and transitions it to `SUBMITTED`.
+- Draft creation and draft update through the domain `OrderService`.
+- Submit flow that creates or updates a draft, validates delivery/shipping
+  details and transitions it to `SUBMITTED`.
+- Existing draft editing through `/app/orders/new?draftOrderId=...`.
+- Draft cancellation through the existing audited `CANCELLED` status transition.
 - Confirmation state with the generated order number.
 - Shared demo repository used by the breeder dashboard.
 

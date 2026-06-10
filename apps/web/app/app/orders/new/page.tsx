@@ -26,6 +26,7 @@ export default async function NewSemenOrderPage({
 
   return (
     <SemenOrderCreation
+      cancelDraftAction={cancelDraftOrder}
       createDraftAction={createDraftOrder}
       submitOrderAction={submitOrder}
       viewModel={viewModel}
@@ -45,7 +46,13 @@ async function submitOrder(formData: FormData) {
   await handleOrderAction("submit", formData);
 }
 
-async function handleOrderAction(action: "draft" | "submit", formData: FormData) {
+async function cancelDraftOrder(formData: FormData) {
+  "use server";
+
+  await handleOrderAction("cancel", formData);
+}
+
+async function handleOrderAction(action: "draft" | "submit" | "cancel", formData: FormData) {
   const form = formDataToOrderCreationForm(formData);
   const result = await createSemenOrderFromForm({
     action,
@@ -60,6 +67,7 @@ async function handleOrderAction(action: "draft" | "submit", formData: FormData)
 
   if (!result.ok) {
     redirect(buildNewOrderUrl({
+      draftOrderId: form.orderId,
       error: result.issues.join("\n"),
       semenListingId: form.semenListingId,
     }));
@@ -73,10 +81,12 @@ async function handleOrderAction(action: "draft" | "submit", formData: FormData)
 
 async function createViewModel(searchParams: Record<string, string | string[] | undefined>) {
   const confirmationOrderId = firstSearchParam(searchParams.confirmationOrderId);
+  const draftOrderId = firstSearchParam(searchParams.draftOrderId);
 
   try {
+    const repository = getSemenOrderDemoRepository();
+
     if (confirmationOrderId) {
-      const repository = getSemenOrderDemoRepository();
       const order = await repository.findSemenOrderById(confirmationOrderId);
 
       if (!order) {
@@ -89,10 +99,19 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
       });
     }
 
+    const draftOrder = draftOrderId
+      ? await repository.findSemenOrderById(draftOrderId)
+      : null;
+
+    if (draftOrderId && !draftOrder) {
+      throw new Error(`Semen order draft was not found: ${draftOrderId}`);
+    }
+
     return createSemenOrderCreationViewModel({
       actor: semenCatalogDemoInput.actor,
       organizationId: demoBreederOrganizationId,
       organizationName: breederDashboardDemoInput.organizationName,
+      draftOrder,
       selectedListingId: firstSearchParam(searchParams.semenListingId),
       listingRecords: semenCatalogDemoInput.listingRecords,
       stationOrganizations: semenCatalogDemoInput.stationOrganizations,
@@ -105,6 +124,7 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
 
 function formDataToOrderCreationForm(formData: FormData) {
   return {
+    orderId: formValue(formData, "orderId"),
     semenListingId: formValue(formData, "semenListingId"),
     requestedDeliveryDate: formValue(formData, "requestedDeliveryDate"),
     shippingContactName: formValue(formData, "shippingContactName"),
@@ -127,6 +147,7 @@ function formValue(formData: FormData, fieldName: string) {
 
 function buildNewOrderUrl(input: {
   confirmationOrderId?: string;
+  draftOrderId?: string;
   error?: string;
   semenListingId?: string;
 }) {
@@ -138,6 +159,10 @@ function buildNewOrderUrl(input: {
 
   if (input.confirmationOrderId) {
     params.set("confirmationOrderId", input.confirmationOrderId);
+  }
+
+  if (input.draftOrderId && !input.confirmationOrderId) {
+    params.set("draftOrderId", input.draftOrderId);
   }
 
   if (input.error) {

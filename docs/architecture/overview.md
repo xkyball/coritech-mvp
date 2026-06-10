@@ -54,3 +54,4 @@ Delayed items:
 | Which object storage provider is selected? | MinIO is configured for local development only. Production S3-compatible object storage selection and CoriTech-controlled account evidence remain pending. |
 | Which hosting and database providers are selected? | `[PENDING_VENDOR_SELECTION]` |
 | Where is audit evidence retained? | Ticket 1.8 stores append-only audit evidence in the CoriTech PostgreSQL `audit_logs` table with object-query indexes. |
+| Where do semen order mutations live? | The Phase 1.1 order command layer is documented in [Order Command Service](./order-command-service.md). |

@@ -7,8 +7,7 @@ import {
 import { isActiveRoleAssignment } from "@coritech/domain/identity/role-model.mjs";
 import {
   SemenOrderValidationError,
-  createDraftSemenOrderEndpoint,
-  transitionSemenOrderStatusEndpoint,
+  createOrderService,
 } from "@coritech/domain/orders/semen-order.mjs";
 
 export const SEMEN_ORDER_CREATION_VIEW_STATES = /** @type {const} */ ([
@@ -21,6 +20,7 @@ export const SEMEN_ORDER_CREATION_VIEW_STATES = /** @type {const} */ ([
 export const SEMEN_ORDER_CREATION_ACTIONS = /** @type {const} */ ([
   "draft",
   "submit",
+  "cancel",
 ]);
 
 export const SEMEN_ORDER_CREATION_ROUTES = Object.freeze({
@@ -73,8 +73,13 @@ export function createSemenOrderCreationViewModel(input) {
   }
 
   const organizationContext = resolveBreederOrganizationContext(input);
-  const form = normalizeOrderCreationForm(input.form ?? {
+  const draftOrder = normalizeDraftOrderForEditing(input.draftOrder, organizationContext);
+  const initialForm = draftOrder ? orderToFormInput(draftOrder) : {
     semenListingId: input.selectedListingId,
+  };
+  const form = normalizeOrderCreationForm({
+    ...initialForm,
+    ...(input.form ?? {}),
   });
   const selectableListings = buildSelectableListings(input, organizationContext.organizationId);
   const selectedListing = form.semenListingId
@@ -91,8 +96,17 @@ export function createSemenOrderCreationViewModel(input) {
     state: "FORM",
     actorUserId: input.actor.userId.trim(),
     organizationContext,
-    title: "Create semen order",
-    summary: "Review the selected listing, add delivery details and save a draft or submit to the station.",
+    title: draftOrder ? "Edit draft order" : "Create semen order",
+    summary: draftOrder
+      ? "Update the saved draft, submit it to the station or cancel it before station review."
+      : "Review the selected listing, add delivery details and save a draft or submit to the station.",
+    draftOrder: draftOrder
+      ? Object.freeze({
+        id: /** @type {string} */ (draftOrder.id),
+        orderNumber: draftOrder.orderNumber,
+        status: draftOrder.status,
+      })
+      : null,
     selectableListings: Object.freeze(selectableListings),
     selectedListing,
     form,
@@ -115,10 +129,8 @@ export function createSemenOrderCreationConfirmationViewModel(input) {
 
   return Object.freeze({
     state: "CONFIRMATION",
-    title: input.order.status === "SUBMITTED" ? "Order submitted" : "Draft saved",
-    summary: input.order.status === "SUBMITTED"
-      ? "The breeding station can now review this semen order."
-      : "The draft is saved for breeder review before submission.",
+    title: confirmationTitle(input.order.status),
+    summary: confirmationSummary(input.order.status),
     order: Object.freeze({
       id: orderId,
       orderNumber: input.order.orderNumber,
@@ -184,23 +196,104 @@ export async function createSemenOrderFromForm(input) {
   }
 
   try {
-    const created = await createDraftSemenOrderEndpoint({
-      actor: input.actor,
+    const service = createOrderService({
       repository: input.repository,
       auditContext: input.auditContext,
+    });
+    const orderId = normalizeOptionalString(form.orderId);
+
+    if (action === "cancel") {
+      const cancelled = await service.transitionOrder({
+        actor: input.actor,
+        orderId: requireDraftOrderId(orderId),
+        commandName: "TRANSITION_ORDER_STATUS",
+        toStatus: "CANCELLED",
+        body: {
+          reason: "Draft cancelled from breeder order creation flow.",
+          now: input.now,
+        },
+      });
+
+      return Object.freeze({
+        ok: true,
+        action,
+        form,
+        order: cancelled.order,
+        statusHistory: Object.freeze(compactStatusHistory([cancelled.statusHistory])),
+        auditHook: cancelled.auditHook ?? null,
+        auditLog: cancelled.auditLog ?? null,
+        proofHook: cancelled.proofHook ?? null,
+        idempotent: cancelled.idempotent,
+      });
+    }
+
+    if (orderId) {
+      if (action === "draft") {
+        const updated = await service.updateDraftOrder({
+          actor: input.actor,
+          orderId,
+          body: {
+            ...formToServiceBody(form),
+            reason: "Draft updated from breeder order creation flow.",
+            now: input.now,
+          },
+        });
+
+        return Object.freeze({
+          ok: true,
+          action,
+          form,
+          order: updated.order,
+          statusHistory: Object.freeze([]),
+          auditHook: updated.auditHook ?? null,
+          auditLog: updated.auditLog ?? null,
+          proofHook: updated.proofHook ?? null,
+          idempotent: updated.idempotent,
+        });
+      }
+
+      const existingOrder = await input.repository.findSemenOrderById(orderId);
+      const updated = existingOrder?.status === "DRAFT"
+        ? await service.updateDraftOrder({
+          actor: input.actor,
+          orderId,
+          body: {
+            ...formToServiceBody(form),
+            reason: "Draft updated before breeder submission.",
+            now: input.now,
+          },
+        })
+        : null;
+      const submitted = await service.submitOrder({
+        actor: input.actor,
+        orderId,
+        body: {
+          reason: "Submitted from breeder order creation flow.",
+          now: input.now,
+        },
+      });
+
+      return Object.freeze({
+        ok: true,
+        action,
+        form,
+        order: submitted.order,
+        statusHistory: Object.freeze(compactStatusHistory([submitted.statusHistory])),
+        auditHook: submitted.auditHook ?? null,
+        auditLog: submitted.auditLog ?? null,
+        proofHook: submitted.proofHook ?? null,
+        draftAuditHook: updated?.auditHook ?? null,
+        draftProofHook: updated?.proofHook ?? null,
+        idempotent: submitted.idempotent,
+      });
+    }
+
+    const created = await service.createDraftOrder({
+      actor: input.actor,
       body: {
         semenListingId: form.semenListingId,
         breederOrganizationId: input.breederOrganizationId,
-        requestedDeliveryDate: nullIfEmpty(form.requestedDeliveryDate),
-        shippingContactName: nullIfEmpty(form.shippingContactName),
-        shippingContactPhone: nullIfEmpty(form.shippingContactPhone),
-        shippingAddressLine1: nullIfEmpty(form.shippingAddressLine1),
-        shippingAddressLine2: nullIfEmpty(form.shippingAddressLine2),
-        shippingCity: nullIfEmpty(form.shippingCity),
-        shippingRegion: nullIfEmpty(form.shippingRegion),
-        shippingPostalCode: nullIfEmpty(form.shippingPostalCode),
-        shippingCountry: nullIfEmpty(form.shippingCountry),
-        specialInstructions: nullIfEmpty(form.specialInstructions),
+        ...formToServiceBody(form),
         reason: action === "submit"
           ? "Draft created from breeder order creation flow."
           : "Draft saved from breeder order creation flow.",
@@ -213,23 +306,19 @@ export async function createSemenOrderFromForm(input) {
         ok: true,
         action,
         form,
-        order: created.body.order,
-        statusHistory: Object.freeze([created.body.statusHistory]),
+        order: created.order,
+        statusHistory: Object.freeze(compactStatusHistory([created.statusHistory])),
         auditHook: created.auditHook ?? null,
         auditLog: created.auditLog ?? null,
         proofHook: created.proofHook ?? null,
+        idempotent: created.idempotent,
       });
     }
 
-    const submitted = await transitionSemenOrderStatusEndpoint({
+    const submitted = await service.submitOrder({
       actor: input.actor,
-      repository: input.repository,
-      auditContext: input.auditContext,
-      params: {
-        orderId: requireCreatedOrderId(created.body.order),
-      },
+      orderId: requireCreatedOrderId(created.order),
       body: {
-        toStatus: "SUBMITTED",
         reason: "Submitted from breeder order creation flow.",
         now: input.now,
       },
@@ -239,16 +328,17 @@ export async function createSemenOrderFromForm(input) {
       ok: true,
       action,
       form,
-      order: submitted.body.order,
-      statusHistory: Object.freeze([
-        created.body.statusHistory,
-        submitted.body.statusHistory,
-      ]),
+      order: submitted.order,
+      statusHistory: Object.freeze(compactStatusHistory([
+        created.statusHistory,
+        submitted.statusHistory,
+      ])),
       auditHook: submitted.auditHook ?? null,
       auditLog: submitted.auditLog ?? null,
       proofHook: submitted.proofHook ?? null,
       draftAuditHook: created.auditHook ?? null,
       draftProofHook: created.proofHook ?? null,
+      idempotent: submitted.idempotent,
     });
   } catch (error) {
     return Object.freeze({
@@ -360,6 +450,13 @@ export function createInMemorySemenOrderRepository(input) {
         statusHistory: Object.freeze(persistedHistory),
       });
     },
+    async updateDraftSemenOrder(order) {
+      const persistedOrder = Object.freeze(normalizePersistedOrder(order));
+
+      orderStore.set(/** @type {string} */ (persistedOrder.id), persistedOrder);
+
+      return persistedOrder;
+    },
     async findSemenOrderById(orderId) {
       return orderStore.get(orderId) ?? null;
     },
@@ -424,6 +521,14 @@ function validateCreationInput(input) {
   validateOptionalArray(input.stationOrganizations, "stationOrganizations", issues);
   validateOptionalArray(input.validationIssues, "validationIssues", issues);
 
+  if (
+    input.draftOrder !== undefined &&
+    input.draftOrder !== null &&
+    typeof input.draftOrder !== "object"
+  ) {
+    issues.push("draftOrder must be an object when provided.");
+  }
+
   return issues;
 }
 
@@ -473,6 +578,58 @@ function resolveBreederOrganizationContext(input) {
     organizationName: normalizeOptionalString(input.organizationName) ?? role.organizationId,
     roleCode: "BREEDER",
   });
+}
+
+/**
+ * @param {import("@coritech/domain/orders/semen-order.d.ts").SemenOrderLike | null | undefined} draftOrder
+ * @param {import("./semen-order-creation.d.ts").SemenOrderCreationOrganizationContext} organizationContext
+ * @returns {import("@coritech/domain/orders/semen-order.d.ts").SemenOrderLike | null}
+ */
+function normalizeDraftOrderForEditing(draftOrder, organizationContext) {
+  if (!draftOrder) {
+    return null;
+  }
+
+  if (draftOrder.status !== "DRAFT") {
+    throw new SemenOrderCreationValidationError([
+      "only DRAFT semen orders can be edited in the draft order flow.",
+    ]);
+  }
+
+  if (draftOrder.breederOrganizationId !== organizationContext.organizationId) {
+    throw new SemenOrderCreationAuthorizationError(
+      "actor may only edit draft orders for their own breeder organization.",
+    );
+  }
+
+  if (!normalizeOptionalString(draftOrder.id)) {
+    throw new SemenOrderCreationValidationError([
+      "draftOrder.id is required before editing a saved draft.",
+    ]);
+  }
+
+  return draftOrder;
+}
+
+/**
+ * @param {import("@coritech/domain/orders/semen-order.d.ts").SemenOrderLike} order
+ * @returns {import("./semen-order-creation.d.ts").SemenOrderCreationFormInput}
+ */
+function orderToFormInput(order) {
+  return {
+    orderId: normalizeOptionalString(order.id),
+    semenListingId: order.semenListingId,
+    requestedDeliveryDate: normalizeOptionalString(order.requestedDeliveryDate),
+    shippingContactName: normalizeOptionalString(order.shippingContactName),
+    shippingContactPhone: normalizeOptionalString(order.shippingContactPhone),
+    shippingAddressLine1: normalizeOptionalString(order.shippingAddressLine1),
+    shippingAddressLine2: normalizeOptionalString(order.shippingAddressLine2),
+    shippingCity: normalizeOptionalString(order.shippingCity),
+    shippingRegion: normalizeOptionalString(order.shippingRegion),
+    shippingPostalCode: normalizeOptionalString(order.shippingPostalCode),
+    shippingCountry: normalizeOptionalString(order.shippingCountry),
+    specialInstructions: normalizeOptionalString(order.specialInstructions),
+  };
 }
 
 /**
@@ -533,6 +690,7 @@ function toListingOption(record, stationNameById, breederOrganizationId) {
  */
 function normalizeOrderCreationForm(form) {
   return Object.freeze({
+    orderId: normalizeOptionalString(form?.orderId) ?? "",
     semenListingId: normalizeOptionalString(form?.semenListingId) ?? "",
     requestedDeliveryDate: normalizeOptionalString(form?.requestedDeliveryDate) ?? "",
     shippingContactName: normalizeOptionalString(form?.shippingContactName) ?? "",
@@ -554,6 +712,12 @@ function normalizeOrderCreationForm(form) {
  */
 function validateOrderCreationForm(form, action) {
   const issues = [];
+
+  validateOptionalNonBlankString(form.orderId, "orderId", issues);
+
+  if (action === "cancel" && !form.orderId) {
+    issues.push("orderId is required before canceling a draft order.");
+  }
 
   if (!form.semenListingId) {
     issues.push("semenListingId is required.");
@@ -586,7 +750,88 @@ function validateOrderCreationForm(form, action) {
  * @returns {import("./semen-order-creation.d.ts").SemenOrderCreationAction}
  */
 function normalizeAction(action) {
-  return action === "submit" ? "submit" : "draft";
+  if (action === "submit") {
+    return "submit";
+  }
+
+  if (action === "cancel") {
+    return "cancel";
+  }
+
+  return "draft";
+}
+
+/**
+ * @param {import("@coritech/domain/orders/semen-order.d.ts").SemenOrderStatus} status
+ * @returns {string}
+ */
+function confirmationTitle(status) {
+  if (status === "SUBMITTED") {
+    return "Order submitted";
+  }
+
+  if (status === "CANCELLED") {
+    return "Draft cancelled";
+  }
+
+  return "Draft saved";
+}
+
+/**
+ * @param {import("@coritech/domain/orders/semen-order.d.ts").SemenOrderStatus} status
+ * @returns {string}
+ */
+function confirmationSummary(status) {
+  if (status === "SUBMITTED") {
+    return "The breeding station can now review this semen order.";
+  }
+
+  if (status === "CANCELLED") {
+    return "The draft is closed and no longer available for submission.";
+  }
+
+  return "The draft is saved for breeder review before submission.";
+}
+
+/**
+ * @param {import("./semen-order-creation.d.ts").SemenOrderCreationFormState} form
+ * @returns {Partial<import("@coritech/domain/orders/semen-order.d.ts").CreateDraftSemenOrderInputBody>}
+ */
+function formToServiceBody(form) {
+  return {
+    requestedDeliveryDate: nullIfEmpty(form.requestedDeliveryDate),
+    shippingContactName: nullIfEmpty(form.shippingContactName),
+    shippingContactPhone: nullIfEmpty(form.shippingContactPhone),
+    shippingAddressLine1: nullIfEmpty(form.shippingAddressLine1),
+    shippingAddressLine2: nullIfEmpty(form.shippingAddressLine2),
+    shippingCity: nullIfEmpty(form.shippingCity),
+    shippingRegion: nullIfEmpty(form.shippingRegion),
+    shippingPostalCode: nullIfEmpty(form.shippingPostalCode),
+    shippingCountry: nullIfEmpty(form.shippingCountry),
+    specialInstructions: nullIfEmpty(form.specialInstructions),
+  };
+}
+
+/**
+ * @param {string | null} orderId
+ * @returns {string}
+ */
+function requireDraftOrderId(orderId) {
+  if (!orderId) {
+    throw new SemenOrderValidationError([
+      "orderId is required before canceling a draft order.",
+    ]);
+  }
+
+  return orderId;
+}
+
+/**
+ * @param {(import("@coritech/domain/orders/semen-order.d.ts").OrderStatusHistory | null)[]} statusHistory
+ * @returns {import("@coritech/domain/orders/semen-order.d.ts").OrderStatusHistory[]}
+ */
+function compactStatusHistory(statusHistory) {
+  return statusHistory.filter(Boolean);
 }
 
 /**
@@ -690,13 +935,18 @@ function renderHeader(viewModel) {
  * @returns {string}
  */
 function renderListingSelector(viewModel) {
+  const disabled = viewModel.draftOrder ? " disabled" : "";
+
   return [
     "  <section class=\"semen-order-creation__section\" aria-labelledby=\"order-listing-selector-heading\">",
     "    <h2 id=\"order-listing-selector-heading\">Listing</h2>",
     `    <form method="get" action="${escapeAttribute(viewModel.navigation.newOrderHref)}">`,
+    viewModel.draftOrder?.id
+      ? `      <input type="hidden" name="draftOrderId" value="${escapeAttribute(viewModel.draftOrder.id)}" />`
+      : "",
     "      <label>",
     "        <span>Select listing</span>",
-    "        <select name=\"semenListingId\">",
+    `        <select name="semenListingId"${disabled}>`,
     "          <option value=\"\">Choose a listing</option>",
     viewModel.selectableListings.map((listing) => {
       const selected = listing.id === viewModel.form.semenListingId ? " selected" : "";
@@ -705,10 +955,10 @@ function renderListingSelector(viewModel) {
     }).join("\n"),
     "        </select>",
     "      </label>",
-    "      <button type=\"submit\">Review listing</button>",
+    `      <button type="submit"${disabled}>Review listing</button>`,
     "    </form>",
     "  </section>",
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 /**
@@ -755,11 +1005,18 @@ function renderValidationIssues(issues) {
  */
 function renderCreationForm(viewModel) {
   const disabled = viewModel.selectedListing ? "" : " disabled";
+  const cancelButton = viewModel.draftOrder
+    ? `        <button type="submit" name="intent" value="cancel" formnovalidate${disabled}>Cancel draft</button>`
+    : "";
 
   return [
     "  <section class=\"semen-order-creation__section\" aria-labelledby=\"order-details-heading\">",
     "    <h2 id=\"order-details-heading\">Delivery and shipping</h2>",
+    viewModel.draftOrder
+      ? `    <p>Draft status: ${escapeHtml(formatStatus(viewModel.draftOrder.status))}</p>`
+      : "",
     `    <form method="post" action="${escapeAttribute(viewModel.navigation.newOrderHref)}">`,
+    `      <input type="hidden" name="orderId" value="${escapeAttribute(viewModel.form.orderId)}" />`,
     `      <input type="hidden" name="semenListingId" value="${escapeAttribute(viewModel.form.semenListingId)}" />`,
     renderInput("requestedDeliveryDate", "Requested delivery date", "date", viewModel.form.requestedDeliveryDate, true),
     renderInput("shippingContactName", "Shipping contact", "text", viewModel.form.shippingContactName, true),
@@ -777,10 +1034,11 @@ function renderCreationForm(viewModel) {
     "      <div class=\"semen-order-creation__actions\">",
     `        <button type="submit" name="intent" value="draft" formnovalidate${disabled}>Save draft</button>`,
     `        <button type="submit" name="intent" value="submit"${disabled}>Submit order</button>`,
+    cancelButton,
     "      </div>",
     "    </form>",
     "  </section>",
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 /**

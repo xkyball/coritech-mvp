@@ -2,14 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  ORDER_SERVICE_COMMANDS,
   SEMEN_ORDER_ROUTES,
   SEMEN_ORDER_STATUS_TRANSITIONS,
   SemenOrderValidationError,
   canTransitionSemenOrderStatus,
   canViewSemenOrder,
+  createOrderService,
   createDraftSemenOrderEndpoint,
   generateSemenOrderNumber,
   getSemenOrderEndpoint,
+  isAllowedSemenOrderStatusTransition,
   listOrderStatusHistoryEndpoint,
   prepareCreateDraftSemenOrder,
   prepareTransitionSemenOrderStatus,
@@ -118,6 +121,18 @@ const draftOrder = {
 };
 
 test("semen order route contract and transitions stay inside Phase 1 workflow", () => {
+  assert.deepEqual(ORDER_SERVICE_COMMANDS, [
+    "CREATE_DRAFT_ORDER",
+    "UPDATE_DRAFT_ORDER",
+    "SUBMIT_ORDER",
+    "RECEIVE_ORDER",
+    "CONFIRM_ORDER",
+    "REJECT_ORDER",
+    "MOVE_TO_FULFILMENT",
+    "COMPLETE_ORDER",
+    "TRANSITION_ORDER_STATUS",
+  ]);
+
   assert.deepEqual(
     SEMEN_ORDER_ROUTES.map((route) => `${route.method} ${route.path}`),
     [
@@ -140,6 +155,9 @@ test("semen order route contract and transitions stay inside Phase 1 workflow", 
     COMPLETED: [],
     CANCELLED: [],
   });
+
+  assert.equal(isAllowedSemenOrderStatusTransition("DRAFT", "SUBMITTED"), true);
+  assert.equal(isAllowedSemenOrderStatusTransition("SUBMITTED", "CONFIRMED"), false);
 });
 
 test("breeder can create a draft semen order with order number, history, audit and proof hooks", () => {
@@ -472,6 +490,303 @@ test("endpoint handlers persist every status change with refreshed audit and pro
   assert.equal(fetched.body.order.status, "RECEIVED");
 });
 
+test("OrderService orchestrates create, update and status commands with audit, proof and notification hooks", async () => {
+  const repository = buildRepository({
+    listings: [activeListing],
+    sequenceStart: 11,
+  });
+  const proofHooks = [];
+  const notificationHooks = [];
+  let transactionCount = 0;
+  const service = createOrderService({
+    repository,
+    auditContext: {
+      ipAddress: "203.0.113.25",
+      userAgent: "node-test/order-service",
+    },
+    proofService: {
+      recordProofHook(hook) {
+        proofHooks.push(hook);
+        return { recorded: true, hook };
+      },
+    },
+    notificationService: {
+      recordOrderNotificationHook(hook) {
+        notificationHooks.push(hook);
+        return { queued: true, hook };
+      },
+    },
+    async transaction(operation) {
+      transactionCount += 1;
+      return operation(repository);
+    },
+  });
+
+  const created = await service.createDraftOrder({
+    actor: breederActor,
+    body: {
+      semenListingId: "listing-active",
+      breederOrganizationId,
+      ...completeOrderDetails,
+      reason: "Create through service",
+      createdAt: timestamp,
+    },
+  });
+
+  assert.equal(created.status, 201);
+  assert.equal(created.order.id, "order-1");
+  assert.equal(created.statusHistory?.toStatus, "DRAFT");
+  assert.equal(created.auditHook?.action, "SEMEN_ORDER_DRAFT_CREATED");
+  assert.equal(created.auditLog?.sourceAction, "SEMEN_ORDER_DRAFT_CREATED");
+  assert.equal(created.proofResult?.recorded, true);
+  assert.equal(created.notificationHook, null);
+
+  const updated = await service.updateDraftOrder({
+    actor: breederActor,
+    orderId: "order-1",
+    body: {
+      ...completeOrderDetails,
+      shippingCity: "Johannesburg",
+      reason: "Correct dispatch city",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(updated.order.shippingCity, "Johannesburg");
+  assert.equal(updated.statusHistory, null);
+  assert.equal(updated.auditHook?.action, "SEMEN_ORDER_DRAFT_UPDATED");
+  assert.equal(updated.proofHook, null);
+
+  const submitted = await service.submitOrder({
+    actor: breederActor,
+    orderId: "order-1",
+    body: {
+      reason: "Submit through service",
+      now: timestamp,
+    },
+  });
+  const received = await service.receiveOrder({
+    actor: stationActor,
+    orderId: "order-1",
+    body: {
+      reason: "Station received order",
+      now: timestamp,
+    },
+  });
+  const confirmed = await service.confirmOrder({
+    actor: stationActor,
+    orderId: "order-1",
+    body: {
+      reason: "Station confirmed order",
+      now: timestamp,
+    },
+  });
+  const inFulfilment = await service.moveToFulfilment({
+    actor: stationActor,
+    orderId: "order-1",
+    body: {
+      reason: "Preparing fulfilment",
+      now: timestamp,
+    },
+  });
+
+  await service.transitionOrder({
+    actor: stationActor,
+    orderId: "order-1",
+    commandName: "TRANSITION_ORDER_STATUS",
+    toStatus: "SHIPPED",
+    body: {
+      reason: "Shipment created",
+      now: timestamp,
+    },
+  });
+  await service.transitionOrder({
+    actor: stationActor,
+    orderId: "order-1",
+    commandName: "TRANSITION_ORDER_STATUS",
+    toStatus: "DELIVERED",
+    body: {
+      reason: "Delivered to breeder",
+      now: timestamp,
+    },
+  });
+  const completed = await service.completeOrder({
+    actor: breederActor,
+    orderId: "order-1",
+    body: {
+      reason: "Breeder completed receipt",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(submitted.order.status, "SUBMITTED");
+  assert.equal(received.order.status, "RECEIVED");
+  assert.equal(confirmed.order.status, "CONFIRMED");
+  assert.equal(inFulfilment.order.status, "IN_FULFILMENT");
+  assert.equal(completed.order.status, "COMPLETED");
+  assert.deepEqual(
+    notificationHooks.map((hook) => hook.eventType),
+    [
+      "ORDER_SUBMITTED",
+      "ORDER_RECEIVED",
+      "ORDER_CONFIRMED",
+      "ORDER_IN_FULFILMENT",
+      "ORDER_COMPLETED",
+    ],
+  );
+  assert.equal(proofHooks.length, 8);
+  assert.equal(transactionCount, 9);
+
+  const duplicateComplete = await service.completeOrder({
+    actor: breederActor,
+    orderId: "order-1",
+    body: {
+      reason: "Duplicate click",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(duplicateComplete.idempotent, true);
+  assert.equal(duplicateComplete.statusHistory, null);
+});
+
+test("OrderService rejects permission failures, ambiguous context and invalid transitions", async () => {
+  const repository = buildRepository({
+    listings: [activeListing],
+    sequenceStart: 21,
+  });
+  const service = createOrderService({ repository });
+
+  await service.createDraftOrder({
+    actor: breederActor,
+    body: {
+      semenListingId: "listing-active",
+      breederOrganizationId,
+      ...completeOrderDetails,
+      createdAt: timestamp,
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.submitOrder({
+        actor: stationActor,
+        orderId: "order-1",
+        body: {
+          reason: "Station cannot submit breeder draft",
+          now: timestamp,
+        },
+      }),
+    (error) =>
+      error instanceof SemenOrderValidationError &&
+      error.issues.includes("actor is not authorized for this semen order status transition."),
+  );
+
+  await assert.rejects(
+    () =>
+      service.confirmOrder({
+        actor: stationActor,
+        orderId: "order-1",
+        body: {
+          reason: "Cannot confirm draft",
+          now: timestamp,
+        },
+      }),
+    (error) =>
+      error instanceof SemenOrderValidationError &&
+      error.issues.includes("cannot transition semen order from DRAFT to CONFIRMED."),
+  );
+
+  await assert.rejects(
+    () =>
+      service.submitOrder({
+        actor: {
+          userId: "user-multi",
+          roles: [
+            {
+              userId: "user-multi",
+              organizationId: breederOrganizationId,
+              roleCode: "BREEDER",
+              revokedAt: null,
+            },
+            {
+              userId: "user-multi",
+              organizationId: stationOrganizationId,
+              roleCode: "BREEDING_STATION",
+              revokedAt: null,
+            },
+          ],
+        },
+        orderId: "order-1",
+        body: {
+          reason: "Ambiguous context",
+          now: timestamp,
+        },
+      }),
+    (error) =>
+      error instanceof SemenOrderValidationError &&
+      error.issues.includes(
+        "actor.roles must contain exactly one validated active organization role context.",
+      ),
+  );
+});
+
+test("OrderService can reject a received order with audit, proof and notification hooks", async () => {
+  const repository = buildRepository({
+    listings: [activeListing],
+    sequenceStart: 31,
+  });
+  const notificationHooks = [];
+  const service = createOrderService({
+    repository,
+    notificationService: {
+      enqueueOrderNotification(hook) {
+        notificationHooks.push(hook);
+        return { queued: true };
+      },
+    },
+  });
+
+  await service.createDraftOrder({
+    actor: breederActor,
+    body: {
+      semenListingId: "listing-active",
+      breederOrganizationId,
+      ...completeOrderDetails,
+      createdAt: timestamp,
+    },
+  });
+  await service.submitOrder({
+    actor: breederActor,
+    orderId: "order-1",
+    body: {
+      now: timestamp,
+    },
+  });
+  await service.receiveOrder({
+    actor: stationActor,
+    orderId: "order-1",
+    body: {
+      now: timestamp,
+    },
+  });
+
+  const rejected = await service.rejectOrder({
+    actor: stationActor,
+    orderId: "order-1",
+    body: {
+      reason: "Collection window unavailable",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(rejected.order.status, "REJECTED");
+  assert.equal(rejected.statusHistory?.reason, "Collection window unavailable");
+  assert.equal(rejected.auditHook?.action, "SEMEN_ORDER_REJECTED");
+  assert.equal(rejected.proofHook?.triggerRef.toStatus, "REJECTED");
+  assert.equal(notificationHooks.at(-1)?.eventType, "ORDER_REJECTED");
+});
+
 function buildRepository({ listings, sequenceStart }) {
   const listingStore = new Map(listings.map((listing) => [listing.id, listing]));
   const orderStore = new Map();
@@ -526,6 +841,15 @@ function buildRepository({ listings, sequenceStart }) {
         order: persistedOrder,
         statusHistory: persistedHistory,
       };
+    },
+    async updateDraftSemenOrder(order) {
+      const persistedOrder = {
+        ...order,
+      };
+
+      orderStore.set(persistedOrder.id, persistedOrder);
+
+      return persistedOrder;
     },
     async findSemenOrderById(orderId) {
       return orderStore.get(orderId) ?? null;
