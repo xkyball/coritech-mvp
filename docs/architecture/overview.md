@@ -54,4 +54,7 @@ Delayed items:
 | Which object storage provider is selected? | MinIO is configured for local development only. Production S3-compatible object storage selection and CoriTech-controlled account evidence remain pending. |
 | Which hosting and database providers are selected? | `[PENDING_VENDOR_SELECTION]` |
 | Where is audit evidence retained? | Ticket 1.8 stores append-only audit evidence in the CoriTech PostgreSQL `audit_logs` table with object-query indexes. |
+| What API and service conventions should new tickets follow? | Phase 1.1 route, response, error, validation, auth-context, pagination and service-layer conventions are documented in [API Contract and Service Conventions](./api-contract-and-service-conventions.md). |
+| How are runtime and API errors displayed? | Global runtime, auth, forbidden, not-found and validation behavior is documented in [Error Handling](./error-handling.md). |
+| How are app shell and navigation conventions defined? | Public/authenticated layout boundaries and role-aware navigation are documented in [Web App Shell and Navigation](./web-app-shell-and-navigation.md). |
 | Where do semen order mutations live? | The Phase 1.1 order command layer is documented in [Order Command Service](./order-command-service.md). |

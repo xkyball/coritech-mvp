@@ -749,6 +749,15 @@
   padding-left: var(--ct-space-5);
 }
 
+.ct-validation-list {
+  display: grid;
+  gap: var(--ct-space-1);
+}
+
+.ct-validation-list strong {
+  color: var(--ct-color-danger);
+}
+
 .ct-alert--danger,
 .ct-notice--danger {
   background: var(--ct-color-danger-soft);
@@ -795,6 +804,49 @@
 .ct-alert--success h2,
 .ct-notice--success h2 {
   color: var(--ct-color-success);
+}
+
+.ct-toast {
+  align-items: start;
+  background: var(--ct-color-surface);
+  border: 1px solid var(--ct-color-border);
+  border-radius: var(--ct-radius-lg);
+  box-shadow: var(--ct-shadow-raised);
+  display: grid;
+  gap: var(--ct-space-1);
+  max-width: 420px;
+  padding: var(--ct-space-4);
+}
+
+.ct-toast strong {
+  color: var(--ct-color-primary-strong);
+}
+
+.ct-toast span {
+  color: var(--ct-color-muted);
+  font-size: var(--ct-text-sm);
+}
+
+.ct-toast--danger {
+  background: var(--ct-color-danger-soft);
+  border-color: color-mix(in srgb, var(--ct-color-danger) 30%, transparent);
+}
+
+.ct-toast--warning {
+  background: var(--ct-color-warning-soft);
+  border-color: color-mix(in srgb, var(--ct-color-warning) 30%, transparent);
+}
+
+.ct-toast--success {
+  background: var(--ct-color-success-soft);
+  border-color: color-mix(in srgb, var(--ct-color-success) 28%, transparent);
+}
+
+.ct-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
+  padding: 0 var(--ct-space-6) var(--ct-space-6);
 }
 
 .ct-proof-list {

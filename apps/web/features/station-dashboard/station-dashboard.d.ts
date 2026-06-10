@@ -24,6 +24,7 @@ export type StationDashboardViewState = "LOADING" | "READY" | "ERROR";
 
 export type StationDashboardActionKind =
   | "OPEN_ORDER"
+  | "RECEIVE_ORDER"
   | "CONFIRM_ORDER"
   | "REJECT_ORDER"
   | "CREATE_SHIPMENT"
@@ -238,6 +239,7 @@ export interface StationDashboardActionItem {
   actionHref: string | null;
   actionKind: StationDashboardActionKind;
   auditAction:
+    | "SEMEN_ORDER_RECEIVED"
     | "SEMEN_ORDER_CONFIRMED"
     | "SEMEN_ORDER_REJECTED"
     | "SHIPMENT_CREATED"

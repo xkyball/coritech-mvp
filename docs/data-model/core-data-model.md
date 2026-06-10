@@ -123,6 +123,11 @@ Allowed transitions are intentionally finite:
 
 `REJECTED`, `COMPLETED` and `CANCELLED` are terminal statuses.
 
+Phase 1.1 operationalizes `SUBMITTED` to `RECEIVED` as the station intake
+acknowledgement step. The assigned breeding station can mark a submitted order
+as received, optionally record a station note, and write the actor user, active
+role, organization, timestamp and reason into `order_status_history`.
+
 The API order helper exposes framework-neutral endpoint contracts for creating
 draft orders, changing status, viewing an order and viewing status history.
 Breeder access is scoped to the breeder organization on the order. Breeding

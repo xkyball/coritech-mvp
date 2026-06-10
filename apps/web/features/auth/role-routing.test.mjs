@@ -66,6 +66,29 @@ test("app landing redirects single-role users to the correct dashboard", () => {
   assert.equal(resolveAppLanding({ session: adminSession }).destination, "/app/admin");
 });
 
+test("app landing uses the selected context for multi-role users", () => {
+  assert.deepEqual(
+    resolveAppLanding({
+      session: multiRoleSession,
+      activeContext: {
+        organizationId: "org-station",
+        roleCode: "BREEDING_STATION",
+      },
+    }),
+    {
+      status: "redirect",
+      destination: "/station-dashboard",
+      reason: "ACTIVE_ROLE",
+      activeContext: {
+        organizationId: "org-station",
+        organizationName: "North Station",
+        roleCode: "BREEDING_STATION",
+        roleLabel: "Breeding Station",
+      },
+    },
+  );
+});
+
 test("active context chooses the selected role for multi-role users", () => {
   assert.deepEqual(
     resolveActiveRoleContext({
@@ -142,5 +165,27 @@ test("role routes enforce the selected active role", () => {
         roleLabel: "Breeder",
       },
     },
+  );
+});
+
+test("role routes cover station and admin redirects without auth loops", () => {
+  assert.deepEqual(resolveRoleRoute({ session: null, requiredRoleCode: "BREEDER" }), {
+    status: "redirect",
+    destination: "/login?returnTo=%2Fapp%2Fbreeder",
+    reason: "AUTH_REQUIRED",
+  });
+  assert.equal(
+    resolveRoleRoute({
+      session: stationSession,
+      requiredRoleCode: "BREEDING_STATION",
+    }).destination,
+    "/station-dashboard",
+  );
+  assert.equal(
+    resolveRoleRoute({
+      session: adminSession,
+      requiredRoleCode: "PLATFORM_ADMIN",
+    }).destination,
+    "/app/admin",
   );
 });

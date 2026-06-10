@@ -55,6 +55,14 @@ services:
 userId + activeOrganizationId + activeRoleCode
 ```
 
+In the web runtime, `apps/web/features/auth/active-context-runtime.mjs` stores
+only the selected organization/role key as secure app state. That value is a
+preference, not proof of authority; each request must revalidate it against the
+server-resolved managed-auth session memberships before rendering protected
+workspace data or dispatching a service command. The context switch route
+therefore remains blocked until the provider session adapter supplies those
+memberships at runtime.
+
 Audit and proof hooks use the same validated actor context for
 `actorUserId`, `actorRoleCode`, `actorOrganizationId` and the
 `MANAGED_AUTH_ACTOR_CONTEXT` reference. UI forms must not pass arbitrary

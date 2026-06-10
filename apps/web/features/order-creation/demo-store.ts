@@ -3,12 +3,13 @@ import type { InMemorySemenOrderRepository } from "./semen-order-creation.d.ts";
 
 import { breederDashboardDemoInput } from "../breeder-dashboard/demo-data";
 import { semenCatalogDemoInput } from "../catalog/demo-data";
+import { stationDashboardDemoInput } from "../station-dashboard/demo-data";
 import { createInMemorySemenOrderRepository } from "./view-model";
 
 const demoRepository = createInMemorySemenOrderRepository({
   listingRecords: semenCatalogDemoInput.listingRecords,
-  orders: breederDashboardDemoInput.orders,
-  statusHistory: breederDashboardDemoInput.statusHistory,
+  orders: stationDashboardDemoInput.orders,
+  statusHistory: stationDashboardDemoInput.statusHistory,
   orderNumberSequenceStart: 100,
 });
 

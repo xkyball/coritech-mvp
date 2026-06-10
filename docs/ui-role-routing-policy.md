@@ -41,6 +41,12 @@ and active context. The active context itself is validated by
 `packages/domain/src/identity/active-context.mjs`, which resolves or switches
 context only from server-side user organization role assignments.
 
+The web app stores the selected active context using
+`apps/web/features/auth/active-context-runtime.mjs`. That cookie stores only a
+selected organization/role key and is always revalidated against server-side
+session memberships before use. It must not be treated as authorization by
+itself.
+
 The Next.js route pages treat an authenticated request without a resolved
 context as `/app/no-role`. This avoids leaking protected dashboard data or
 granting access from browser-provided role claims. Runtime provider/session

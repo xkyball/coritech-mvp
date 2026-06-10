@@ -61,6 +61,22 @@ the existing catalog domain endpoints. The breeder catalog now reads from the
 same demo listing repository so inactive listings are hidden from
 breeder-visible catalog pages.
 
+Ticket 4.3 adds `apps/web/features/station-order-management` and the
+`/app/station/orders` route for breeding stations. The workspace lists only
+orders assigned to the active station organization, opens station order detail
+and executes receive, confirm, reject and move-to-fulfilment status commands through
+`OrderService` with station reasons, status history, audit hooks and proof
+hooks. Shipment and document actions remain linked entry points until their
+dedicated workflow tickets implement the forms.
+
+Ticket 18.10 adds the station receive step. Submitted orders now expose a
+`Mark as received` action in the station dashboard and station order management
+workspace. The action performs the controlled `SUBMITTED` to `RECEIVED`
+transition through `OrderService`, records the station actor context and
+optional note in status history, emits the `SEMEN_ORDER_RECEIVED` audit/proof
+hook contract and queues the optional `ORDER_RECEIVED` notification hook when a
+notification adapter is supplied.
+
 ## 4. Current database setup, if any
 
 PostgreSQL is the local development database. Docker Compose defines a `db`

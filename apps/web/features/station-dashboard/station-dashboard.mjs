@@ -599,6 +599,22 @@ function buildActionsForOrder(order, actor) {
     }));
   }
 
+  if (canTransitionSemenOrderStatus(actor, order, "RECEIVED")) {
+    actions.push(Object.freeze({
+      id: `${order.orderNumber}-receive`,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      title: "Mark as received",
+      description: "Acknowledge that this submitted order has entered station review.",
+      actionLabel: "Mark as received",
+      actionHref: buildOrderActionHref(order, "receive"),
+      actionKind: "RECEIVE_ORDER",
+      auditAction: "SEMEN_ORDER_RECEIVED",
+      proofSource: "ORDER_STATUS_CHANGE",
+      auditProofReady: true,
+    }));
+  }
+
   if (canTransitionSemenOrderStatus(actor, order, "REJECTED")) {
     actions.push(Object.freeze({
       id: `${order.orderNumber}-reject`,
@@ -663,6 +679,7 @@ function buildOrderActionItems(input) {
   return input.orders
     .flatMap((order) => buildActionsForOrder(order, input.actor))
     .filter((action) =>
+      action.actionKind === "RECEIVE_ORDER" ||
       action.actionKind === "CONFIRM_ORDER" ||
       action.actionKind === "REJECT_ORDER" ||
       action.actionKind === "UPLOAD_DOCUMENT" ||

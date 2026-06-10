@@ -309,7 +309,7 @@ test("station dashboard scopes listings, orders, shipments and documents to the 
   );
 });
 
-test("station dashboard exposes order detail, confirm, reject, shipment and document action entry points", () => {
+test("station dashboard exposes order detail, receive, confirm, reject, shipment and document action entry points", () => {
   const dashboard = createStationDashboardViewModel({
     actor: stationActor,
     orders: [submittedOrder, receivedOrder, confirmedOrder],
@@ -319,6 +319,12 @@ test("station dashboard exposes order detail, confirm, reject, shipment and docu
   const receivedActions = dashboard.sections.incomingOrders.items.find((order) =>
     order.id === "order-received"
   )?.actions ?? [];
+  const submittedActions = dashboard.sections.incomingOrders.items.find((order) =>
+    order.id === "order-submitted"
+  )?.actions ?? [];
+  const receiveAction = submittedActions.find((action) =>
+    action.actionKind === "RECEIVE_ORDER"
+  );
   const confirmAction = receivedActions.find((action) =>
     action.actionKind === "CONFIRM_ORDER"
   );
@@ -334,12 +340,19 @@ test("station dashboard exposes order detail, confirm, reject, shipment and docu
   const uploadAction = dashboard.sections.ordersNeedingAction.items.find((action) =>
     action.actionKind === "UPLOAD_DOCUMENT"
   );
+  const receiveActionItem = dashboard.sections.ordersNeedingAction.items.find((action) =>
+    action.actionKind === "RECEIVE_ORDER"
+  );
   const orderDetail = dashboard.sections.incomingOrders.items.find((order) =>
     order.id === "order-received"
   );
   const html = renderStationDashboard(dashboard);
 
   assert.equal(orderDetail?.detailHref, "/station-dashboard?orderId=order-received");
+  assert.equal(receiveAction?.auditAction, "SEMEN_ORDER_RECEIVED");
+  assert.equal(receiveAction?.proofSource, "ORDER_STATUS_CHANGE");
+  assert.equal(receiveAction?.auditProofReady, true);
+  assert.match(receiveAction?.actionHref ?? "", /action=receive/);
   assert.equal(confirmAction?.auditAction, "SEMEN_ORDER_CONFIRMED");
   assert.equal(confirmAction?.proofSource, "ORDER_STATUS_CHANGE");
   assert.equal(confirmAction?.auditProofReady, true);
@@ -350,6 +363,9 @@ test("station dashboard exposes order detail, confirm, reject, shipment and docu
   assert.equal(shipmentCreate?.proofSource, "SHIPMENT_TRACKING_EVENT");
   assert.equal(shipmentUpdate?.auditAction, "SHIPMENT_STATUS_UPDATED");
   assert.equal(uploadAction?.auditAction, "DOCUMENT_UPLOADED");
+  assert.equal(receiveActionItem?.orderNumber, submittedOrder.orderNumber);
+  assert.match(html, /data-action-kind="RECEIVE_ORDER"/);
+  assert.match(html, /data-audit-action="SEMEN_ORDER_RECEIVED"/);
   assert.match(html, /data-action-kind="CONFIRM_ORDER"/);
   assert.match(html, /data-audit-action="SEMEN_ORDER_CONFIRMED"/);
   assert.match(html, /data-proof-source="SHIPMENT_TRACKING_EVENT"/);

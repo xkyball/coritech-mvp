@@ -45,6 +45,11 @@ export interface ProofEventListItem {
   auditStatus?: unknown;
 }
 
+export interface ValidationIssueDisplay {
+  field?: string | null;
+  message: string;
+}
+
 export function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
@@ -466,6 +471,50 @@ export function Alert({
     <section className={cx("ct-alert", `ct-alert--${tone}`, className)} role="alert">
       <h2>{title}</h2>
       <div className="ct-alert__body">{children}</div>
+    </section>
+  );
+}
+
+export function ValidationErrorList({
+  issues,
+  title = "Review these issues",
+}: Readonly<{
+  issues: readonly ValidationIssueDisplay[];
+  title?: string;
+}>) {
+  if (issues.length === 0) {
+    return null;
+  }
+
+  return (
+    <Alert title={title} tone="danger">
+      <ul className="ct-validation-list">
+        {issues.map((issue, index) => (
+          <li key={`${issue.field ?? "issue"}:${issue.message}:${index}`}>
+            {issue.field ? <strong>{issue.field}: </strong> : null}
+            {issue.message}
+          </li>
+        ))}
+      </ul>
+    </Alert>
+  );
+}
+
+export function ToastMessage({
+  children,
+  className,
+  title,
+  tone = "info",
+}: Readonly<{
+  children: ReactNode;
+  className?: string;
+  title: string;
+  tone?: Tone;
+}>) {
+  return (
+    <section className={cx("ct-toast", `ct-toast--${tone}`, className)} role="status">
+      <strong>{title}</strong>
+      <span>{children}</span>
     </section>
   );
 }
