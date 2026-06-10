@@ -1,26 +1,22 @@
 # Implementation Status Summary
 
-Analysis date: 2026-06-10
+Updated: 2026-06-10
 
-## Counts
+Total tickets: 91. IMPLEMENTED: 52. PARTIALLY_IMPLEMENTED: 22. NOT_IMPLEMENTED: 17. BLOCKED: 0. UNKNOWN: 0.
 
-- IMPLEMENTED: 28
-- PARTIALLY_IMPLEMENTED: 41
-- NOT_IMPLEMENTED: 16
-- BLOCKED: 6
-- UNKNOWN: 0
+## By Phase
 
-## Counts By Phase
+| Phase | Total | Implemented | Partial | Not Implemented | Blocked | Unknown |
+|---|---:|---:|---:|---:|---:|---:|
+| phase-1 | 56 | 36 | 13 | 7 | 0 | 0 |
+| phase-1-1 | 35 | 16 | 9 | 10 | 0 | 0 |
 
-| Phase | IMPLEMENTED | PARTIALLY_IMPLEMENTED | NOT_IMPLEMENTED | BLOCKED | UNKNOWN |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| phase-1 | 26 | 22 | 7 | 1 | 0 |
-| phase-1-1 | 2 | 19 | 9 | 5 | 0 |
+## What Changed Since The Earlier Analysis
 
-## High-Signal Findings
+Several tickets moved from partial/not implemented to implemented because the repository now contains actual routes, command services, migrations and tests for auth, app shell, order commands, station order management, shipments, document upload/viewing, document lifecycle, proof event hooks and seed data.
 
-- Core data/proof/audit models are mostly implemented and tested.
-- The app has useful demo-backed breeder/station UI slices, but they are not yet authenticated or database-backed.
-- The most important MVP gaps are login/session, active org/role context, persistent command services, station order processing, document upload/viewing and proof automation.
-- External account/control evidence, staging/production, CI/CD and backup/restore remain incomplete.
-- The recommended next ticket is 18.03 - Login, Logout and Auth UI.
+## Current Interpretation
+
+- The core breeder-to-station workflow is now materially implemented across backend/domain and web routes.
+- The remaining MVP gaps are mostly reliability, RBAC hardening, station stallion management, proof/audit visibility, admin support, notifications, payment references, provider placeholders, CI/E2E and deployment readiness.
+- No tickets are currently classified as BLOCKED because the earlier foundations now exist; several tickets are still dependency-sequenced and should not be implemented out of order.

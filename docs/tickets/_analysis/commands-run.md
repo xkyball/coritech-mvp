@@ -1,22 +1,51 @@
 # Commands Run
 
-Analysis date: 2026-06-10
+Updated: 2026-06-10
 
-| Command | Result | Notes |
-| --- | --- | --- |
-| npm test | PASS | Domain, config and web feature tests passed: 86 domain, 6 config, 31 web. |
-| npm run build | PASS | Prisma client generated and Next.js build completed. Routes built: /, /app/catalog, /app/catalog/[listingId], /app/orders/[orderId], /app/orders/new, /app/station/listings, /breeder-dashboard, /station-dashboard. |
-| npx prisma validate --schema packages/database/prisma/schema.prisma | FAILED | Root npx could not find prisma on PATH in this environment. |
-| npx prisma migrate status --schema packages/database/prisma/schema.prisma | FAILED | Root npx could not find prisma on PATH in this environment. |
-| npm run lint | FAILED | No root lint script exists. |
-| npm run typecheck | FAILED | No root typecheck script exists. TypeScript still ran during npm run build. |
-| npm --workspace @coritech/database exec prisma validate -- --schema prisma/schema.prisma | FAILED | DATABASE_URL was not set in the shell environment. |
-| npm --workspace @coritech/database exec prisma migrate status -- --schema prisma/schema.prisma | FAILED | DATABASE_URL was not set in the shell environment. |
-| DATABASE_URL=postgresql://coritech:...@localhost:5432/coritech_mvp?schema=public npm --workspace @coritech/database exec prisma validate -- --schema prisma/schema.prisma | PASS | Schema is valid. |
-| DATABASE_URL=postgresql://coritech:...@localhost:5432/coritech_mvp?schema=public npm --workspace @coritech/database exec prisma migrate status -- --schema prisma/schema.prisma | FAILED | Prisma loaded the schema and attempted localhost:5432 but returned a schema engine connection error, consistent with no reachable local Postgres in this environment. |
-| docker compose ps | FAILED | Docker socket access denied in this environment. |
-| pg_isready -h localhost -p 5432 -U coritech -d coritech_mvp | FAILED | pg_isready is not installed in this environment. |
+## Successful
+
+- npm test
+  - Result: PASS.
+  - Evidence: Domain 108 tests passed; config 6 tests passed; web 78 tests passed.
+
+- npm run build
+  - Result: PASS.
+  - Evidence: Prisma generation and Next.js build completed.
+  - Warnings: Prisma package.json prisma config deprecation; Next middleware convention deprecation; Turbopack NFT/import trace warning around Prisma/document access route.
+
+- DATABASE_URL='postgresql://coritech:coritech_dev_password@localhost:5432/coritech_mvp?schema=public' npm --workspace @coritech/database exec prisma validate -- --schema prisma/schema.prisma
+  - Result: PASS.
+
+## Failed Or Not Available
+
+- npm run lint
+  - Result: FAIL.
+  - Reason: missing root lint script.
+
+- npm run typecheck
+  - Result: FAIL.
+  - Reason: missing root typecheck script. TypeScript compilation still ran as part of npm run build.
+
+- npx prisma validate --schema packages/database/prisma/schema.prisma
+  - Result: FAIL.
+  - Reason: prisma executable was not available through npx in this shell path. Workspace exec was used instead.
+
+- npm --workspace @coritech/database exec prisma validate -- --schema prisma/schema.prisma
+  - Result: FAIL.
+  - Reason: DATABASE_URL was not set. Retried with a local DATABASE_URL and it passed.
+
+- DATABASE_URL='postgresql://coritech:coritech_dev_password@localhost:5432/coritech_mvp?schema=public' npm --workspace @coritech/database exec prisma migrate status -- --schema prisma/schema.prisma
+  - Result: FAIL.
+  - Reason: Prisma schema engine could not complete the local database status check. Local database service was not confirmed running.
+
+- docker compose ps
+  - Result: FAIL.
+  - Reason: Docker API socket permission denied.
+
+- pg_isready
+  - Result: FAIL.
+  - Reason: command not found in the shell environment.
 
 ## Safety Notes
 
-No destructive commands were run. Commands such as prisma migrate reset, rm -rf, dropping databases or deleting data were not attempted.
+No destructive commands were run. No migrations were reset. No database was dropped. No product features were implemented as part of this analysis refresh.

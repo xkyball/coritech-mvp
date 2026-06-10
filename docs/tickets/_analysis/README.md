@@ -1,33 +1,38 @@
 # Ticket Implementation Analysis
 
-Analysis date: 2026-06-10
+Updated: 2026-06-10
 
-This folder is a non-destructive implementation-status overlay for the CoriTech ticket packs. The original ticket files remain the source of truth for implementation scope and acceptance criteria. These files add current repository evidence, missing-evidence notes, blockers and recommended sequencing.
+This directory stores non-destructive implementation-status overlays for the Phase 1 and Phase 1.1 ticket packs. The original ticket files remain the source of truth for scope and acceptance criteria.
 
 ## Files
 
-- codebase-inventory.md - factual inventory of the current repository and stack.
-- ticket-implementation-matrix.md - markdown matrix of all Phase 1 and Phase 1.1 tickets.
-- ticket-implementation-matrix.csv - CSV version of the matrix.
-- mvp-gap-analysis.md - consolidated MVP completion gaps.
-- next-step-recommendation.md - recommended next implementation step and prompt.
-- commands-run.md - safe verification commands attempted and results.
-- blocked-tickets.md - tickets blocked by missing foundations.
-- implementation-status-summary.md - counts and high-level status summary.
-- status-overlays/ - one status overlay per original ticket.
+- codebase-inventory.md
+- ticket-implementation-matrix.md
+- ticket-implementation-matrix.csv
+- implementation-status-summary.md
+- mvp-gap-analysis.md
+- next-step-recommendation.md
+- unfinished-ticket-order.md
+- commands-run.md
+- blocked-tickets.md
+- status-overlays/
 
-## Status Definitions
+## Current Summary
 
-- IMPLEMENTED: core acceptance criteria are met with concrete code, test, migration, route, UI, config or documentation evidence.
-- PARTIALLY_IMPLEMENTED: meaningful evidence exists, but important functionality, integration, UI, service, test or documentation evidence is missing.
-- NOT_IMPLEMENTED: no meaningful implementation evidence exists beyond placeholders, stubs or unrelated documentation.
-- BLOCKED: implementation or verification depends on missing earlier foundations.
-- UNKNOWN: repository evidence was insufficient to classify confidently.
+Total tickets: 91. IMPLEMENTED: 52. PARTIALLY_IMPLEMENTED: 22. NOT_IMPLEMENTED: 17. BLOCKED: 0. UNKNOWN: 0.
 
-## Summary
+## Recommended Next Ticket
 
-- IMPLEMENTED: 28
-- PARTIALLY_IMPLEMENTED: 41
-- NOT_IMPLEMENTED: 16
-- BLOCKED: 6
-- UNKNOWN: 0
+18-01 Application Scaffold
+
+## Complete Unfinished Order
+
+See unfinished-ticket-order.md.
+
+## Status Rules
+
+- IMPLEMENTED means core acceptance criteria have concrete code, migration, route, UI, config, test or documentation evidence.
+- PARTIALLY_IMPLEMENTED means meaningful evidence exists but important functionality, tests, wiring or documentation remains missing.
+- NOT_IMPLEMENTED means no meaningful product implementation evidence exists beyond docs/placeholders.
+- BLOCKED means implementation or verification cannot proceed because a prerequisite is absent.
+- UNKNOWN means the repository does not provide enough evidence to classify confidently.

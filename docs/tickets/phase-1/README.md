@@ -142,6 +142,7 @@ Implementation status is tracked non-destructively in:
 - [../_analysis/ticket-implementation-matrix.md](../_analysis/ticket-implementation-matrix.md)
 - [../_analysis/mvp-gap-analysis.md](../_analysis/mvp-gap-analysis.md)
 - [../_analysis/next-step-recommendation.md](../_analysis/next-step-recommendation.md)
+- [../_analysis/unfinished-ticket-order.md](../_analysis/unfinished-ticket-order.md)
 - [../_analysis/status-overlays/](../_analysis/status-overlays/)
 
 ## Scope Guard

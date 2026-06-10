@@ -1,14 +1,24 @@
 # Blocked Tickets
 
-Analysis date: 2026-06-10
+Updated: 2026-06-10
 
-These tickets are blocked or materially sequenced behind missing foundations. A ticket can still have some backend evidence while its usable implementation is blocked by auth/session, active context or service wiring.
+## Current BLOCKED Count
 
-| Phase | Ticket | Status | Blockers | Recommended Action |
-| --- | --- | --- | --- | --- |
-| phase-1 | [8.1 Create Admin dashboard](../phase-1/08-01-admin-dashboard.md) | BLOCKED | 18.03 login/session; 18.05 active role context; 18.09 order service | Defer until auth/session, active role context and core command/query services exist. |
-| phase-1-1 | [18.30 Root Routing and Role Redirects](../phase-1-1/18-30-root-routing-role-redirects.md) | BLOCKED | 18.03 login/session; 18.05 active organization/role context | Implement after 18.03 login/session and 18.05 active role context. |
-| phase-1-1 | [18.04 User Invitation and First-Time Onboarding Flow](../phase-1-1/18-04-user-invitation-onboarding-flow.md) | BLOCKED | 18.03 login/session; 18.05 active organization/role context | Implement after login/session and active context exist. |
-| phase-1-1 | [18.20 Admin Order Support View](../phase-1-1/18-20-admin-order-support-view.md) | BLOCKED | 18.03 login/session; 18.05 active role context; 18.09 order service | Defer until auth/context and OrderService/query surfaces exist. |
-| phase-1-1 | [18.21 Audit Log Viewer UI](../phase-1-1/18-21-audit-log-viewer-ui.md) | BLOCKED | 18.03 login/session; 18.05 active role context | Defer until admin auth and audit query APIs are wired. |
-| phase-1-1 | [18.22 Permission Management UI](../phase-1-1/18-22-permission-management-ui.md) | BLOCKED | 18.03 login/session; 18.05 active role context; 18.23 API/service conventions | Defer UI until admin auth and service conventions exist. |
+0
+
+No ticket is currently classified as BLOCKED. Earlier hard blockers were removed by the now-present app scaffold, auth/session foundation, active role context, order command service, shipment command service and document access implementation.
+
+## Dependency-Sequenced Tickets
+
+The following tickets are not BLOCKED, but should not be started until their prerequisites are handled:
+
+- 18-20 Admin Order Support View: depends on RBAC runtime hardening and proof/audit visibility.
+- 18-21 Audit Log Viewer UI: depends on admin workspace and app-wide access logging decisions.
+- 18-22 Permission Management UI: depends on admin user/org management and RBAC guard patterns.
+- 09-01 Email Provider Integration: depends on notification template/orchestration shape.
+- 09-02 Notification Orchestration: depends on template registry and provider adapter.
+- 18-17 Payment Reference UI: depends on PaymentReference model.
+- 10-02 Payment Provider Adapter Placeholder: depends on PaymentReference model.
+- 18-28 Minimal E2E Happy Path: depends on test framework baseline and stable local service startup.
+- 14-02 CI/CD Baseline: depends on lint/typecheck/test command completeness.
+- 16-01 Complete Breeder-to-Station Journey: should remain a capstone after core gaps, E2E and readiness work.
