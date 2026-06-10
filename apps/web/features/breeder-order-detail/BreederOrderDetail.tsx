@@ -4,15 +4,18 @@ import {
   ButtonLink,
   Card,
   DashboardShell,
+  DetailList,
   EmptyState,
   ErrorState as UiErrorState,
   LoadingState as UiLoadingState,
   PageHeader,
+  ProofEventList,
   SectionHeader,
   StatusBadge,
   Table,
   formatStatusLabel,
 } from "../../components/ui";
+import { breederNavigation } from "../navigation";
 import type {
   BreederOrderDetailErrorViewModel,
   BreederOrderDetailLoadingViewModel,
@@ -27,12 +30,6 @@ import type {
   BreederOrderStatusHistoryRow,
   BreederOrderSummaryItem,
 } from "./breeder-order-detail.d.ts";
-
-const breederNavigation = [
-  { href: "/breeder-dashboard", label: "My Orders" },
-  { href: "/app/catalog", label: "Browse Semen Listings" },
-  { href: "/app/orders/new", label: "Create Order" },
-] as const;
 
 export function BreederOrderDetail({
   viewModel,
@@ -94,7 +91,7 @@ function ReadyOrderDetail({
         <StatusHistorySection section={sections.statusHistory} />
         <ShipmentSection section={sections.shipments} />
         <DocumentsSection section={sections.documents} />
-        <ProofEventsSection section={sections.proofEvents} />
+        <ProofEventsSection orderNumber={viewModel.order.orderNumber} section={sections.proofEvents} />
         <SupportSection supportAction={viewModel.supportAction} />
       </div>
     </DashboardShell>
@@ -141,11 +138,7 @@ function SummarySection({
       {section.items.length === 0 ? (
         <EmptyMessage message={section.emptyMessage} />
       ) : (
-        <dl className="ct-description-list ct-description-list--grid">
-          {section.items.map((item) => (
-            <DetailTerm key={item.term} term={item.term} value={item.value} />
-          ))}
-        </dl>
+        <DetailList items={section.items} />
       )}
     </DetailSection>
   );
@@ -284,12 +277,12 @@ function DocumentsSection({
                 <td><StatusBadge value={document.accessClassification} /></td>
                 <td>{document.createdAt}</td>
                 <td>
-                  {document.detailHref ? (
-                    <ButtonLink href={document.detailHref} variant="ghost">
+                  {isImplementedDocumentHref(document.detailHref) ? (
+                    <ButtonLink href={document.detailHref ?? ""} variant="ghost">
                       View
                     </ButtonLink>
                   ) : (
-                    <StatusBadge value="unavailable" />
+                    <StatusBadge label="Metadata only" value="metadata_only" />
                   )}
                 </td>
               </tr>
@@ -302,8 +295,10 @@ function DocumentsSection({
 }
 
 function ProofEventsSection({
+  orderNumber,
   section,
 }: Readonly<{
+  orderNumber: string;
   section: BreederOrderDetailSection<BreederOrderProofEventRow>;
 }>) {
   return (
@@ -311,28 +306,12 @@ function ProofEventsSection({
       {section.items.length === 0 ? (
         <EmptyMessage message={section.emptyMessage} />
       ) : (
-        <Table>
-          <thead>
-            <tr>
-              <th>Occurred</th>
-              <th>Event</th>
-              <th>Source</th>
-              <th>Verification</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {section.items.map((event) => (
-              <tr key={event.id ?? `${event.eventType}-${event.occurredAt}`}>
-                <td>{event.occurredAt}</td>
-                <td>{formatStatus(event.eventType)}</td>
-                <td>{formatStatus(event.source)}</td>
-                <td><StatusBadge value={event.verificationLevel} /></td>
-                <td><StatusBadge value={event.status} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <ProofEventList
+          items={section.items.map((event) => ({
+            ...event,
+            linkedObjectLabel: `Order ${orderNumber}`,
+          }))}
+        />
       )}
     </DetailSection>
   );
@@ -406,25 +385,14 @@ function ErrorState({
   );
 }
 
-function DetailTerm({
-  term,
-  value,
-}: Readonly<{
-  term: string;
-  value: string;
-}>) {
-  return (
-    <div>
-      <dt>{term}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
-}
-
 function EmptyMessage({ message }: Readonly<{ message: string }>) {
   return <EmptyState message={message} title="No records found" />;
 }
 
 function formatStatus(value: unknown) {
   return formatStatusLabel(value);
+}
+
+function isImplementedDocumentHref(href: string | null) {
+  return Boolean(href && !href.startsWith("/app/documents/"));
 }

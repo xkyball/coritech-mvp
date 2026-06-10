@@ -1,9 +1,11 @@
 import {
+  Alert,
   Breadcrumbs,
   Button,
   ButtonLink,
   Card,
   DashboardShell,
+  DetailList,
   EmptyState,
   ErrorState as UiErrorState,
   Field,
@@ -17,6 +19,7 @@ import {
   Textarea,
   formatStatusLabel,
 } from "../../components/ui";
+import { stationNavigation } from "../navigation";
 import type {
   ListingManagementConfirmationViewModel,
   ListingManagementErrorViewModel,
@@ -28,12 +31,6 @@ import type {
 } from "./listing-management.d.ts";
 
 type FormAction = (formData: FormData) => void | Promise<void>;
-
-const stationNavigation = [
-  { href: "/station-dashboard", label: "Station Overview" },
-  { href: "/app/station/listings", label: "Listing Management" },
-  { href: "/app/station/orders", label: "Order Management" },
-] as const;
 
 export function ListingManagement({
   activateListingAction,
@@ -107,14 +104,13 @@ function ListingManagementForm({
         />
 
         {viewModel.validationIssues.length > 0 ? (
-          <section className="ct-alert" role="alert">
-            <h2>Check listing details</h2>
+          <Alert title="Check listing details">
             <ul>
               {viewModel.validationIssues.map((issue) => (
                 <li key={issue}>{issue}</li>
               ))}
             </ul>
-          </section>
+          </Alert>
         ) : null}
 
         <EditorCard saveListingAction={saveListingAction} viewModel={viewModel} />
@@ -376,16 +372,22 @@ function ConfirmationState({
             id="listing-confirmation-heading"
             title={viewModel.listing.stallionName}
           />
-          <dl className="ct-description-list ct-description-list--grid">
-            <DetailTerm term="Breed" value={viewModel.listing.breed} />
-            <DetailTerm term="Availability" value={formatStatus(viewModel.listing.availabilityStatus)} />
-            <DetailTerm term="Listing status" value={formatStatus(viewModel.listing.listingStatus)} />
-            <DetailTerm term="Terms" value={viewModel.listing.termsSummary ?? "Not specified"} />
-            <DetailTerm
-              term="Audit action"
-              value={viewModel.auditHook ? formatStatus(viewModel.auditHook.action) : "Audit hook unavailable"}
-            />
-          </dl>
+          <DetailList
+            items={[
+              { term: "Breed", value: viewModel.listing.breed },
+              { term: "Availability", value: formatStatus(viewModel.listing.availabilityStatus) },
+              { term: "Listing status", value: formatStatus(viewModel.listing.listingStatus) },
+              { term: "Terms", value: viewModel.listing.termsSummary ?? "Not specified" },
+              {
+                term: "Audit action",
+                value: viewModel.auditHook ? formatStatus(viewModel.auditHook.action) : "Audit hook unavailable",
+              },
+              {
+                term: "Audit event",
+                value: viewModel.auditHook ? formatStatus(viewModel.auditHook.eventType) : "Not recorded",
+              },
+            ]}
+          />
         </Card>
       </div>
     </DashboardShell>
@@ -422,21 +424,6 @@ function ErrorState({
     >
       <UiErrorState message={viewModel.message} title={viewModel.title} />
     </DashboardShell>
-  );
-}
-
-function DetailTerm({
-  term,
-  value,
-}: Readonly<{
-  term: string;
-  value: string;
-}>) {
-  return (
-    <div>
-      <dt>{term}</dt>
-      <dd>{value}</dd>
-    </div>
   );
 }
 

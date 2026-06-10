@@ -13,6 +13,7 @@ import {
   Table,
   formatStatusLabel,
 } from "../../components/ui";
+import { breederNavigation } from "../navigation";
 import type {
   BreederDashboardActionItem,
   BreederDashboardDocumentRow,
@@ -24,12 +25,6 @@ import type {
   BreederDashboardStatusSummaryItem,
   BreederDashboardViewModel,
 } from "./breeder-dashboard.d.ts";
-
-const breederNavigation = [
-  { href: "/breeder-dashboard", label: "My Orders" },
-  { href: "/app/catalog", label: "Browse Semen Listings" },
-  { href: "/app/orders/new", label: "Create Order" },
-] as const;
 
 export function BreederDashboard({
   viewModel,
@@ -280,12 +275,12 @@ function DocumentsSection({
                 <td>{document.orderNumber ?? document.targetId}</td>
                 <td><StatusBadge value={document.accessClassification} /></td>
                 <td>
-                  {document.detailHref ? (
-                    <ButtonLink href={document.detailHref} variant="ghost">
+                  {isImplementedDocumentHref(document.detailHref) ? (
+                    <ButtonLink href={document.detailHref ?? ""} variant="ghost">
                       View
                     </ButtonLink>
                   ) : (
-                    <StatusBadge value="unavailable" />
+                    <StatusBadge label="Metadata only" value="metadata_only" />
                   )}
                 </td>
               </tr>
@@ -356,4 +351,8 @@ function EmptyMessage({ message }: Readonly<{ message: string }>) {
 
 function formatStatus(value: unknown) {
   return formatStatusLabel(value);
+}
+
+function isImplementedDocumentHref(href: string | null) {
+  return Boolean(href && !href.startsWith("/app/documents/"));
 }

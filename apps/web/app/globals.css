@@ -3,6 +3,7 @@
 
   --ct-color-primary: #12343b;
   --ct-color-primary-strong: #0a252c;
+  --ct-color-primary-muted: #dfeaec;
   --ct-color-accent: #b56a2f;
   --ct-color-accent-soft: #f7eadf;
   --ct-color-background: #f5f7f8;
@@ -43,7 +44,11 @@
   --ct-radius-sm: 4px;
   --ct-radius-md: 6px;
   --ct-radius-lg: 8px;
+  --ct-radius-xl: 12px;
+  --ct-focus-ring: 0 0 0 3px color-mix(in srgb, var(--ct-color-accent) 34%, transparent);
+  --ct-shadow-subtle: 0 1px 2px rgb(18 52 59 / 5%);
   --ct-shadow-soft: 0 18px 50px rgb(18 52 59 / 8%);
+  --ct-shadow-raised: 0 24px 70px rgb(18 52 59 / 12%);
 
   --ink: var(--ct-color-text);
   --muted: var(--ct-color-muted);

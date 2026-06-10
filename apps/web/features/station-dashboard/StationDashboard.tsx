@@ -7,12 +7,14 @@ import {
   ErrorState as UiErrorState,
   LoadingState as UiLoadingState,
   MetricCard,
+  Notice,
   PageHeader,
   SectionHeader,
   StatusBadge,
   Table,
   formatStatusLabel,
 } from "../../components/ui";
+import { stationNavigation } from "../navigation";
 import type {
   StationDashboardActionItem,
   StationDashboardDocumentRow,
@@ -27,12 +29,6 @@ import type {
   StationDashboardStatusSummaryItem,
   StationDashboardViewModel,
 } from "./station-dashboard.d.ts";
-
-const stationNavigation = [
-  { href: "/station-dashboard", label: "Station Overview" },
-  { href: "/app/station/listings", label: "Listing Management" },
-  { href: "/app/station/orders", label: "Order Management" },
-] as const;
 
 export function StationDashboard({
   viewModel,
@@ -67,19 +63,18 @@ function ReadyDashboard({
       <div className="ct-page-stack" data-organization-id={viewModel.organizationContext.organizationId}>
         <PageHeader
           actions={(
-            <>
-              <ButtonLink href={viewModel.navigation.listingManagementHref} variant="secondary">
-                Listings
-              </ButtonLink>
-              <ButtonLink href={viewModel.navigation.orderManagementHref} variant="primary">
-                Orders
-              </ButtonLink>
-            </>
+            <ButtonLink href={viewModel.navigation.listingManagementHref} variant="primary">
+              Manage listings
+            </ButtonLink>
           )}
           eyebrow="Station workspace"
           subtitle="A station-scoped operational view of listings, incoming orders, shipment updates, documents and notifications."
           title={viewModel.organizationContext.organizationName}
         />
+
+        <Notice title="Station order workspace" tone="info">
+          Order review, shipment readiness and proof-linked actions are surfaced in this dashboard until the dedicated station order management route is implemented.
+        </Notice>
 
         <StatusSummary items={sections.orderStatusSummary.items} />
         <NotificationsSection items={sections.notifications.items} emptyMessage={sections.notifications.emptyMessage} title={sections.notifications.title} />
@@ -441,12 +436,12 @@ function DocumentsSection({
                 <td>{document.orderNumber ?? document.targetId}</td>
                 <td><StatusBadge value={document.accessClassification} /></td>
                 <td>
-                  {document.detailHref ? (
-                    <ButtonLink href={document.detailHref} variant="ghost">
+                  {isImplementedDocumentHref(document.detailHref) ? (
+                    <ButtonLink href={document.detailHref ?? ""} variant="ghost">
                       View
                     </ButtonLink>
                   ) : (
-                    <StatusBadge value="unavailable" />
+                    <StatusBadge label="Metadata only" value="metadata_only" />
                   )}
                 </td>
               </tr>
@@ -525,4 +520,8 @@ function EmptyMessage({ message }: Readonly<{ message: string }>) {
 
 function formatStatus(value: unknown) {
   return formatStatusLabel(value);
+}
+
+function isImplementedDocumentHref(href: string | null) {
+  return Boolean(href && !href.startsWith("/app/documents/"));
 }

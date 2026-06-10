@@ -161,32 +161,42 @@ npm run docker:down
 npm run docker:reset
 ```
 
-## UI Foundation
+## UI System
 
-All future UI work must use the CoriTech design system and shared components.
+All future UI work must use the shared UI system.
 
-Visual principles:
+Before creating a new page or component:
+1. Check the existing component library.
+2. Reuse shared layout primitives.
+3. Use semantic design tokens.
+4. Preserve accessibility.
+5. Avoid one-off styling.
+6. Do not create demo or preview routes unless explicitly requested.
+
+Shared UI source:
+
+- `apps/web/components/ui/index.tsx`
+- `apps/web/components/ui/ui.css`
+- `apps/web/app/globals.css`
+- `docs/ui-design-system.md`
+
+## UI Guardrails
+
+The UI should feel:
 - calm
 - precise
 - premium
 - role-aware
-- trust-focused
 - operational
-- due-diligence ready
+- trust-focused
 
 Avoid:
-- decorative horse imagery
-- marketplace-first styling
+- decorative imagery
+- generic marketplace styling
 - random colors
+- raw browser-default forms
 - one-off components
-- generic admin-template pages
-
-When implementing UI:
-1. Check existing shared components first.
-2. Reuse the dashboard shell.
-3. Use semantic theme tokens.
-4. Preserve accessibility.
-5. Do not create preview/demo routes unless explicitly requested.
+- crypto/web3 visual language
 
 ## Phase 1 Includes
 

@@ -251,6 +251,20 @@
   transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
 }
 
+.ct-icon-button {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--ct-radius-md);
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 850;
+  height: 40px;
+  justify-content: center;
+  line-height: 1;
+  min-width: 40px;
+  padding: 0;
+}
+
 .ct-button--primary {
   background: var(--ct-color-primary);
   border-color: var(--ct-color-primary);
@@ -457,6 +471,11 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.ct-description-list--compact {
+  gap: var(--ct-space-2);
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
 .ct-description-list div {
   display: grid;
   gap: 3px;
@@ -501,6 +520,70 @@
   min-height: 40px;
   padding: 8px 10px;
   width: 100%;
+}
+
+.ct-check {
+  align-items: start;
+  color: var(--ct-color-text);
+  display: flex;
+  gap: var(--ct-space-2);
+  min-width: 0;
+}
+
+.ct-check input {
+  accent-color: var(--ct-color-primary);
+  margin-top: 3px;
+}
+
+.ct-toggle {
+  align-items: center;
+  color: var(--ct-color-text);
+  cursor: pointer;
+  display: inline-flex;
+  gap: var(--ct-space-2);
+}
+
+.ct-toggle input {
+  clip: rect(0 0 0 0);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.ct-toggle > span {
+  background: var(--ct-color-border-strong);
+  border-radius: 999px;
+  display: inline-flex;
+  height: 24px;
+  padding: 3px;
+  transition: background-color 140ms ease;
+  width: 44px;
+}
+
+.ct-toggle > span::before {
+  background: var(--ct-color-surface);
+  border-radius: 999px;
+  box-shadow: var(--ct-shadow-subtle);
+  content: "";
+  display: block;
+  height: 18px;
+  transition: transform 140ms ease;
+  width: 18px;
+}
+
+.ct-toggle input:checked + span {
+  background: var(--ct-color-primary);
+}
+
+.ct-toggle input:checked + span::before {
+  transform: translateX(20px);
+}
+
+.ct-toggle input:focus-visible + span,
+.ct-check input:focus-visible {
+  box-shadow: var(--ct-focus-ring);
 }
 
 .ct-textarea {
@@ -605,22 +688,154 @@
   height: 92px;
 }
 
-.ct-alert {
-  background: var(--ct-color-danger-soft);
-  border: 1px solid color-mix(in srgb, var(--ct-color-danger) 30%, transparent);
+.ct-alert,
+.ct-notice {
+  border: 1px solid var(--ct-color-border);
   border-radius: var(--ct-radius-lg);
+  display: flex;
+  gap: var(--ct-space-4);
+  justify-content: space-between;
   padding: var(--ct-space-5);
 }
 
-.ct-alert h2 {
-  color: var(--ct-color-danger);
+.ct-alert h2,
+.ct-notice h2 {
   font-size: var(--ct-text-lg);
   margin: 0 0 var(--ct-space-2);
+}
+
+.ct-alert p,
+.ct-notice p,
+.ct-alert__body {
+  color: var(--ct-color-muted);
+  margin: 0;
 }
 
 .ct-alert ul {
   margin: 0;
   padding-left: var(--ct-space-5);
+}
+
+.ct-alert--danger,
+.ct-notice--danger {
+  background: var(--ct-color-danger-soft);
+  border-color: color-mix(in srgb, var(--ct-color-danger) 30%, transparent);
+}
+
+.ct-alert--danger h2,
+.ct-notice--danger h2 {
+  color: var(--ct-color-danger);
+}
+
+.ct-alert--warning,
+.ct-notice--warning,
+.ct-alert--accent,
+.ct-notice--accent {
+  background: var(--ct-color-warning-soft);
+  border-color: color-mix(in srgb, var(--ct-color-warning) 30%, transparent);
+}
+
+.ct-alert--warning h2,
+.ct-notice--warning h2,
+.ct-alert--accent h2,
+.ct-notice--accent h2 {
+  color: var(--ct-color-warning);
+}
+
+.ct-alert--info,
+.ct-notice--info {
+  background: var(--ct-color-info-soft);
+  border-color: color-mix(in srgb, var(--ct-color-info) 28%, transparent);
+}
+
+.ct-alert--info h2,
+.ct-notice--info h2 {
+  color: var(--ct-color-info);
+}
+
+.ct-alert--success,
+.ct-notice--success {
+  background: var(--ct-color-success-soft);
+  border-color: color-mix(in srgb, var(--ct-color-success) 28%, transparent);
+}
+
+.ct-alert--success h2,
+.ct-notice--success h2 {
+  color: var(--ct-color-success);
+}
+
+.ct-proof-list {
+  display: grid;
+  list-style: none;
+  margin: 0;
+  padding: var(--ct-space-5);
+}
+
+.ct-proof-event {
+  display: grid;
+  gap: var(--ct-space-4);
+  grid-template-columns: 18px minmax(0, 1fr);
+  position: relative;
+}
+
+.ct-proof-event + .ct-proof-event {
+  margin-top: var(--ct-space-5);
+}
+
+.ct-proof-event + .ct-proof-event::before {
+  background: var(--ct-color-border);
+  content: "";
+  height: calc(100% + var(--ct-space-5));
+  left: 8px;
+  position: absolute;
+  top: calc(-1 * var(--ct-space-5));
+  width: 1px;
+}
+
+.ct-proof-event__marker {
+  background: var(--ct-color-accent);
+  border: 4px solid var(--ct-color-accent-soft);
+  border-radius: 999px;
+  height: 18px;
+  margin-top: 4px;
+  position: relative;
+  width: 18px;
+  z-index: 1;
+}
+
+.ct-proof-event__body {
+  background: var(--ct-color-surface);
+  border: 1px solid var(--ct-color-border);
+  border-radius: var(--ct-radius-lg);
+  display: grid;
+  gap: var(--ct-space-4);
+  padding: var(--ct-space-4);
+}
+
+.ct-proof-event__header {
+  align-items: start;
+  display: flex;
+  gap: var(--ct-space-4);
+  justify-content: space-between;
+}
+
+.ct-proof-event__header h3 {
+  color: var(--ct-color-primary-strong);
+  font-size: var(--ct-text-lg);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.ct-proof-event__header p {
+  color: var(--ct-color-muted);
+  font-size: var(--ct-text-sm);
+  margin: var(--ct-space-1) 0 0;
+}
+
+.ct-proof-event__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
 }
 
 .ct-home {
@@ -800,14 +1015,20 @@
 
   .ct-topbar,
   .ct-page-header__content,
-  .ct-section-header {
+  .ct-section-header,
+  .ct-proof-event__header,
+  .ct-alert,
+  .ct-notice {
     align-items: stretch;
     flex-direction: column;
   }
 
   .ct-action-bar,
   .ct-topbar__context,
-  .ct-section-header__meta {
+  .ct-section-header__meta,
+  .ct-proof-event__header,
+  .ct-alert,
+  .ct-notice {
     justify-content: flex-start;
   }
 
@@ -840,5 +1061,13 @@
 
   .ct-home__workflow li:last-child {
     border-bottom: 0;
+  }
+
+  .ct-proof-list {
+    padding: var(--ct-space-4);
+  }
+
+  .ct-proof-event {
+    gap: var(--ct-space-3);
   }
 }

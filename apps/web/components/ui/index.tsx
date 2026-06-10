@@ -1,6 +1,7 @@
 import type {
   AnchorHTMLAttributes,
   ButtonHTMLAttributes,
+  InputHTMLAttributes as ReactInputHTMLAttributes,
   HTMLAttributes,
   InputHTMLAttributes,
   ReactNode,
@@ -14,6 +15,27 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export interface DashboardNavItem {
   href: string;
   label: string;
+}
+
+export interface DetailListItem {
+  term: string;
+  value: ReactNode;
+}
+
+export interface ProofEventListItem {
+  id?: string | null;
+  eventType: unknown;
+  source?: unknown;
+  lifecycleStage?: unknown;
+  verificationLevel: unknown;
+  status: unknown;
+  actorRoleCode?: unknown;
+  actorOrganizationId?: string | null;
+  organizationLabel?: string | null;
+  linkedObjectLabel?: string | null;
+  documentationCount?: number | null;
+  occurredAt: string;
+  auditStatus?: unknown;
 }
 
 export function cx(...classes: Array<string | false | null | undefined>) {
@@ -175,6 +197,25 @@ export function ButtonLink({
   return <a className={cx("ct-button", `ct-button--${variant}`, className)} {...props} />;
 }
 
+export function IconButton({
+  className,
+  label,
+  variant = "secondary",
+  ...props
+}: Readonly<ButtonHTMLAttributes<HTMLButtonElement> & {
+  label: string;
+  variant?: ButtonVariant;
+}>) {
+  return (
+    <button
+      aria-label={label}
+      className={cx("ct-icon-button", `ct-button--${variant}`, className)}
+      title={label}
+      {...props}
+    />
+  );
+}
+
 export function ActionBar({
   children,
   className,
@@ -215,6 +256,14 @@ export function StatusBadge({
   );
 }
 
+export function VerificationBadge({
+  value,
+}: Readonly<{
+  value: unknown;
+}>) {
+  return <StatusBadge label={formatVerificationLevel(value)} value={value} />;
+}
+
 export function MetricCard({
   label,
   meta,
@@ -248,6 +297,25 @@ export function DataPanel({
       <strong>{value}</strong>
       {children}
     </div>
+  );
+}
+
+export function DetailList({
+  className,
+  items,
+}: Readonly<{
+  className?: string;
+  items: readonly DetailListItem[];
+}>) {
+  return (
+    <dl className={cx("ct-description-list", "ct-description-list--grid", className)}>
+      {items.map((item) => (
+        <div key={item.term}>
+          <dt>{item.term}</dt>
+          <dd>{item.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -294,6 +362,37 @@ export function Textarea({
   return <textarea className={cx("ct-textarea", className)} {...props} />;
 }
 
+export function Checkbox({
+  className,
+  label,
+  ...props
+}: Readonly<Omit<ReactInputHTMLAttributes<HTMLInputElement>, "type"> & {
+  label: ReactNode;
+}>) {
+  return (
+    <label className={cx("ct-check", className)}>
+      <input type="checkbox" {...props} />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+export function Toggle({
+  className,
+  label,
+  ...props
+}: Readonly<Omit<ReactInputHTMLAttributes<HTMLInputElement>, "type"> & {
+  label: ReactNode;
+}>) {
+  return (
+    <label className={cx("ct-toggle", className)}>
+      <input type="checkbox" role="switch" {...props} />
+      <span aria-hidden="true" />
+      <strong>{label}</strong>
+    </label>
+  );
+}
+
 export function Table({
   children,
   className,
@@ -305,6 +404,98 @@ export function Table({
     <div className="ct-table-wrap">
       <table className={cx("ct-table", className)}>{children}</table>
     </div>
+  );
+}
+
+export function Alert({
+  children,
+  className,
+  title,
+  tone = "danger",
+}: Readonly<{
+  children: ReactNode;
+  className?: string;
+  title: string;
+  tone?: Tone;
+}>) {
+  return (
+    <section className={cx("ct-alert", `ct-alert--${tone}`, className)} role="alert">
+      <h2>{title}</h2>
+      <div className="ct-alert__body">{children}</div>
+    </section>
+  );
+}
+
+export function Notice({
+  action,
+  children,
+  className,
+  title,
+  tone = "info",
+}: Readonly<{
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  title: string;
+  tone?: Tone;
+}>) {
+  return (
+    <section className={cx("ct-notice", `ct-notice--${tone}`, className)}>
+      <div>
+        <h2>{title}</h2>
+        <p>{children}</p>
+      </div>
+      {action ? <ActionBar>{action}</ActionBar> : null}
+    </section>
+  );
+}
+
+export function ProofEventList({
+  items,
+}: Readonly<{
+  items: readonly ProofEventListItem[];
+}>) {
+  return (
+    <ol className="ct-proof-list">
+      {items.map((event) => {
+        const linkedObjectLabel = event.linkedObjectLabel ?? "Linked order";
+        const organization = event.organizationLabel ?? event.actorOrganizationId ?? "Organization not recorded";
+        const documentationCount = event.documentationCount ?? 0;
+
+        return (
+          <li className="ct-proof-event" key={event.id ?? `${String(event.eventType)}:${event.occurredAt}`}>
+            <div className="ct-proof-event__marker" aria-hidden="true" />
+            <div className="ct-proof-event__body">
+              <div className="ct-proof-event__header">
+                <div>
+                  <h3>{formatStatusLabel(event.eventType)}</h3>
+                  <p>{event.occurredAt}</p>
+                </div>
+                <StatusBadge value={event.status} />
+              </div>
+              <div className="ct-proof-event__meta">
+                <Badge tone="info">{formatStatusLabel(event.source ?? "proof event")}</Badge>
+                <VerificationBadge value={event.verificationLevel} />
+                {event.auditStatus ? <StatusBadge value={event.auditStatus} /> : null}
+              </div>
+              <DetailList
+                className="ct-description-list--compact"
+                items={[
+                  { term: "Actor", value: formatStatusLabel(event.actorRoleCode ?? "not recorded") },
+                  { term: "Organization", value: organization },
+                  { term: "Linked object", value: linkedObjectLabel },
+                  { term: "Linked documents", value: `${documentationCount} document${documentationCount === 1 ? "" : "s"}` },
+                  {
+                    term: "Lifecycle",
+                    value: event.lifecycleStage ? formatStatusLabel(event.lifecycleStage) : "Not recorded",
+                  },
+                ]}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -368,12 +559,38 @@ export function formatStatusLabel(value: unknown) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+export function formatVerificationLevel(value: unknown) {
+  const normalized = String(value).toUpperCase();
+  const labels: Record<string, string> = {
+    SELF_REPORTED: "Self-reported",
+    SYSTEM_RECORDED: "System-recorded",
+    STATION_CONFIRMED: "Station-confirmed",
+    ADMIN_REVIEWED: "Admin-reviewed",
+    VET_SIGNED: "Vet-signed",
+    FEDERATION_ATTESTED: "Federation-attested",
+    VERIFIED_FOR_TRANSACTION: "Verified for transaction",
+  };
+
+  return labels[normalized] ?? formatStatusLabel(value);
+}
+
 function statusTone(value: unknown): Tone {
   const normalized = String(value).toLowerCase();
 
   if (
+    normalized.includes("unavailable") ||
+    normalized.includes("cancel") ||
+    normalized.includes("reject") ||
+    normalized.includes("error") ||
+    normalized.includes("fail")
+  ) {
+    return "danger";
+  }
+
+  if (
     normalized.includes("verified") ||
     normalized.includes("available") ||
+    normalized === "active" ||
     normalized.includes("complete") ||
     normalized.includes("delivered") ||
     normalized.includes("submitted") ||
@@ -390,16 +607,6 @@ function statusTone(value: unknown): Tone {
     normalized.includes("review")
   ) {
     return "warning";
-  }
-
-  if (
-    normalized.includes("cancel") ||
-    normalized.includes("reject") ||
-    normalized.includes("error") ||
-    normalized.includes("fail") ||
-    normalized.includes("unavailable")
-  ) {
-    return "danger";
   }
 
   if (

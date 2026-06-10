@@ -4,6 +4,7 @@ import {
   ButtonLink,
   Card,
   DashboardShell,
+  DetailList,
   EmptyState,
   ErrorState as UiErrorState,
   Field,
@@ -15,6 +16,7 @@ import {
   StatusBadge,
   formatStatusLabel,
 } from "../../components/ui";
+import { breederNavigation } from "../navigation";
 import type {
   SemenCatalogDetailViewModel,
   SemenCatalogErrorViewModel,
@@ -24,12 +26,6 @@ import type {
   SemenCatalogRenderableViewModel,
   SemenCatalogSelectOption,
 } from "./semen-catalog.d.ts";
-
-const breederNavigation = [
-  { href: "/breeder-dashboard", label: "My Orders" },
-  { href: "/app/catalog", label: "Browse Semen Listings" },
-  { href: "/app/orders/new", label: "Create Order" },
-] as const;
 
 export function SemenCatalog({
   viewModel,
@@ -184,14 +180,16 @@ function DetailView({
 
         <Card aria-labelledby="listing-detail-heading">
           <SectionHeader id="listing-detail-heading" title="Listing details" />
-          <dl className="ct-description-list ct-description-list--grid">
-            <DetailTerm term="Breeding station" value={listing.stationLabel} />
-            <DetailTerm term="Breed" value={listing.breed} />
-            <DetailTerm term="Availability" value={formatStatus(listing.availabilityStatus)} />
-            <DetailTerm term="Terms" value={listing.termsSummary ?? "Not specified"} />
-            <DetailTerm term="UELN" value={listing.ueln ?? "Not provided"} />
-            <DetailTerm term="Microchip" value={listing.microchipNumber ?? "Not provided"} />
-          </dl>
+          <DetailList
+            items={[
+              { term: "Breeding station", value: listing.stationLabel },
+              { term: "Breed", value: listing.breed },
+              { term: "Availability", value: formatStatus(listing.availabilityStatus) },
+              { term: "Terms", value: listing.termsSummary ?? "Not specified" },
+              { term: "UELN", value: listing.ueln ?? "Not provided" },
+              { term: "Microchip", value: listing.microchipNumber ?? "Not provided" },
+            ]}
+          />
           <div className="ct-form-actions">
             {listing.canCreateOrder && listing.createOrderHref ? (
               <ButtonLink href={listing.createOrderHref} variant="primary">
@@ -229,11 +227,14 @@ function ListingCard({
         )}
         <StatusBadge value={listing.availabilityStatus} />
       </div>
-      <dl className="ct-description-list">
-        <DetailTerm term="Breed" value={listing.breed} />
-        <DetailTerm term="Station" value={listing.stationLabel} />
-        <DetailTerm term="Terms" value={listing.termsSummary ?? "Not specified"} />
-      </dl>
+      <DetailList
+        className="ct-description-list--compact"
+        items={[
+          { term: "Breed", value: listing.breed },
+          { term: "Station", value: listing.stationLabel },
+          { term: "Terms", value: listing.termsSummary ?? "Not specified" },
+        ]}
+      />
       <div className="ct-action-bar">
         {listing.detailHref ? (
           <ButtonLink href={listing.detailHref} variant="ghost">
@@ -280,21 +281,6 @@ function FilterSelect({
         ))}
       </Select>
     </Field>
-  );
-}
-
-function DetailTerm({
-  term,
-  value,
-}: Readonly<{
-  term: string;
-  value: string;
-}>) {
-  return (
-    <div>
-      <dt>{term}</dt>
-      <dd>{value}</dd>
-    </div>
   );
 }
 

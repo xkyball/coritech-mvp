@@ -1,9 +1,11 @@
 import {
+  Alert,
   Breadcrumbs,
   Button,
   ButtonLink,
   Card,
   DashboardShell,
+  DetailList,
   ErrorState as UiErrorState,
   Field,
   Input,
@@ -15,6 +17,7 @@ import {
   Textarea,
   formatStatusLabel,
 } from "../../components/ui";
+import { breederNavigation } from "../navigation";
 import type {
   SemenOrderCreationConfirmationViewModel,
   SemenOrderCreationErrorViewModel,
@@ -25,12 +28,6 @@ import type {
 } from "./semen-order-creation.d.ts";
 
 type FormAction = (formData: FormData) => void | Promise<void>;
-
-const breederNavigation = [
-  { href: "/breeder-dashboard", label: "My Orders" },
-  { href: "/app/catalog", label: "Browse Semen Listings" },
-  { href: "/app/orders/new", label: "Create Order" },
-] as const;
 
 export function SemenOrderCreation({
   createDraftAction,
@@ -126,14 +123,13 @@ function OrderCreationForm({
 
         {viewModel.selectedListing ? <ListingReview listing={viewModel.selectedListing} /> : null}
         {viewModel.validationIssues.length > 0 ? (
-          <section className="ct-alert" role="alert">
-            <h2>Check order details</h2>
+          <Alert title="Check order details">
             <ul>
               {viewModel.validationIssues.map((issue) => (
                 <li key={issue}>{issue}</li>
               ))}
             </ul>
-          </section>
+          </Alert>
         ) : null}
 
         <Card aria-labelledby="order-details-heading">
@@ -246,14 +242,16 @@ function ListingReview({
         title="Review stallion and station"
         actions={<StatusBadge value={listing.availabilityStatus} />}
       />
-      <dl className="ct-description-list ct-description-list--grid">
-        <DetailTerm term="Stallion" value={listing.stallionName} />
-        <DetailTerm term="Breed" value={listing.breed} />
-        <DetailTerm term="Breeding station" value={listing.stationLabel} />
-        <DetailTerm term="Availability" value={formatStatus(listing.availabilityStatus)} />
-        <DetailTerm term="Terms" value={listing.termsSummary ?? "Not specified"} />
-        <DetailTerm term="UELN" value={listing.ueln ?? "Not provided"} />
-      </dl>
+      <DetailList
+        items={[
+          { term: "Stallion", value: listing.stallionName },
+          { term: "Breed", value: listing.breed },
+          { term: "Breeding station", value: listing.stationLabel },
+          { term: "Availability", value: formatStatus(listing.availabilityStatus) },
+          { term: "Terms", value: listing.termsSummary ?? "Not specified" },
+          { term: "UELN", value: listing.ueln ?? "Not provided" },
+        ]}
+      />
     </Card>
   );
 }
@@ -281,14 +279,16 @@ function ConfirmationState({
             title="Submitted order"
             actions={<StatusBadge value={viewModel.order.status} />}
           />
-          <dl className="ct-description-list ct-description-list--grid">
-          <DetailTerm term="Order number" value={viewModel.order.orderNumber} />
-          <DetailTerm term="Status" value={formatStatus(viewModel.order.status)} />
-          <DetailTerm
-            term="Requested delivery"
-            value={viewModel.order.requestedDeliveryDate ?? "Not set"}
+          <DetailList
+            items={[
+              { term: "Order number", value: viewModel.order.orderNumber },
+              { term: "Status", value: formatStatus(viewModel.order.status) },
+              {
+                term: "Requested delivery",
+                value: viewModel.order.requestedDeliveryDate ?? "Not set",
+              },
+            ]}
           />
-          </dl>
           <div className="ct-form-actions">
             <ButtonLink href={viewModel.navigation.dashboardHref} variant="secondary">
               Dashboard
@@ -356,21 +356,6 @@ function OrderInput({
     <Field htmlFor={id} label={label}>
       <Input id={id} name={name} type={type} defaultValue={value} required={required} />
     </Field>
-  );
-}
-
-function DetailTerm({
-  term,
-  value,
-}: Readonly<{
-  term: string;
-  value: string;
-}>) {
-  return (
-    <div>
-      <dt>{term}</dt>
-      <dd>{value}</dd>
-    </div>
   );
 }
 
