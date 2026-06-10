@@ -1,19 +1,48 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import {
   Badge,
+  Button,
   ButtonLink,
   Card,
   PageHeader,
   SectionHeader,
 } from "../../../components/ui";
+import { createDashboardContextOptions } from "../../../features/auth/active-context-runtime.mjs";
 import { AUTH_ROUTES } from "../../../features/auth/auth-routes.mjs";
+import { resolveActiveRoleContext } from "../../../features/auth/role-routing.mjs";
+import { readManagedAuthSessionFromCookieHeader } from "../../../features/auth/server-session";
 
-const roleRoutes = [
-  { href: AUTH_ROUTES.breederApp, label: "Breeder workspace" },
-  { href: AUTH_ROUTES.stationApp, label: "Station workspace" },
-  { href: AUTH_ROUTES.adminApp, label: "Admin workspace" },
-] as const;
+export const dynamic = "force-dynamic";
 
-export default function SelectRolePage() {
+export default async function SelectRolePage() {
+  const session = await readManagedAuthSessionFromCookieHeader(
+    (await headers()).get("cookie"),
+  );
+
+  if (!session) {
+    redirect(`${AUTH_ROUTES.loginPage}?returnTo=${encodeURIComponent(AUTH_ROUTES.selectRole)}`);
+  }
+
+  const resolution = resolveActiveRoleContext({
+    session,
+  });
+
+  if (resolution.status === "unauthenticated") {
+    redirect(`${AUTH_ROUTES.loginPage}?returnTo=${encodeURIComponent(AUTH_ROUTES.selectRole)}`);
+  }
+
+  if (resolution.status === "no-role") {
+    redirect(AUTH_ROUTES.noRole);
+  }
+
+  if (resolution.status === "resolved") {
+    redirect(AUTH_ROUTES.appHome);
+  }
+
+  const contextOptions = createDashboardContextOptions(resolution.availableContexts);
+
   return (
     <main className="ct-main" aria-labelledby="select-role-title">
       <PageHeader
@@ -29,11 +58,19 @@ export default function SelectRolePage() {
           title="Available role routes"
         />
         <div className="ct-detail-grid">
-          {roleRoutes.map((route) => (
-            <ButtonLink href={route.href} key={route.href}>
-              {route.label}
-            </ButtonLink>
+          {contextOptions.map((option) => (
+            <form action={AUTH_ROUTES.appHome + "/context/switch"} key={option.key} method="post">
+              <input name="activeContextKey" type="hidden" value={option.key} />
+              <Button type="submit">
+                {option.label}
+              </Button>
+            </form>
           ))}
+        </div>
+        <div className="ct-form-actions">
+          <ButtonLink href={AUTH_ROUTES.logoutPage} variant="secondary">
+            Sign out
+          </ButtonLink>
         </div>
       </Card>
     </main>

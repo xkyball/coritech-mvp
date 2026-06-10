@@ -3,8 +3,8 @@
 ## Purpose
 
 Ticket 2.1 integrates managed authentication as a commodity infrastructure
-boundary. CoriTech owns the internal user, organization and role model; the
-selected provider owns credential collection, password storage, password reset,
+boundary. CoriTech owns the internal user, organization and role model; Google
+hosted login owns credential collection, password storage, password reset,
 email verification delivery, MFA challenge flows and hosted authentication UI.
 
 ## Phase 1 Provider Contract
@@ -31,7 +31,7 @@ contract without adding local password logic:
 | --- | --- | --- |
 | `/login` | Public login entry point | Shows app context, accepts an email login hint and posts no password fields. |
 | `/auth/login` | Provider redirect route | Creates short-lived state/nonce cookies and redirects to the hosted provider when configuration is valid. |
-| `/auth/callback` | Provider callback route | Validates callback state, handles provider errors and redirects only to controlled same-origin paths. Provider-specific token exchange remains the runtime adapter boundary. |
+| `/auth/callback` | Provider callback route | Validates callback state, exchanges Google authorization codes, verifies Google ID tokens and redirects only to controlled same-origin paths. |
 | `/logout` | Public logout confirmation page | Gives users a visible sign-out entry point. |
 | `/auth/logout` | Logout action | Clears CoriTech session and auth-flow cookies and delegates upstream logout when provider configuration is valid. |
 | `/logged-out` | Logout completion page | Confirms local session state was cleared. |
@@ -45,6 +45,13 @@ Protected web routes under `/app`, `/breeder-dashboard` and
 workspace content renders. The middleware only checks for the managed CoriTech
 session cookie presence; it does not parse, log or expose session tokens.
 
+For Google hosted login, `/auth/callback` exchanges the authorization code at
+Google's token endpoint, validates the returned ID token with Google's JWKS,
+maps the Google `sub` claim to `users.managed_auth_subject` using the
+`google|<sub>` prefix, and then sets a signed CoriTech session cookie. Users
+with no active CoriTech organization role land on `/app/no-role`; multi-role
+users land on `/app/select-role` before choosing an active context.
+
 ## Environment Configuration
 
 Ticket 0.3 variables are the source of configuration:
@@ -54,12 +61,34 @@ Ticket 0.3 variables are the source of configuration:
 | `AUTH_PROVIDER_DOMAIN` | Provider tenant host or issuer URL |
 | `AUTH_PROVIDER_CLIENT_ID` | CoriTech application client ID |
 | `AUTH_PROVIDER_CLIENT_SECRET` | CoriTech application client secret, read only from environment or secret manager |
+| `AUTH_SESSION_SECRET` | Optional separate CoriTech session-cookie signing secret; if omitted, the OAuth client secret is used |
 | `APP_BASE_URL` | Browser return URLs after provider-hosted flows |
 | `API_BASE_URL` | Auth callback URL origin |
 
 Auth routes must not be enabled with placeholder provider values. Staging and
 production values must come from a CoriTech-controlled secret manager or future
 vault, not source control.
+
+## Google Hosted Login Setup
+
+Use one Google OAuth Web client per CoriTech environment. The same variable
+names are used in every environment; only values change:
+
+| Environment | `AUTH_PROVIDER_DOMAIN` | Authorized redirect URI | Authorized JavaScript origin |
+| --- | --- | --- | --- |
+| Local | `https://accounts.google.com` | `http://localhost:3000/auth/callback` | `http://localhost:3000` |
+| Staging | `https://accounts.google.com` | `${API_BASE_URL}/auth/callback` | `${APP_BASE_URL}` |
+| Production | `https://accounts.google.com` | `${API_BASE_URL}/auth/callback` | `${APP_BASE_URL}` |
+
+Required Google OAuth client settings:
+
+- Application type: Web application.
+- Scopes: `openid`, `profile`, `email`.
+- Redirect URI must exactly match the deployed callback URL.
+- The Google Cloud project, OAuth consent screen, OAuth clients, recovery
+  contacts and production credentials must be CoriTech-controlled.
+- Staging and production should set `AUTH_SESSION_SECRET` to a separate
+  high-entropy secret in the deployment secret store.
 
 ## Internal User Mapping
 
@@ -107,12 +136,11 @@ backup admin and evidence location.
 
 ## Known Limitations
 
-- The selected provider account is not named in this repository yet.
-- Provider-specific token exchange and management API calls are represented as
-  framework-neutral contracts; the concrete HTTP adapter belongs with the API
-  runtime wiring. Until that adapter is configured, `/auth/callback` validates
-  state and reports a readable pending-adapter error rather than creating fake
-  sessions.
+- Google account recovery and password reset stay inside Google. CoriTech does
+  not create password reset tokens.
+- Existing seed users use local managed-auth subjects. To let those users log in
+  with Google, a platform admin or migration must link each user to the
+  `google|<sub>` subject for the relevant Google account.
 - Ticket 2.2 RBAC enforcement is implemented as a framework-neutral middleware
-  helper. The concrete HTTP adapter still needs to wire managed-auth sessions
-  into that middleware at runtime.
+  helper. Route-level pages now resolve the managed session, but future API
+  handlers still need to wire the same session source into RBAC checks.

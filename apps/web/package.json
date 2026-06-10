@@ -9,6 +9,7 @@
     "test": "node --test \"features/**/*.test.mjs\""
   },
   "dependencies": {
+    "@coritech/database": "0.1.0",
     "@coritech/domain": "0.1.0",
     "next": "^16.2.7",
     "react": "^19.2.7",

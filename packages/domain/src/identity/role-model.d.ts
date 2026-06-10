@@ -49,6 +49,7 @@ export interface Role {
 export interface UserOrganizationRoleLike {
   userId: string;
   organizationId: string;
+  organizationName?: string | null;
   roleCode: RoleCode;
   revokedAt?: string | null;
 }
@@ -68,6 +69,7 @@ export interface UserOrganizationRole extends UserOrganizationRoleLike {
 
 export interface OrganizationRoleMembership {
   organizationId: string;
+  organizationName?: string | null;
   roles: RoleCode[];
 }
 

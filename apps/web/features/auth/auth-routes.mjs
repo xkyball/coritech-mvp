@@ -71,6 +71,36 @@ export const AUTH_ERROR_MESSAGES = Object.freeze({
     message:
       "The callback route is present, but the provider-specific token exchange adapter is not configured in this runtime.",
   }),
+  token_exchange_failed: Object.freeze({
+    title: "Google could not complete the login",
+    message:
+      "The hosted login returned to CoriTech, but Google rejected the one-time authorization code. Start a new login attempt.",
+  }),
+  invalid_id_token: Object.freeze({
+    title: "Google identity could not be verified",
+    message:
+      "CoriTech could not validate the Google identity token for this login attempt. Start a new login attempt.",
+  }),
+  jwks_fetch_failed: Object.freeze({
+    title: "Google signing keys were unavailable",
+    message:
+      "CoriTech could not retrieve Google's public signing keys. Retry once the provider is reachable.",
+  }),
+  account_not_linked: Object.freeze({
+    title: "Google account is not linked",
+    message:
+      "A CoriTech user already exists with this email, but it is linked to a different managed auth subject. A platform admin must link the Google identity before login can continue.",
+  }),
+  account_disabled: Object.freeze({
+    title: "Account is disabled",
+    message:
+      "The managed identity belongs to a disabled CoriTech user. Contact a platform admin before trying again.",
+  }),
+  session_secret_missing: Object.freeze({
+    title: "Session signing is not configured",
+    message:
+      "The hosted login succeeded, but this environment is missing a non-placeholder session signing secret.",
+  }),
   password_reset_provider_managed: Object.freeze({
     title: "Password reset is provider-managed",
     message:

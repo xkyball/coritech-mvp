@@ -45,9 +45,10 @@ ignored by git and must stay outside version control.
 | Variable | Purpose | Notes |
 | --- | --- | --- |
 | `DATABASE_URL` | Primary relational database connection | Use local-only database values in development; staging/production values stay outside git |
-| `AUTH_PROVIDER_CLIENT_ID` | Managed auth application client ID | Required before auth routes are enabled |
-| `AUTH_PROVIDER_CLIENT_SECRET` | Managed auth application secret | Must never appear in docs or commits |
-| `AUTH_PROVIDER_DOMAIN` | Managed auth issuer or tenant domain | Must point to the CoriTech-controlled provider tenant |
+| `AUTH_PROVIDER_CLIENT_ID` | Google OAuth Web client ID | Required before auth routes are enabled; use a separate client per environment |
+| `AUTH_PROVIDER_CLIENT_SECRET` | Google OAuth Web client secret | Must never appear in docs or commits |
+| `AUTH_PROVIDER_DOMAIN` | Managed auth issuer | Use `https://accounts.google.com` for Google hosted login |
+| `AUTH_SESSION_SECRET` | Optional CoriTech session-cookie signing secret | Recommended for staging and production; falls back to `AUTH_PROVIDER_CLIENT_SECRET` when omitted |
 | `EMAIL_PROVIDER_API_KEY` | Outbound email provider API key | Placeholder only until Ticket 9.1 |
 | `OBJECT_STORAGE_PROVIDER` | Object storage provider selector | Use `minio` for local development; use `s3-compatible` for replaceable production-compatible storage |
 | `OBJECT_STORAGE_ENDPOINT` | Object storage endpoint host | Local Compose uses `minio`; developer-machine MinIO uses `localhost`; production must point to a CoriTech-controlled account endpoint |
@@ -92,6 +93,18 @@ It validates that:
 The Ticket 2.1 managed auth contract adds a second guard that prevents hosted
 auth routes from being enabled with placeholder provider values, including in
 local development.
+
+Google hosted login uses the same env names in each environment:
+
+- `AUTH_PROVIDER_DOMAIN=https://accounts.google.com`
+- `AUTH_PROVIDER_CLIENT_ID=<environment-specific Google OAuth Web client ID>`
+- `AUTH_PROVIDER_CLIENT_SECRET=<environment-specific Google OAuth Web client secret>`
+- `AUTH_SESSION_SECRET=<environment-specific session signing secret>` in staging
+  and production
+
+The Google Cloud Console OAuth client must authorize `${API_BASE_URL}/auth/callback`
+as the redirect URI and `${APP_BASE_URL}` as the web origin for the same
+environment.
 
 The object storage foundation adds a second provider-level guard in
 `packages/domain/src/storage/object-storage.mjs`. It rejects placeholder object

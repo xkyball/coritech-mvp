@@ -156,6 +156,8 @@ export function hasActiveRole(assignments, roleCode, organizationId) {
 export function groupActiveRolesByOrganization(assignments) {
   /** @type {Map<string, Set<import("./role-model.d.ts").RoleCode>>} */
   const memberships = new Map();
+  /** @type {Map<string, string>} */
+  const organizationNames = new Map();
 
   for (const assignment of assignments) {
     if (!isActiveRoleAssignment(assignment)) {
@@ -165,12 +167,26 @@ export function groupActiveRolesByOrganization(assignments) {
     const roles = memberships.get(assignment.organizationId) ?? new Set();
     roles.add(assignment.roleCode);
     memberships.set(assignment.organizationId, roles);
+
+    if (typeof assignment.organizationName === "string" && assignment.organizationName.trim()) {
+      organizationNames.set(assignment.organizationId, assignment.organizationName.trim());
+    }
   }
 
-  return Array.from(memberships.entries()).map(([organizationId, roles]) => ({
-    organizationId,
-    roles: Array.from(roles),
-  }));
+  return Array.from(memberships.entries()).map(([organizationId, roles]) => {
+    const membership = {
+      organizationId,
+      roles: Array.from(roles),
+    };
+    const organizationName = organizationNames.get(organizationId);
+
+    return organizationName
+      ? {
+        ...membership,
+        organizationName,
+      }
+      : membership;
+  });
 }
 
 /**

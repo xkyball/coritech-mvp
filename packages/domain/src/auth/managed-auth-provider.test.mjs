@@ -48,6 +48,7 @@ test("createManagedAuthProviderConfig builds environment-based provider endpoint
   const config = createManagedAuthProviderConfig(buildEnvironment());
 
   assert.equal(config.kind, "OIDC_MANAGED_AUTH");
+  assert.equal(config.providerFlavor, "GENERIC_OIDC");
   assert.equal(config.issuerBaseUrl, "https://auth.coritech.test");
   assert.equal(config.authorizationEndpoint, "https://auth.coritech.test/authorize");
   assert.equal(config.tokenEndpoint, "https://auth.coritech.test/oauth/token");
@@ -59,6 +60,27 @@ test("createManagedAuthProviderConfig builds environment-based provider endpoint
   assert.deepEqual(config.scope, ["openid", "profile", "email"]);
   assert.equal(config.sessionCookie.httpOnly, true);
   assert.equal(config.sessionCookie.secure, true);
+});
+
+test("createManagedAuthProviderConfig uses Google OIDC endpoints when Google is configured", () => {
+  const config = createManagedAuthProviderConfig(
+    buildEnvironment({
+      AUTH_PROVIDER_DOMAIN: "https://accounts.google.com",
+    }),
+  );
+
+  assert.equal(config.providerFlavor, "GOOGLE_OIDC");
+  assert.equal(config.issuerBaseUrl, "https://accounts.google.com");
+  assert.equal(config.authorizationEndpoint, "https://accounts.google.com/o/oauth2/v2/auth");
+  assert.equal(config.tokenEndpoint, "https://oauth2.googleapis.com/token");
+  assert.equal(config.logoutEndpoint, null);
+  assert.equal(config.revocationEndpoint, "https://oauth2.googleapis.com/revoke");
+  assert.equal(config.userinfoEndpoint, "https://openidconnect.googleapis.com/v1/userinfo");
+  assert.equal(config.jwksUri, "https://www.googleapis.com/oauth2/v3/certs");
+  assert.equal(
+    config.openidConfigurationUrl,
+    "https://accounts.google.com/.well-known/openid-configuration",
+  );
 });
 
 test("createManagedAuthProviderConfig rejects placeholder provider values before auth routes are enabled", () => {
@@ -139,6 +161,19 @@ test("buildManagedAuthLogoutUrl delegates logout to the provider", () => {
   assert.equal(logoutUrl.searchParams.get("client_id"), "coritech-staging-client");
   assert.equal(
     logoutUrl.searchParams.get("returnTo"),
+    "https://staging.app.coritech.test/logged-out",
+  );
+});
+
+test("buildManagedAuthLogoutUrl falls back to local return URL for Google", () => {
+  const config = createManagedAuthProviderConfig(
+    buildEnvironment({
+      AUTH_PROVIDER_DOMAIN: "accounts.google.com",
+    }),
+  );
+
+  assert.equal(
+    buildManagedAuthLogoutUrl(config),
     "https://staging.app.coritech.test/logged-out",
   );
 });

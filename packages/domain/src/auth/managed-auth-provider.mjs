@@ -4,6 +4,11 @@ import { groupActiveRolesByOrganization } from "../identity/role-model.mjs";
 
 export const MANAGED_AUTH_PROVIDER_KIND = "OIDC_MANAGED_AUTH";
 
+export const MANAGED_AUTH_PROVIDER_FLAVORS = /** @type {const} */ ([
+  "GENERIC_OIDC",
+  "GOOGLE_OIDC",
+]);
+
 export const MANAGED_AUTH_SCOPES = /** @type {const} */ ([
   "openid",
   "profile",
@@ -190,6 +195,7 @@ export function createManagedAuthProviderConfig(environment, options = {}) {
   }
 
   const issuerBaseUrl = normalizeIssuerBaseUrl(environment.AUTH_PROVIDER_DOMAIN);
+  const providerEndpoints = resolveManagedAuthProviderEndpoints(issuerBaseUrl);
   const appBaseUrl = normalizeBaseUrl(environment.APP_BASE_URL);
   const apiBaseUrl = normalizeBaseUrl(environment.API_BASE_URL);
   const callbackPath = options.callbackPath ?? "/auth/callback";
@@ -198,21 +204,27 @@ export function createManagedAuthProviderConfig(environment, options = {}) {
 
   return deepFreeze({
     kind: MANAGED_AUTH_PROVIDER_KIND,
+    providerFlavor: providerEndpoints.providerFlavor,
     issuerBaseUrl,
     clientId: environment.AUTH_PROVIDER_CLIENT_ID.trim(),
     clientSecretEnvironmentKey: "AUTH_PROVIDER_CLIENT_SECRET",
     clientSecretConfigured: true,
-    authorizationEndpoint: `${issuerBaseUrl}/authorize`,
-    tokenEndpoint: `${issuerBaseUrl}/oauth/token`,
-    logoutEndpoint: `${issuerBaseUrl}/v2/logout`,
-    jwksUri: `${issuerBaseUrl}/.well-known/jwks.json`,
-    openidConfigurationUrl: `${issuerBaseUrl}/.well-known/openid-configuration`,
+    authorizationEndpoint: providerEndpoints.authorizationEndpoint,
+    tokenEndpoint: providerEndpoints.tokenEndpoint,
+    logoutEndpoint: providerEndpoints.logoutEndpoint,
+    revocationEndpoint: providerEndpoints.revocationEndpoint,
+    userinfoEndpoint: providerEndpoints.userinfoEndpoint,
+    jwksUri: providerEndpoints.jwksUri,
+    openidConfigurationUrl: providerEndpoints.openidConfigurationUrl,
     callbackUrl: buildUrl(apiBaseUrl, callbackPath),
     logoutReturnUrl: buildUrl(appBaseUrl, logoutReturnPath),
     defaultPostLoginUrl: buildUrl(appBaseUrl, postLoginPath),
     scope: [...MANAGED_AUTH_SCOPES],
     sessionCookie: {
-      name: options.sessionCookieName ?? "__Host-coritech_session",
+      name: options.sessionCookieName ??
+        (environment.CORITECH_ENVIRONMENT === "local"
+          ? "coritech_session"
+          : "__Host-coritech_session"),
       httpOnly: true,
       sameSite: "Lax",
       path: "/",
@@ -300,6 +312,10 @@ export function buildManagedAuthLogoutUrl(config, input = {}) {
 
   if (issues.length > 0) {
     throw new ManagedAuthValidationError(issues);
+  }
+
+  if (!config.logoutEndpoint) {
+    return returnTo;
   }
 
   const url = new URL(config.logoutEndpoint);
@@ -491,7 +507,9 @@ function validateManagedAuthProviderConfig(config) {
 
   validateRequiredNonBlankString(config.clientId, "clientId", issues);
   validateAbsoluteUrl(config.authorizationEndpoint, "authorizationEndpoint", issues);
-  validateAbsoluteUrl(config.logoutEndpoint, "logoutEndpoint", issues);
+  if (config.logoutEndpoint != null) {
+    validateAbsoluteUrl(config.logoutEndpoint, "logoutEndpoint", issues);
+  }
   validateAbsoluteUrl(config.callbackUrl, "callbackUrl", issues);
   validateAbsoluteUrl(config.logoutReturnUrl, "logoutReturnUrl", issues);
 
@@ -703,6 +721,47 @@ function validateProviderDomain(value, environmentName, issues) {
   } catch {
     issues.push("AUTH_PROVIDER_DOMAIN must be a valid provider host or issuer URL.");
   }
+}
+
+/**
+ * @param {string} issuerBaseUrl
+ * @returns {{
+ *   providerFlavor: "GENERIC_OIDC" | "GOOGLE_OIDC",
+ *   authorizationEndpoint: string,
+ *   tokenEndpoint: string,
+ *   logoutEndpoint: string | null,
+ *   revocationEndpoint: string | null,
+ *   userinfoEndpoint: string | null,
+ *   jwksUri: string,
+ *   openidConfigurationUrl: string,
+ * }}
+ */
+function resolveManagedAuthProviderEndpoints(issuerBaseUrl) {
+  const issuer = new URL(issuerBaseUrl);
+
+  if (issuer.hostname === "accounts.google.com") {
+    return {
+      providerFlavor: "GOOGLE_OIDC",
+      authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+      tokenEndpoint: "https://oauth2.googleapis.com/token",
+      logoutEndpoint: null,
+      revocationEndpoint: "https://oauth2.googleapis.com/revoke",
+      userinfoEndpoint: "https://openidconnect.googleapis.com/v1/userinfo",
+      jwksUri: "https://www.googleapis.com/oauth2/v3/certs",
+      openidConfigurationUrl: "https://accounts.google.com/.well-known/openid-configuration",
+    };
+  }
+
+  return {
+    providerFlavor: "GENERIC_OIDC",
+    authorizationEndpoint: `${issuerBaseUrl}/authorize`,
+    tokenEndpoint: `${issuerBaseUrl}/oauth/token`,
+    logoutEndpoint: `${issuerBaseUrl}/v2/logout`,
+    revocationEndpoint: null,
+    userinfoEndpoint: null,
+    jwksUri: `${issuerBaseUrl}/.well-known/jwks.json`,
+    openidConfigurationUrl: `${issuerBaseUrl}/.well-known/openid-configuration`,
+  };
 }
 
 /**

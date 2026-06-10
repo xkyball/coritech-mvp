@@ -1,3 +1,6 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import { StationDashboard } from "../../features/station-dashboard/StationDashboard";
 import { stationDashboardDemoInput } from "../../features/station-dashboard/demo-data";
 import { getSemenOrderDemoRepository } from "../../features/order-creation/demo-store";
@@ -5,16 +8,24 @@ import {
   createStationDashboardErrorState,
   createStationDashboardViewModel,
 } from "../../features/station-dashboard/view-model";
+import { AUTH_ROUTES } from "../../features/auth/auth-routes.mjs";
+import { readManagedAuthSessionFromCookieHeader } from "../../features/auth/server-session";
 
 type StationDashboardSearchParams =
   | Promise<Record<string, string | string[] | undefined>>
   | Record<string, string | string[] | undefined>;
+
+export const dynamic = "force-dynamic";
 
 export default async function StationDashboardPage({
   searchParams,
 }: Readonly<{
   searchParams?: StationDashboardSearchParams;
 }>) {
+  if (!await readManagedAuthSessionFromCookieHeader((await headers()).get("cookie"))) {
+    redirect(`${AUTH_ROUTES.loginPage}?returnTo=${encodeURIComponent("/station-dashboard")}`);
+  }
+
   const resolvedSearchParams = await searchParams;
   const viewModel = await createViewModel(resolvedSearchParams ?? {});
 

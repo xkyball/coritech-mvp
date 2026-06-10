@@ -9,6 +9,7 @@ import type {
 } from "../identity/role-model.d.ts";
 
 export type ManagedAuthProviderKind = "OIDC_MANAGED_AUTH";
+export type ManagedAuthProviderFlavor = "GENERIC_OIDC" | "GOOGLE_OIDC";
 
 export type ManagedAuthScope = "openid" | "profile" | "email";
 
@@ -64,13 +65,16 @@ export interface AuthProviderAccountOwnershipPolicy {
 
 export interface ManagedAuthProviderConfig {
   kind: ManagedAuthProviderKind;
+  providerFlavor: ManagedAuthProviderFlavor;
   issuerBaseUrl: string;
   clientId: string;
   clientSecretEnvironmentKey: "AUTH_PROVIDER_CLIENT_SECRET";
   clientSecretConfigured: boolean;
   authorizationEndpoint: string;
   tokenEndpoint: string;
-  logoutEndpoint: string;
+  logoutEndpoint: string | null;
+  revocationEndpoint: string | null;
+  userinfoEndpoint: string | null;
   jwksUri: string;
   openidConfigurationUrl: string;
   callbackUrl: string;

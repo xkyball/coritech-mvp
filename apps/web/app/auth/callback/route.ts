@@ -3,13 +3,25 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   AUTH_FLOW_COOKIE_NAMES,
   AUTH_ROUTES,
-  hasAuthenticatedSessionCookie,
   sanitizeReturnTo,
 } from "../../../features/auth/auth-routes.mjs";
+import {
+  exchangeGoogleAuthorizationCode,
+  GoogleAuthRuntimeError,
+  isGoogleManagedAuthConfig,
+  verifyGoogleIdToken,
+} from "../../../features/auth/google-auth-runtime.mjs";
+import {
+  getManagedAuthRuntime,
+} from "../../../features/auth/auth-runtime.mjs";
+import {
+  createManagedAuthSessionForIdentity,
+  ManagedAuthSessionError,
+} from "../../../features/auth/server-session";
 
 export const runtime = "nodejs";
 
-export function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const providerError = request.nextUrl.searchParams.get("error");
   const returnTo = sanitizeReturnTo(
     request.cookies.get(AUTH_FLOW_COOKIE_NAMES.returnTo)?.value,
@@ -42,14 +54,52 @@ export function GET(request: NextRequest) {
     return redirectToAuthError(request, "invalid_state", returnTo);
   }
 
-  if (hasAuthenticatedSessionCookie(request.headers.get("cookie"))) {
-    const response = NextResponse.redirect(new URL(returnTo, request.url), 302);
-    clearAuthFlowCookies(response);
+  const authRuntime = getManagedAuthRuntime();
 
-    return response;
+  if (!authRuntime.enabled) {
+    return redirectToAuthError(request, "provider_not_configured", returnTo);
   }
 
-  return redirectToAuthError(request, "session_adapter_pending", returnTo);
+  if (!isGoogleManagedAuthConfig(authRuntime.config)) {
+    return redirectToAuthError(request, "session_adapter_pending", returnTo);
+  }
+
+  try {
+    const tokenResponse = await exchangeGoogleAuthorizationCode(authRuntime.config, {
+      code,
+      clientSecret: process.env.AUTH_PROVIDER_CLIENT_SECRET,
+    });
+    const identity = await verifyGoogleIdToken(authRuntime.config, {
+      idToken: tokenResponse.idToken,
+      nonce: request.cookies.get(AUTH_FLOW_COOKIE_NAMES.nonce)?.value,
+    });
+    const managedSession = await createManagedAuthSessionForIdentity(
+      identity,
+      authRuntime.config,
+    );
+    const response = NextResponse.redirect(new URL(returnTo, request.url), 302);
+
+    clearAuthFlowCookies(response);
+    response.cookies.set(managedSession.cookieName, managedSession.cookieValue, {
+      httpOnly: true,
+      maxAge: managedSession.maxAgeSeconds,
+      path: "/",
+      sameSite: "lax",
+      secure: authRuntime.config.sessionCookie.secure,
+    });
+
+    return response;
+  } catch (error) {
+    if (error instanceof GoogleAuthRuntimeError) {
+      return redirectToAuthError(request, error.code, returnTo);
+    }
+
+    if (error instanceof ManagedAuthSessionError) {
+      return redirectToAuthError(request, error.code, returnTo);
+    }
+
+    return redirectToAuthError(request, "provider_error", returnTo);
+  }
 }
 
 function redirectToAuthError(request: NextRequest, code: string, returnTo: string) {
