@@ -27,9 +27,13 @@ const ids = {
   platformOrg: "00000000-0000-4000-8000-000000000001",
   breederOrg: "00000000-0000-4000-8000-000000000002",
   stationOrg: "00000000-0000-4000-8000-000000000003",
+  christophUser: "00000000-0000-4000-8000-000000000100",
   adminUser: "00000000-0000-4000-8000-000000000101",
   breederUser: "00000000-0000-4000-8000-000000000102",
   stationUser: "00000000-0000-4000-8000-000000000103",
+  christophAdminRoleAssignment: "00000000-0000-4000-8000-000000000204",
+  christophBreederRoleAssignment: "00000000-0000-4000-8000-000000000205",
+  christophStationRoleAssignment: "00000000-0000-4000-8000-000000000206",
   adminRoleAssignment: "00000000-0000-4000-8000-000000000201",
   breederRoleAssignment: "00000000-0000-4000-8000-000000000202",
   stationRoleAssignment: "00000000-0000-4000-8000-000000000203",
@@ -62,6 +66,10 @@ const receivedAt = new Date("2026-06-09T10:00:00.000Z");
 const confirmedAt = new Date("2026-06-09T10:30:00.000Z");
 const shippedAt = new Date("2026-06-09T12:00:00.000Z");
 const documentAt = new Date("2026-06-09T12:15:00.000Z");
+
+const seededUserIds = {
+  christophUser: ids.christophUser,
+};
 
 async function main() {
   await seedRoles();
@@ -241,6 +249,15 @@ async function seedOrganizations() {
 }
 
 async function seedUsers() {
+  const christophUser = await upsertSeedUserByEmail({
+    id: ids.christophUser,
+    managedAuthSubject: "local|christoph-jcim",
+    email: "christoph@jcim.de",
+    displayName: "Christoph Hoffmann",
+  });
+
+  seededUserIds.christophUser = christophUser.id;
+
   const users = [
     {
       id: ids.adminUser,
@@ -271,8 +288,57 @@ async function seedUsers() {
   }
 }
 
+async function upsertSeedUserByEmail(user: {
+  id: string;
+  managedAuthSubject: string;
+  email: string;
+  displayName: string;
+}) {
+  const existingByEmail = await prisma.user.findUnique({
+    where: { email: user.email },
+  });
+
+  if (existingByEmail) {
+    return prisma.user.update({
+      where: { id: existingByEmail.id },
+      data: {
+        displayName: user.displayName,
+        status: "ACTIVE",
+      },
+    });
+  }
+
+  return prisma.user.create({
+    data: user,
+  });
+}
+
 async function seedRoleAssignments() {
   const assignments = [
+    {
+      id: ids.christophAdminRoleAssignment,
+      userId: seededUserIds.christophUser,
+      organizationId: ids.platformOrg,
+      roleCode: RoleCode.PLATFORM_ADMIN,
+      assignedByUserId: ids.adminUser,
+      assignmentReason: "Local development all-roles user.",
+    },
+    {
+      id: ids.christophBreederRoleAssignment,
+      userId: seededUserIds.christophUser,
+      organizationId: ids.breederOrg,
+      roleCode: RoleCode.BREEDER,
+      assignedByUserId: ids.adminUser,
+      assignmentReason: "Local development all-roles user.",
+    },
+    {
+      id: ids.christophStationRoleAssignment,
+      userId: seededUserIds.christophUser,
+      organizationId: ids.stationOrg,
+      roleCode: RoleCode.BREEDING_STATION,
+      assignedByUserId: ids.adminUser,
+      assignmentReason: "Local development all-roles user.",
+    },
     {
       id: ids.adminRoleAssignment,
       userId: ids.adminUser,

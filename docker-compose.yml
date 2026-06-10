@@ -67,7 +67,16 @@ services:
       dockerfile: Dockerfile
     command: npm --workspace @coritech/web run dev -- --hostname 0.0.0.0 --port 3000
     environment:
+      CORITECH_ENVIRONMENT: ${CORITECH_ENVIRONMENT:-local}
       DATABASE_URL: postgresql://${POSTGRES_USER:-coritech}:${POSTGRES_PASSWORD:-coritech_dev_password}@db:5432/${POSTGRES_DB:-coritech_mvp}?schema=public
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:3000}
+      AUDIT_LOG_RETENTION_DAYS: ${AUDIT_LOG_RETENTION_DAYS:-30}
+      AUTH_PROVIDER_CLIENT_ID: ${AUTH_PROVIDER_CLIENT_ID:-replace-before-managed-auth-setup}
+      AUTH_PROVIDER_CLIENT_SECRET: ${AUTH_PROVIDER_CLIENT_SECRET:-replace-before-managed-auth-setup}
+      AUTH_PROVIDER_DOMAIN: ${AUTH_PROVIDER_DOMAIN:-https://accounts.google.com}
+      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:-}
+      EMAIL_PROVIDER_API_KEY: ${EMAIL_PROVIDER_API_KEY:-replace-before-email-provider-setup}
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-CoriTech MVP}
       OBJECT_STORAGE_PROVIDER: ${OBJECT_STORAGE_PROVIDER:-minio}
       OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT:-minio}
@@ -77,6 +86,8 @@ services:
       OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION:-local-dev}
       OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY:-coritech_minio_dev}
       OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY:-coritech_minio_dev_password}
+      PAYMENT_PROVIDER_SECRET: ${PAYMENT_PROVIDER_SECRET:-replace-before-payment-provider-setup}
+      LOGISTICS_PROVIDER_API_KEY: ${LOGISTICS_PROVIDER_API_KEY:-replace-before-logistics-provider-setup}
       NODE_ENV: development
     ports:
       - "${WEB_PORT:-3000}:3000"

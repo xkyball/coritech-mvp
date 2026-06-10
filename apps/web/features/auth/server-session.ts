@@ -61,7 +61,10 @@ export async function createManagedAuthSessionForIdentity(
   maxAgeSeconds: number;
   session: ManagedAuthSessionContext;
 }> {
-  const user = await upsertUserFromManagedIdentity(identity);
+  const user = await upsertUserFromManagedIdentity(
+    identity,
+    source.CORITECH_ENVIRONMENT === "local",
+  );
   const issuedAt = new Date();
   const expiresAt = new Date(issuedAt.getTime() + config.sessionCookie.maxAgeSeconds * 1000);
   const session = await buildSessionContext({
@@ -139,7 +142,10 @@ export async function readManagedAuthSessionFromCookieHeader(
   return null;
 }
 
-async function upsertUserFromManagedIdentity(identity: ManagedAuthProviderIdentity) {
+async function upsertUserFromManagedIdentity(
+  identity: ManagedAuthProviderIdentity,
+  allowLocalEmailLinking: boolean,
+) {
   const existingBySubject = await prisma.user.findUnique({
     where: {
       managedAuthSubject: identity.subject,
@@ -177,6 +183,31 @@ async function upsertUserFromManagedIdentity(identity: ManagedAuthProviderIdenti
   });
 
   if (existingByEmail) {
+    if (existingByEmail.status === "DISABLED") {
+      throw new ManagedAuthSessionError(
+        "account_disabled",
+        "Managed auth identity belongs to a disabled CoriTech user.",
+      );
+    }
+
+    if (allowLocalEmailLinking) {
+      const mappedUser = mapManagedAuthIdentityToInternalUser({
+        identity,
+        userId: existingByEmail.id,
+      });
+
+      return prisma.user.update({
+        where: {
+          id: existingByEmail.id,
+        },
+        data: {
+          managedAuthSubject: mappedUser.managedAuthSubject,
+          email: mappedUser.email,
+          displayName: mappedUser.displayName,
+        },
+      });
+    }
+
     throw new ManagedAuthSessionError(
       "account_not_linked",
       "A CoriTech user already exists with this email but a different managed auth subject.",
