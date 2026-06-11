@@ -1,3 +1,4 @@
+import { Children } from "react";
 import type {
   AnchorHTMLAttributes,
   ButtonHTMLAttributes,
@@ -736,14 +737,24 @@ export function Notice({
   title: string;
   tone?: Tone;
 }>) {
+  const body = shouldWrapNoticeChildren(children) ? <p>{children}</p> : children;
+
   return (
     <section className={cx("ct-notice", `ct-notice--${tone}`, className)}>
-      <div>
+      <div className="ct-notice__body">
         <h2>{title}</h2>
-        <p>{children}</p>
+        {body}
       </div>
       {action ? <ActionBar>{action}</ActionBar> : null}
     </section>
+  );
+}
+
+function shouldWrapNoticeChildren(children: ReactNode) {
+  const items = Children.toArray(children);
+
+  return items.length > 0 && items.every((item) =>
+    typeof item === "string" || typeof item === "number"
   );
 }
 

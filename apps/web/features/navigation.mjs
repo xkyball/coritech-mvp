@@ -10,7 +10,7 @@ export const breederNavigation = Object.freeze([
 export const stationNavigation = Object.freeze([
   Object.freeze({ href: "/station-dashboard", label: "Station Overview" }),
   Object.freeze({ href: "/app/station/orders", label: "Order Management" }),
-  Object.freeze({ href: "/app/station/shipments", label: "Shipments" }),
+  Object.freeze({ href: "/station-dashboard#station-shipments-to-update-heading", label: "Shipments" }),
   Object.freeze({ href: "/app/documents/upload", label: "Documents" }),
   Object.freeze({ href: "/app/station/stallions", label: "Stallion Management" }),
   Object.freeze({ href: "/app/station/listings", label: "Listing Management" }),

@@ -25,6 +25,11 @@ test("navigation visibility follows the active role", () => {
   assert.equal(canRoleSeeNavigationItem("BREEDER", "/app/catalog"), true);
   assert.equal(canRoleSeeNavigationItem("BREEDER", "/app/station/listings"), false);
   assert.equal(canRoleSeeNavigationItem("BREEDING_STATION", "/app/station/orders"), true);
+  assert.equal(
+    canRoleSeeNavigationItem("BREEDING_STATION", "/station-dashboard#station-shipments-to-update-heading"),
+    true,
+  );
+  assert.equal(canRoleSeeNavigationItem("BREEDING_STATION", "/app/station/shipments"), false);
   assert.equal(canRoleSeeNavigationItem("BREEDING_STATION", "/app/station/stallions"), true);
   assert.equal(canRoleSeeNavigationItem("BREEDING_STATION", "/app/station/listings"), true);
   assert.equal(canRoleSeeNavigationItem("PLATFORM_ADMIN", "/app/admin"), true);

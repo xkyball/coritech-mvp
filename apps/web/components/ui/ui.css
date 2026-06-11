@@ -891,14 +891,25 @@
   margin: 0 0 var(--ct-space-2);
 }
 
+.ct-notice__body {
+  display: grid;
+  gap: var(--ct-space-2);
+}
+
+.ct-notice__body h2 {
+  margin: 0;
+}
+
 .ct-alert p,
 .ct-notice p,
-.ct-alert__body {
+.ct-alert__body,
+.ct-notice__body > ul {
   color: var(--ct-color-muted);
   margin: 0;
 }
 
-.ct-alert ul {
+.ct-alert ul,
+.ct-notice ul {
   margin: 0;
   padding-left: var(--ct-space-5);
 }
