@@ -1125,6 +1125,13 @@
   gap: var(--ct-space-2);
 }
 
+.ct-home__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ct-space-3);
+  margin-top: var(--ct-space-5);
+}
+
 .ct-home__band {
   display: grid;
   gap: var(--ct-space-6);
@@ -1166,6 +1173,28 @@
   color: var(--ct-color-accent);
   font-size: var(--ct-text-xs);
   font-weight: 850;
+}
+
+.ct-home__list a {
+  color: var(--ct-color-primary-strong);
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.ct-home__list a:hover {
+  text-decoration: underline;
+}
+
+.ct-home__list small {
+  color: var(--ct-color-muted);
+  font-size: var(--ct-text-sm);
+  line-height: 1.5;
+}
+
+.ct-home__metrics {
+  display: grid;
+  gap: var(--ct-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .ct-home__workflow {

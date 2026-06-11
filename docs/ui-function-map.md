@@ -12,18 +12,21 @@ Route / Page -> Root product overview
 
 User role -> Public / internal evaluator
 
-Primary user goal -> Understand the Phase 1 operational wedge and open the
-breeder or station workspace.
+Primary user goal -> Understand the current CoriTech application surface and
+open the managed login, invitation flow or role-specific workspace.
 
-Main actions -> Open breeder workspace, open station workspace.
+Main actions -> Sign in, open the app landing route, accept an invitation, open
+breeder, station or platform admin workspace entry points.
 
-Data displayed -> Core proof chain, Phase 1 workflow, stack/foundation labels.
+Data displayed -> Role entry points, operational workflow areas, admin/readiness
+areas and public support/static entry points.
 
-Current UI problems -> It is visually separate from the role-aware app shell and
-can read more like a status page than a product entry point.
+Current UI problems -> Resolved. The root route now reads as the current app
+entry map instead of a stack/status overview.
 
 Required new UI pattern -> Product entry surface with restrained operational
-overview, role entry actions and proof-chain summary. No fake marketing hero.
+overview, role entry actions and current app-surface summary. No fake marketing
+hero.
 
 ### `/accept-invite`
 

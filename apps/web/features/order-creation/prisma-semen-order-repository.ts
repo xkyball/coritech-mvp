@@ -644,8 +644,8 @@ function toAuditLogCreateData(auditLog: AuditLog) {
     objectType: auditLog.objectType,
     objectId: requireId(auditLog.objectId, "auditLog.objectId"),
     objectRef: auditLog.objectRef,
-    previousValues: auditLog.previousValues,
-    newValues: auditLog.newValues,
+    previousValues: toNullableJsonObjectInput(auditLog.previousValues),
+    newValues: toNullableJsonObjectInput(auditLog.newValues),
     reason: auditLog.reason,
     ipAddress: auditLog.ipAddress,
     userAgent: auditLog.userAgent,
@@ -746,6 +746,10 @@ function toJsonObject(value: unknown): Readonly<Record<string, unknown>> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
+}
+
+function toNullableJsonObjectInput(value: Record<string, unknown> | null) {
+  return value ?? undefined;
 }
 
 function toJsonArray(value: unknown): readonly unknown[] {

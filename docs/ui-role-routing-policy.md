@@ -7,7 +7,7 @@ root URL, logging in or choosing a role-specific app route.
 
 | Route | Behavior |
 | --- | --- |
-| `/` | Public MVP overview for unauthenticated users. Authenticated users are redirected to `/app`. |
+| `/` | Public application entry map for unauthenticated users, with sign-in, invitation, role workspace and current workflow links. Authenticated users are redirected to `/app`. |
 | `/login` | Public managed-auth entry point. If a managed session cookie is already present, redirects to the controlled `returnTo` path or `/app`. |
 | `/app` | Protected app landing route. Requires authentication and then delegates to active role routing. |
 | `/app/breeder` | Protected breeder role route. Requires a resolved active `BREEDER` context before redirecting to `/breeder-dashboard`. |
