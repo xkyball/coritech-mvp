@@ -32,6 +32,13 @@ real vendors or committing secrets.
 Real `.env`, `.env.local`, `.env.staging` and `.env.production` files are
 ignored by git and must stay outside version control.
 
+Local npm entry points load the repository root `.env` before starting Next.js,
+Prisma and backup/restore helpers. Docker Compose also receives the root `.env`
+explicitly and injects it into the app-side runtime containers. Explicit shell
+variables remain the highest-priority local override. `NODE_ENV` is intentionally
+left under the control of Next.js, npm commands and Docker runtime configuration
+rather than being imported from `.env`.
+
 ## Environment Separation
 
 | Environment | Purpose | Secret source | Placeholder policy |

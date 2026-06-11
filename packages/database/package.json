@@ -6,11 +6,11 @@
   "main": "src/client.ts",
   "scripts": {
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "db:generate": "prisma generate --schema prisma/schema.prisma",
-    "db:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
-    "db:seed": "npm run db:generate && prisma db seed --schema prisma/schema.prisma",
-    "db:reset": "npm run db:generate && prisma migrate reset --force --schema prisma/schema.prisma",
-    "db:studio": "prisma studio --schema prisma/schema.prisma"
+    "db:generate": "node ../../scripts/with-local-env.mjs prisma generate --schema prisma/schema.prisma",
+    "db:migrate": "node ../../scripts/with-local-env.mjs prisma migrate deploy --schema prisma/schema.prisma",
+    "db:seed": "npm run db:generate && node ../../scripts/with-local-env.mjs prisma db seed --schema prisma/schema.prisma",
+    "db:reset": "npm run db:generate && node ../../scripts/with-local-env.mjs prisma migrate reset --force --schema prisma/schema.prisma",
+    "db:studio": "node ../../scripts/with-local-env.mjs prisma studio --schema prisma/schema.prisma"
   },
   "dependencies": {
     "@prisma/client": "6.19.3"

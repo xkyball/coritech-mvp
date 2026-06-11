@@ -38,7 +38,13 @@ This removes the PostgreSQL volume and clears local database state.
 
 ## Environment
 
-Local defaults are in `.env.example`. Docker Compose uses:
+Local defaults are in `.env.example`; copy it to `.env` before starting the
+stack. `scripts/docker-compose.mjs` passes the repository root `.env` to Docker
+Compose explicitly, and the `web` and `migrate-seed` services also load `.env`
+as a runtime `env_file`. Values passed directly in the shell still override
+file values.
+
+Docker Compose uses:
 
 ```env
 WEB_PORT=3000
@@ -66,6 +72,10 @@ WEB_PORT=3004 npm run docker:up
 ```
 
 Do not commit real `.env` files or production secrets.
+
+The `.dockerignore` file excludes real `.env` files from the image build
+context. Local secrets are injected at Compose runtime instead of being baked
+into the Docker image.
 
 ## MinIO
 

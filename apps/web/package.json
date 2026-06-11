@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack --port 3000",
-    "build": "next build",
-    "start": "next start --port 3000",
+    "dev": "node ../../scripts/with-local-env.mjs next dev --webpack --port 3000",
+    "build": "node ../../scripts/with-local-env.mjs next build",
+    "start": "node ../../scripts/with-local-env.mjs next start --port 3000",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "test": "node --test \"features/**/*.test.mjs\""
   },

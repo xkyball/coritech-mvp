@@ -29,8 +29,8 @@
     "db:seed": "npm --workspace @coritech/database run db:seed",
     "db:reset": "npm --workspace @coritech/database run db:reset",
     "db:studio": "npm --workspace @coritech/database run db:studio",
-    "backup:database": "node scripts/backup-database.mjs",
-    "restore:database": "node scripts/restore-database.mjs",
+    "backup:database": "node scripts/with-local-env.mjs node scripts/backup-database.mjs",
+    "restore:database": "node scripts/with-local-env.mjs node scripts/restore-database.mjs",
     "docker:up": "node scripts/docker-compose.mjs up --build",
     "docker:down": "node scripts/docker-compose.mjs down",
     "docker:reset": "node scripts/docker-compose.mjs down -v --remove-orphans"

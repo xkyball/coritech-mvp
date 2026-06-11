@@ -1,6 +1,15 @@
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+
+import {
+  defaultLocalEnvPath,
+  repositoryRoot,
+} from "./local-env.mjs";
 
 const args = process.argv.slice(2);
+const composeEnvFileArgs = existsSync(defaultLocalEnvPath)
+  ? ["--env-file", defaultLocalEnvPath]
+  : [];
 
 if (args.length === 0) {
   process.stderr.write("Usage: node scripts/docker-compose.mjs <compose args...>\n");
@@ -13,7 +22,8 @@ const dockerComposePlugin = spawnSync("docker", ["compose", "version"], {
 });
 
 if (!dockerComposePlugin.error && dockerComposePlugin.status === 0) {
-  const result = spawnSync("docker", ["compose", ...args], {
+  const result = spawnSync("docker", ["compose", ...composeEnvFileArgs, ...args], {
+    cwd: repositoryRoot,
     stdio: "inherit",
     shell: false,
   });
@@ -26,7 +36,8 @@ const standaloneCompose = spawnSync("docker-compose", ["version"], {
 });
 
 if (!standaloneCompose.error && standaloneCompose.status === 0) {
-  const result = spawnSync("docker-compose", args, {
+  const result = spawnSync("docker-compose", [...composeEnvFileArgs, ...args], {
+    cwd: repositoryRoot,
     stdio: "inherit",
     shell: false,
   });

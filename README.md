@@ -95,6 +95,10 @@ Copy local environment defaults:
 cp .env.example .env
 ```
 
+Root npm scripts and workspace app/database scripts load the repository root
+`.env` automatically before starting Next.js or Prisma. Shell-provided
+environment variables still take precedence for one-off overrides.
+
 Start the full local stack:
 
 ```bash
@@ -142,7 +146,7 @@ npm run db:studio
 ```
 
 For host-side Prisma commands, set `DATABASE_URL` to a host-reachable database
-URL such as:
+URL in `.env` or as a shell override, such as:
 
 ```bash
 DATABASE_URL="postgresql://coritech:coritech_dev_password@localhost:5432/coritech_mvp?schema=public"
