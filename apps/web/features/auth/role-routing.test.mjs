@@ -7,7 +7,14 @@ import {
   resolveRoleRoute,
 } from "./role-routing.mjs";
 
+const currentUser = {
+  id: "user-christoph",
+  displayName: "Christoph Hoffmann",
+  email: "christoph@example.com",
+};
+
 const breederSession = {
+  user: currentUser,
   memberships: [
     {
       organizationId: "org-breeder",
@@ -18,6 +25,7 @@ const breederSession = {
 };
 
 const stationSession = {
+  user: currentUser,
   memberships: [
     {
       organizationId: "org-station",
@@ -28,6 +36,7 @@ const stationSession = {
 };
 
 const adminSession = {
+  user: currentUser,
   memberships: [
     {
       organizationId: "org-platform",
@@ -38,6 +47,7 @@ const adminSession = {
 };
 
 const multiRoleSession = {
+  user: currentUser,
   memberships: [
     {
       organizationId: "org-breeder",
@@ -51,6 +61,14 @@ const multiRoleSession = {
     },
   ],
 };
+
+function expectedContext(input) {
+  return {
+    userId: currentUser.id,
+    userLabel: currentUser.displayName,
+    ...input,
+  };
+}
 
 test("app landing sends unauthenticated users to login", () => {
   assert.deepEqual(resolveAppLanding({ session: null }), {
@@ -79,12 +97,12 @@ test("app landing uses the selected context for multi-role users", () => {
       status: "redirect",
       destination: "/station-dashboard",
       reason: "ACTIVE_ROLE",
-      activeContext: {
+      activeContext: expectedContext({
         organizationId: "org-station",
         organizationName: "North Station",
         roleCode: "BREEDING_STATION",
         roleLabel: "Breeding Station",
-      },
+      }),
     },
   );
 });
@@ -100,25 +118,25 @@ test("active context chooses the selected role for multi-role users", () => {
     }),
     {
       status: "resolved",
-      activeContext: {
+      activeContext: expectedContext({
         organizationId: "org-station",
         organizationName: "North Station",
         roleCode: "BREEDING_STATION",
         roleLabel: "Breeding Station",
-      },
+      }),
       availableContexts: [
-        {
+        expectedContext({
           organizationId: "org-breeder",
           organizationName: "Blue Hill Breeders",
           roleCode: "BREEDER",
           roleLabel: "Breeder",
-        },
-        {
+        }),
+        expectedContext({
           organizationId: "org-station",
           organizationName: "North Station",
           roleCode: "BREEDING_STATION",
           roleLabel: "Breeding Station",
-        },
+        }),
       ],
     },
   );
@@ -132,8 +150,50 @@ test("multi-role users without selected context receive role selection state", (
   assert.equal(result.availableContexts.length, 2);
 });
 
+test("invalid persisted context falls back safely for single-context users", () => {
+  assert.deepEqual(
+    resolveActiveRoleContext({
+      session: breederSession,
+      activeContext: {
+        organizationId: "old-org",
+        roleCode: "BREEDING_STATION",
+      },
+    }),
+    {
+      status: "resolved",
+      activeContext: expectedContext({
+        organizationId: "org-breeder",
+        organizationName: "Blue Hill Breeders",
+        roleCode: "BREEDER",
+        roleLabel: "Breeder",
+      }),
+      availableContexts: [
+        expectedContext({
+          organizationId: "org-breeder",
+          organizationName: "Blue Hill Breeders",
+          roleCode: "BREEDER",
+          roleLabel: "Breeder",
+        }),
+      ],
+    },
+  );
+});
+
+test("invalid persisted context requires reselection for multi-context users", () => {
+  const result = resolveActiveRoleContext({
+    session: multiRoleSession,
+    activeContext: {
+      organizationId: "old-org",
+      roleCode: "PLATFORM_ADMIN",
+    },
+  });
+
+  assert.equal(result.status, "multi-role-selection-required");
+  assert.equal(result.availableContexts.length, 2);
+});
+
 test("users with no active organization role receive no-role state", () => {
-  assert.deepEqual(resolveAppLanding({ session: { memberships: [] } }), {
+  assert.deepEqual(resolveAppLanding({ session: { user: currentUser, memberships: [] } }), {
     status: "render",
     page: "NO_ROLE",
     reason: "NO_ACTIVE_ORGANIZATION_ROLE",
@@ -158,12 +218,12 @@ test("role routes enforce the selected active role", () => {
       status: "redirect",
       destination: "/unauthorized",
       reason: "ROLE_FORBIDDEN",
-      activeContext: {
+      activeContext: expectedContext({
         organizationId: "org-breeder",
         organizationName: "Blue Hill Breeders",
         roleCode: "BREEDER",
         roleLabel: "Breeder",
-      },
+      }),
     },
   );
 });
@@ -187,5 +247,23 @@ test("role routes cover station and admin redirects without auth loops", () => {
       requiredRoleCode: "PLATFORM_ADMIN",
     }).destination,
     "/app/admin",
+  );
+
+  assert.deepEqual(
+    resolveRoleRoute({
+      session: stationSession,
+      requiredRoleCode: "PLATFORM_ADMIN",
+    }),
+    {
+      status: "redirect",
+      destination: "/unauthorized",
+      reason: "ROLE_FORBIDDEN",
+      activeContext: expectedContext({
+        organizationId: "org-station",
+        organizationName: "North Station",
+        roleCode: "BREEDING_STATION",
+        roleLabel: "Breeding Station",
+      }),
+    },
   );
 });

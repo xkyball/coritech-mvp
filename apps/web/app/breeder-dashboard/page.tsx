@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { requireActiveContextActor } from "../../features/auth/active-context-server";
+import { ActiveContextBar } from "../../features/auth/ActiveContextBar";
 import { BreederDashboard } from "../../features/breeder-dashboard/BreederDashboard";
 import {
   createBreederDashboardErrorState,
@@ -21,7 +22,12 @@ export default async function BreederDashboardPage() {
 
   const viewModel = await createViewModel();
 
-  return <BreederDashboard viewModel={viewModel} />;
+  return (
+    <>
+      <ActiveContextBar />
+      <BreederDashboard viewModel={viewModel} />
+    </>
+  );
 }
 
 async function createViewModel() {

@@ -29,6 +29,10 @@ root URL, logging in or choosing a role-specific app route.
 - A single active breeding station context lands on `/station-dashboard`.
 - A single active platform admin context lands on `/app/admin`.
 - Multi-role users without a selected context land on `/app/select-role`.
+- Multi-role users with a stale selected context also land on
+  `/app/select-role` so they can choose one of their current valid contexts.
+- Single-context users with a stale selected context are safely resolved to
+  their remaining valid context.
 - Users with no active organization role land on `/app/no-role`.
 - Requests for a role route that does not match the validated active context
   redirect to `/unauthorized`.
@@ -47,8 +51,16 @@ selected organization/role key and is always revalidated against server-side
 session memberships before use. It must not be treated as authorization by
 itself.
 
+The authenticated app shell renders the active-context switcher from
+`apps/web/features/auth/ActiveContextBar.tsx`. The switcher displays the
+validated user, organization and role. Users with one valid context see the
+active role only; users with multiple valid contexts can post a switch to
+`/app/context/switch`, which revalidates the requested context before setting
+the cookie and redirecting to the role's default workspace.
+
 The Next.js route pages treat an authenticated request without a resolved
-context as `/app/no-role`. This avoids leaking protected dashboard data or
-granting access from browser-provided role claims. Runtime provider/session
-adapter wiring is still responsible for supplying the authenticated user's role
+context as `/app/select-role` for multi-context users or `/app/no-role` when no
+valid context exists. This avoids leaking protected dashboard data or granting
+access from browser-provided role claims. Runtime provider/session adapter
+wiring is still responsible for supplying the authenticated user's role
 assignments to the resolver.

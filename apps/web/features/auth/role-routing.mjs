@@ -153,8 +153,16 @@ export function resolveActiveRoleContext(input) {
       };
     }
 
+    if (availableContexts.length === 1) {
+      return {
+        status: "resolved",
+        activeContext: availableContexts[0],
+        availableContexts,
+      };
+    }
+
     return {
-      status: "no-role",
+      status: "multi-role-selection-required",
       availableContexts,
     };
   }
@@ -198,6 +206,12 @@ function extractSupportedContexts(session) {
     return [];
   }
 
+  const sessionUserId = normalizeString(session.user?.id);
+  const userId = sessionUserId ?? "";
+  const userLabel = normalizeString(session.user?.displayName) ??
+    normalizeString(session.user?.email) ??
+    sessionUserId ??
+    "Current user";
   const contexts = [];
 
   for (const membership of session.memberships) {
@@ -212,6 +226,8 @@ function extractSupportedContexts(session) {
     for (const roleCode of ACTIVE_ROLE_PRIORITY) {
       if (roles.includes(roleCode)) {
         contexts.push({
+          userId,
+          userLabel,
           organizationId,
           organizationName: organizationName ?? organizationId,
           roleCode,

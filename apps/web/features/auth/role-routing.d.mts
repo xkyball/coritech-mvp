@@ -12,7 +12,14 @@ export interface ManagedAuthSessionMembershipLike {
   roles: string[];
 }
 
+export interface ManagedAuthSessionUserLike {
+  id: string;
+  displayName?: string | null;
+  email?: string | null;
+}
+
 export interface ManagedAuthSessionLike {
+  user?: ManagedAuthSessionUserLike;
   memberships: ManagedAuthSessionMembershipLike[];
 }
 
@@ -22,6 +29,8 @@ export interface ActiveContextSelection {
 }
 
 export interface ResolvedActiveContext extends ActiveContextSelection {
+  userId: string;
+  userLabel: string;
   organizationName: string;
   roleLabel: string;
 }

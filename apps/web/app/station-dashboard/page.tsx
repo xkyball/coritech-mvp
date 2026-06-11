@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { requireActiveContextActor } from "../../features/auth/active-context-server";
+import { ActiveContextBar } from "../../features/auth/ActiveContextBar";
 import { StationDashboard } from "../../features/station-dashboard/StationDashboard";
 import {
   createStationDashboardErrorState,
@@ -31,7 +32,12 @@ export default async function StationDashboardPage({
   const resolvedSearchParams = await searchParams;
   const viewModel = await createViewModel(resolvedSearchParams ?? {});
 
-  return <StationDashboard viewModel={viewModel} />;
+  return (
+    <>
+      <ActiveContextBar />
+      <StationDashboard viewModel={viewModel} />
+    </>
+  );
 }
 
 async function createViewModel(searchParams: Record<string, string | string[] | undefined>) {

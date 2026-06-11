@@ -44,6 +44,9 @@ Resolution rules:
 - A selected context is accepted only when it matches an active role assignment
   for the authenticated user and, when organization metadata is supplied, an
   active organization.
+- If a persisted selected context is stale, a single-context user is safely
+  resolved to the remaining valid context; a multi-context user must choose a
+  valid context again.
 - Future roles such as `BUYER`, revoked assignments and disabled organizations
   do not become active contexts.
 - A user with no valid active context is routed to the no-role setup state.
@@ -61,7 +64,9 @@ preference, not proof of authority; each request must revalidate it against the
 server-resolved managed-auth session memberships before rendering protected
 workspace data or dispatching a service command. The context switch route
 validates the selected organization and role against those server-resolved
-session memberships before updating the secure app-state cookie.
+session memberships before updating the secure app-state cookie. The
+authenticated app shell displays the validated user, organization and role and
+posts context switches back through that same route.
 
 Audit and proof hooks use the same validated actor context for
 `actorUserId`, `actorRoleCode`, `actorOrganizationId` and the

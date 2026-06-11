@@ -9,8 +9,16 @@ import {
   resolveActiveContextSwitch,
   serializeActiveContextCookie,
 } from "./active-context-runtime.mjs";
+import { getNavigationForRole } from "../navigation.mjs";
+
+const currentUser = {
+  id: "user-christoph",
+  displayName: "Christoph Hoffmann",
+  email: "christoph@example.com",
+};
 
 const multiRoleSession = {
+  user: currentUser,
   memberships: [
     {
       organizationId: "org-breeder",
@@ -25,6 +33,25 @@ const multiRoleSession = {
   ],
 };
 
+const singleRoleSession = {
+  user: currentUser,
+  memberships: [
+    {
+      organizationId: "org-breeder",
+      organizationName: "Blue Hill Breeders",
+      roles: ["BREEDER"],
+    },
+  ],
+};
+
+function expectedContext(input) {
+  return {
+    userId: currentUser.id,
+    userLabel: currentUser.displayName,
+    ...input,
+  };
+}
+
 test("active context cookie is only a validated selection preference", () => {
   const resolution = resolveActiveContextFromSession({
     session: multiRoleSession,
@@ -32,20 +59,63 @@ test("active context cookie is only a validated selection preference", () => {
   });
 
   assert.equal(resolution.status, "resolved");
-  assert.deepEqual(resolution.activeContext, {
+  assert.deepEqual(resolution.activeContext, expectedContext({
     organizationId: "org-station",
     organizationName: "North Station",
     roleCode: "BREEDING_STATION",
     roleLabel: "Breeding Station",
-  });
+  }));
 
   assert.equal(
     resolveActiveContextFromSession({
       session: multiRoleSession,
       cookieValue: "org-admin:PLATFORM_ADMIN",
     }).status,
-    "no-role",
+    "multi-role-selection-required",
   );
+});
+
+test("single-context users recover safely from an invalid persisted context", () => {
+  assert.deepEqual(
+    resolveActiveContextFromSession({
+      session: singleRoleSession,
+      cookieValue: "old-org:BREEDING_STATION",
+    }),
+    {
+      status: "resolved",
+      activeContext: expectedContext({
+        organizationId: "org-breeder",
+        organizationName: "Blue Hill Breeders",
+        roleCode: "BREEDER",
+        roleLabel: "Breeder",
+      }),
+      availableContexts: [
+        expectedContext({
+          organizationId: "org-breeder",
+          organizationName: "Blue Hill Breeders",
+          roleCode: "BREEDER",
+          roleLabel: "Breeder",
+        }),
+      ],
+    },
+  );
+});
+
+test("active context persists across refresh through a revalidated cookie preference", () => {
+  const firstResolution = resolveActiveContextFromSession({
+    session: multiRoleSession,
+    cookieValue: "org-station:BREEDING_STATION",
+  });
+
+  assert.equal(firstResolution.status, "resolved");
+
+  const refreshedResolution = resolveActiveContextFromSession({
+    session: multiRoleSession,
+    cookieValue: serializeActiveContextCookie(firstResolution.activeContext),
+  });
+
+  assert.equal(refreshedResolution.status, "resolved");
+  assert.deepEqual(refreshedResolution.activeContext, firstResolution.activeContext);
 });
 
 test("context switch validates the requested context against session memberships", () => {
@@ -57,29 +127,39 @@ test("context switch validates the requested context against session memberships
   assert.deepEqual(switched, {
     ok: true,
     reason: "CONTEXT_SWITCHED",
-    activeContext: {
+    activeContext: expectedContext({
       organizationId: "org-breeder",
       organizationName: "Blue Hill Breeders",
       roleCode: "BREEDER",
       roleLabel: "Breeder",
-    },
+    }),
     availableContexts: [
-      {
+      expectedContext({
         organizationId: "org-breeder",
         organizationName: "Blue Hill Breeders",
         roleCode: "BREEDER",
         roleLabel: "Breeder",
-      },
-      {
+      }),
+      expectedContext({
         organizationId: "org-station",
         organizationName: "North Station",
         roleCode: "BREEDING_STATION",
         roleLabel: "Breeding Station",
-      },
+      }),
     ],
     cookieValue: "org-breeder:BREEDER",
     redirectTo: "/breeder-dashboard",
   });
+
+  assert.deepEqual(
+    getNavigationForRole(switched.activeContext.roleCode).map((item) => item.href),
+    [
+      "/breeder-dashboard",
+      "/app/catalog",
+      "/app/orders/new",
+      "/app/documents/upload",
+    ],
+  );
 });
 
 test("context switch rejects missing sessions, malformed selections and unauthorized memberships", () => {
@@ -118,13 +198,13 @@ test("dashboard context options use the same key as the switch action", () => {
   assert.deepEqual(options, [
     {
       key: "org-breeder:BREEDER",
-      label: "Blue Hill Breeders - Breeder",
+      label: "Christoph Hoffmann / Blue Hill Breeders / Breeder",
       organizationName: "Blue Hill Breeders",
       roleLabel: "Breeder",
     },
     {
       key: "org-station:BREEDING_STATION",
-      label: "North Station - Breeding Station",
+      label: "Christoph Hoffmann / North Station / Breeding Station",
       organizationName: "North Station",
       roleLabel: "Breeding Station",
     },

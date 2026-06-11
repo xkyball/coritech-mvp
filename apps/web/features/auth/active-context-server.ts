@@ -15,6 +15,7 @@ import { readManagedAuthSessionFromCookieHeader } from "./server-session";
 
 export type ActiveContextActor = {
   userId: string;
+  userLabel: string;
   organizationId: string;
   organizationName: string;
   roleCode: SupportedRoleCode;
@@ -50,15 +51,18 @@ export async function requireActiveContextActor(
     throw new ActiveContextRequiredError(`Active context must be ${requiredRoleCode}.`);
   }
 
-  return contextToActor(session!.user.id, resolution.activeContext);
+  return contextToActor(resolution.activeContext, session!.user.id);
 }
 
 function contextToActor(
-  userId: string,
   context: ResolvedActiveContext,
+  fallbackUserId: string,
 ): ActiveContextActor {
+  const userId = context.userId || fallbackUserId;
+
   return {
     userId,
+    userLabel: context.userLabel,
     organizationId: context.organizationId,
     organizationName: context.organizationName,
     roleCode: context.roleCode,

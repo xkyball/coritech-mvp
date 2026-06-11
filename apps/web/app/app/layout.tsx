@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import {
   AUTH_ROUTES,
 } from "../../features/auth/auth-routes.mjs";
+import { ActiveContextBar } from "../../features/auth/ActiveContextBar";
 import { readManagedAuthSessionFromCookieHeader } from "../../features/auth/server-session";
 
 export const dynamic = "force-dynamic";
@@ -19,5 +20,10 @@ export default async function AuthenticatedAppLayout({
     redirect(`${AUTH_ROUTES.loginPage}?returnTo=${encodeURIComponent(AUTH_ROUTES.appHome)}`);
   }
 
-  return children;
+  return (
+    <>
+      <ActiveContextBar />
+      {children}
+    </>
+  );
 }

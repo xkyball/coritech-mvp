@@ -129,7 +129,7 @@ export function resolveActiveContextSwitch(input) {
 export function createDashboardContextOptions(availableContexts) {
   return availableContexts.map((context) => ({
     key: buildActiveContextSelectionKey(context),
-    label: `${context.organizationName} - ${context.roleLabel}`,
+    label: `${context.userLabel} / ${context.organizationName} / ${context.roleLabel}`,
     organizationName: context.organizationName,
     roleLabel: context.roleLabel,
   }));

@@ -10,13 +10,19 @@ role-scoped workspaces while keeping navigation in one reusable configuration.
 | Layer | Responsibility |
 | --- | --- |
 | `apps/web/app/layout.tsx` | Public root layout, global metadata and shared CSS. |
-| `apps/web/app/app/layout.tsx` | Authenticated app boundary. It redirects unauthenticated requests before protected child routes render. |
+| `apps/web/app/app/layout.tsx` | Authenticated app boundary. It redirects unauthenticated requests before protected child routes render and mounts the validated active-context switcher. |
+| `ActiveContextBar` | Server-rendered context display and switch form for authenticated users. It reads the managed-auth session, revalidates the selected context cookie and posts switches to `/app/context/switch`. |
 | `DashboardShell` | Reusable role-scoped shell with CoriTech wordmark, sidebar navigation, active organization/role display, user area and sign-out action. |
 | Feature pages | Provide page content and active route, but do not define global navigation policy. |
 
 The shell is intentionally not an authorization layer. Routes, server actions
 and services must still use managed-auth session context, active role context
 and RBAC checks before reading or mutating protected data.
+
+The active-context switcher is intentionally not an authorization source. It
+stores only the selected organization/role preference; every protected page and
+service path revalidates that preference against the authenticated user's
+current server-resolved memberships.
 
 ## Navigation Configuration
 
