@@ -6,6 +6,7 @@ export type AuditLogAction =
   | "STATUS_CHANGE"
   | "UPLOAD_DOCUMENT"
   | "VIEW_DOCUMENT"
+  | "ACCESS_DECISION"
   | "CREATE_PROOF_EVENT"
   | "CHANGE_PERMISSION"
   | "ADMIN_EDIT"
@@ -98,6 +99,19 @@ export interface CreateAuditLogFromHookInput extends AuditLogFromHookInput {
   repository: AuditLogWriteRepository;
 }
 
+export interface AuditLogFromAccessDecisionInput {
+  decision: import("../auth/rbac-middleware.d.ts").RbacAccessDecision;
+  auditLogId?: string | null;
+  requestContext?: AuditRequestContext | null;
+  createdAt?: string | Date;
+  now?: string | Date;
+}
+
+export interface CreateAuditLogFromAccessDecisionInput
+  extends AuditLogFromAccessDecisionInput {
+  repository: AuditLogWriteRepository;
+}
+
 export interface AuditLogObjectQueryInput {
   objectType: string;
   objectId: string;
@@ -116,6 +130,24 @@ export interface ListAuditLogsForObjectInput extends AuditLogObjectQueryInput {
   repository: AuditLogReadRepository;
 }
 
+export interface AuditLogListFilters {
+  objectType?: string;
+  objectId?: string;
+  actorUserId?: string;
+  actorOrganizationId?: string;
+  action?: AuditLogAction;
+  fromOccurredAt?: string | Date;
+  toOccurredAt?: string | Date;
+  limit?: number;
+  page?: number;
+}
+
+export interface ListAuditLogsForAdminInput {
+  actor: AuditLogActorContext;
+  filters?: AuditLogListFilters | null;
+  repository: AuditLogAdminReadRepository;
+}
+
 export interface AuditLogWriteRepository {
   createAuditLog(auditLog: AuditLog): Promise<AuditLog>;
 }
@@ -124,9 +156,14 @@ export interface AuditLogReadRepository {
   listAuditLogsForObject(objectType: string, objectId: string): Promise<AuditLog[]>;
 }
 
+export interface AuditLogAdminReadRepository {
+  listAuditLogs(filters?: AuditLogListFilters): Promise<AuditLog[]>;
+}
+
 export interface AuditLogRepository
   extends AuditLogWriteRepository,
-    AuditLogReadRepository {}
+    AuditLogReadRepository,
+    AuditLogAdminReadRepository {}
 
 export declare const AUDIT_LOG_ACTIONS: readonly AuditLogAction[];
 export declare const AUDIT_LOG_ROUTES: readonly {
@@ -163,6 +200,12 @@ export declare function prepareAuditLogEntryFromHook(
 export declare function createAuditLogFromHook(
   input: CreateAuditLogFromHookInput,
 ): Promise<AuditLog>;
+export declare function prepareAuditLogEntryFromAccessDecision(
+  input: AuditLogFromAccessDecisionInput,
+): AuditLog;
+export declare function createAuditLogFromAccessDecision(
+  input: CreateAuditLogFromAccessDecisionInput,
+): Promise<AuditLog>;
 export declare function validateAuditLogObjectQuery(
   input: AuditLogObjectQueryInput,
 ): string[];
@@ -170,8 +213,17 @@ export declare function canViewAuditLogsForObject(
   actor: AuditLogActorContext,
   objectContext?: AuditLogObjectContext | null,
 ): boolean;
+export declare function canQueryAuditLogsForAdmin(
+  actor: AuditLogActorContext,
+): boolean;
 export declare function listAuditLogsForObject(
   input: ListAuditLogsForObjectInput,
+): Promise<AuditLog[]>;
+export declare function validateAuditLogListFilters(
+  input?: AuditLogListFilters | null,
+): string[];
+export declare function listAuditLogsForAdmin(
+  input: ListAuditLogsForAdminInput,
 ): Promise<AuditLog[]>;
 export declare function canUpdateAuditLog(): false;
 export declare function canDeleteAuditLog(): false;

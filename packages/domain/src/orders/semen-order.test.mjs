@@ -367,6 +367,31 @@ test("order transition and view permissions reject unrelated or future roles", (
     canTransitionSemenOrderStatus(stationActor, draftOrder, "SUBMITTED"),
     false,
   );
+  assert.equal(
+    canTransitionSemenOrderStatus(breederActor, draftOrder, "CANCELLED"),
+    true,
+  );
+  assert.equal(
+    canTransitionSemenOrderStatus(breederActor, {
+      ...draftOrder,
+      status: "SUBMITTED",
+    }, "CANCELLED"),
+    true,
+  );
+  assert.equal(
+    canTransitionSemenOrderStatus(breederActor, {
+      ...draftOrder,
+      status: "RECEIVED",
+    }, "CANCELLED"),
+    false,
+  );
+  assert.equal(
+    canTransitionSemenOrderStatus(adminActor, {
+      ...draftOrder,
+      status: "RECEIVED",
+    }, "CANCELLED"),
+    true,
+  );
 
   assert.throws(
     () =>
@@ -664,6 +689,154 @@ test("OrderService orchestrates create, update and status commands with audit, p
   assert.equal(duplicateComplete.statusHistory, null);
 });
 
+test("OrderService enforces cancellation policy with reason, audit, proof and notification hooks", async () => {
+  const repository = buildRepository({
+    listings: [activeListing],
+    sequenceStart: 31,
+  });
+  const notificationHooks = [];
+  const service = createOrderService({
+    repository,
+    auditContext: {
+      userAgent: "node-test/order-cancellation",
+    },
+    notificationService: {
+      recordOrderNotificationHook(hook) {
+        notificationHooks.push(hook);
+        return { queued: true, hook };
+      },
+    },
+  });
+
+  await service.createDraftOrder({
+    actor: breederActor,
+    body: {
+      semenListingId: "listing-active",
+      breederOrganizationId,
+      ...completeOrderDetails,
+      reason: "Create cancellable order",
+      createdAt: timestamp,
+    },
+  });
+  await service.submitOrder({
+    actor: breederActor,
+    orderId: "order-1",
+    body: {
+      reason: "Submit cancellable order",
+      now: timestamp,
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.cancelOrder({
+        actor: breederActor,
+        orderId: "order-1",
+        body: {
+          now: timestamp,
+        },
+      }),
+    (error) =>
+      error instanceof SemenOrderValidationError &&
+      error.issues.includes("reason is required when cancelling a semen order."),
+  );
+
+  const cancelled = await service.cancelOrder({
+    actor: breederActor,
+    orderId: "order-1",
+    body: {
+      reason: "Breeder no longer needs shipment",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(cancelled.order.status, "CANCELLED");
+  assert.equal(cancelled.statusHistory?.fromStatus, "SUBMITTED");
+  assert.equal(cancelled.statusHistory?.reason, "Breeder no longer needs shipment");
+  assert.equal(cancelled.auditHook?.action, "SEMEN_ORDER_CANCELLED");
+  assert.equal(cancelled.auditLog?.sourceAction, "SEMEN_ORDER_CANCELLED");
+  assert.equal(cancelled.proofHook?.triggerRef.toStatus, "CANCELLED");
+  assert.equal(notificationHooks.at(-1)?.eventType, "ORDER_CANCELLED");
+
+  await assert.rejects(
+    () =>
+      service.receiveOrder({
+        actor: stationActor,
+        orderId: "order-1",
+        body: {
+          reason: "Cannot continue cancelled order",
+          now: timestamp,
+        },
+      }),
+    (error) =>
+      error instanceof SemenOrderValidationError &&
+      error.issues.includes("cannot transition semen order from CANCELLED to RECEIVED."),
+  );
+});
+
+test("OrderService limits later-status cancellation to platform admin support", async () => {
+  const repository = buildRepository({
+    listings: [activeListing],
+    sequenceStart: 32,
+  });
+  const service = createOrderService({ repository });
+
+  await service.createDraftOrder({
+    actor: breederActor,
+    body: {
+      semenListingId: "listing-active",
+      breederOrganizationId,
+      ...completeOrderDetails,
+      reason: "Create admin support cancellation order",
+      createdAt: timestamp,
+    },
+  });
+  await service.submitOrder({
+    actor: breederActor,
+    orderId: "order-1",
+    body: {
+      reason: "Submit to station",
+      now: timestamp,
+    },
+  });
+  await service.receiveOrder({
+    actor: stationActor,
+    orderId: "order-1",
+    body: {
+      reason: "Station received order",
+      now: timestamp,
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.cancelOrder({
+        actor: breederActor,
+        orderId: "order-1",
+        body: {
+          reason: "Breeder cannot cancel after station receipt",
+          now: timestamp,
+        },
+      }),
+    (error) =>
+      error instanceof SemenOrderValidationError &&
+      error.issues.includes("actor is not authorized for this semen order status transition."),
+  );
+
+  const cancelled = await service.cancelOrder({
+    actor: adminActor,
+    orderId: "order-1",
+    body: {
+      reason: "Platform support cancellation requested by parties",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(cancelled.order.status, "CANCELLED");
+  assert.equal(cancelled.statusHistory?.fromStatus, "RECEIVED");
+  assert.equal(cancelled.statusHistory?.actorRoleCode, "PLATFORM_ADMIN");
+});
+
 test("OrderService persists proof events through a proof-capable repository by default", async () => {
   const repository = buildRepository({
     listings: [activeListing],
@@ -870,6 +1043,21 @@ test("OrderService can reject a received order with audit, proof and notificatio
   assert.equal(rejected.auditHook?.action, "SEMEN_ORDER_REJECTED");
   assert.equal(rejected.proofHook?.triggerRef.toStatus, "REJECTED");
   assert.equal(notificationHooks.at(-1)?.eventType, "ORDER_REJECTED");
+
+  await assert.rejects(
+    () =>
+      service.confirmOrder({
+        actor: stationActor,
+        orderId: "order-1",
+        body: {
+          reason: "Cannot continue rejected order",
+          now: timestamp,
+        },
+      }),
+    (error) =>
+      error instanceof SemenOrderValidationError &&
+      error.issues.includes("cannot transition semen order from REJECTED to CONFIRMED."),
+  );
 });
 
 function buildRepository({ listings, sequenceStart }) {

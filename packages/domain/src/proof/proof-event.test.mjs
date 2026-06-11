@@ -328,6 +328,36 @@ test("proof event creation rejects explicit levels that do not match derivation"
   );
 });
 
+test("proof event creation rejects missing required proof fields", () => {
+  assert.throws(
+    () =>
+      prepareCreateProofEvent({
+        proofEventId: "proof-invalid",
+        source: "ORDER_STATUS_CHANGE",
+        triggerType: "SEMEN_ORDER_STATUS_CHANGE",
+        triggerRef: {
+          targetType: "SemenOrder",
+          targetId: "order-1",
+        },
+        lifecycleStage: "ORDER_SUBMITTED",
+        actor: {
+          userId: "",
+          roleCode: "BREEDER",
+          organizationId: breederOrganizationId,
+        },
+        auditHookRef: {
+          eventType: "SEMEN_ORDER_STATUS_CHANGE",
+          action: "SEMEN_ORDER_SUBMITTED",
+          occurredAt: timestamp,
+        },
+      }),
+    (error) =>
+      error instanceof ProofEventValidationError &&
+      error.issues.includes("eventType is required.") &&
+      error.issues.includes("actor.userId is required."),
+  );
+});
+
 test("createProofEventFromHook persists via an explicit proof service call", async () => {
   const orderChange = prepareTransitionSemenOrderStatus({
     existingOrder: draftOrder,

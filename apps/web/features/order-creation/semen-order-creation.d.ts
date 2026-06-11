@@ -11,6 +11,7 @@ import type { UserOrganizationRoleLike } from "@coritech/domain/identity/role-mo
 import type {
   OrderStatusHistory,
   OrderServiceOptions,
+  OrderNotificationHook,
   SemenOrder,
   SemenOrderLike,
   SemenOrderProofHook,
@@ -198,6 +199,7 @@ export interface CreateSemenOrderFromFormInput {
   repository: SemenOrderRepository;
   form: SemenOrderCreationFormInput;
   auditContext?: AuditRequestContext | null;
+  notificationService?: OrderServiceOptions["notificationService"] | null;
   transaction?: OrderServiceOptions["transaction"] | null;
   now?: string | Date;
 }
@@ -212,6 +214,7 @@ export type CreateSemenOrderFromFormResult =
       auditHook: SemenOrderStatusAuditHook | null;
       auditLog: AuditLog | null;
       proofHook: SemenOrderProofHook | null;
+      notificationHook?: OrderNotificationHook | null;
       draftAuditHook?: SemenOrderStatusAuditHook | null;
       draftProofHook?: SemenOrderProofHook | null;
       idempotent?: boolean;

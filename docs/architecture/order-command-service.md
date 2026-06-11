@@ -37,6 +37,11 @@ Read-only order queries remain outside the command service.
 - Draft updates are allowed only while the order is still `DRAFT`.
 - `rejectOrder` and `cancelOrder` require a non-empty reason so negative
   outcomes remain auditable and visible in status history.
+- Breeders may cancel their own `DRAFT` or `SUBMITTED` orders. Later cancellation
+  of otherwise cancellable statuses must use an audited platform-admin support
+  context.
+- Assigned stations may reject eligible received orders with a reason; rejected
+  and cancelled orders are terminal and cannot continue normal fulfilment.
 - Status transitions create status history and append audit and proof hooks.
 - Duplicate status commands that target the order's current status return an
   idempotent result without writing another history, audit or proof event.

@@ -65,6 +65,7 @@ export interface RbacAccessDecisionBuildInput {
 export interface RbacAccessDecisionRepository {
   recordRbacAccessDecision?(
     decision: RbacAccessDecision,
+    requestContext?: RbacEndpointRequest["auditContext"] | null,
   ): Promise<RbacAccessDecision | null | undefined>;
 }
 
@@ -93,6 +94,7 @@ export interface EvaluateRbacPermissionInput {
 export interface RbacAccessDecisionLoggerOptions {
   recordAccessDecision?(
     decision: RbacAccessDecision,
+    requestContext?: RbacEndpointRequest["auditContext"] | null,
   ): Promise<RbacAccessDecision | null | undefined>;
 }
 

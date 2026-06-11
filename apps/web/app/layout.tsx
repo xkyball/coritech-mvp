@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "../components/ui/ui.css";
+import { PublicFooter } from "../features/static-pages/PublicFooter";
 
 export const metadata: Metadata = {
   title: "CoriTech MVP",
@@ -14,7 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <div className="ct-root">
+          {children}
+          <PublicFooter />
+        </div>
+      </body>
     </html>
   );
 }

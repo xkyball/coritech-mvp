@@ -5,6 +5,7 @@
   "type": "module",
   "main": "src/client.ts",
   "scripts": {
+    "typecheck": "tsc --project tsconfig.json --noEmit",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "db:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
     "db:seed": "npm run db:generate && prisma db seed --schema prisma/schema.prisma",

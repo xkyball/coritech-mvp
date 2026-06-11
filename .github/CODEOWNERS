@@ -1,0 +1,10 @@
+# Replace these placeholder teams with the real CoriTech-controlled GitHub
+# organization teams before enabling required CODEOWNERS reviews.
+
+* @coritech/maintainers
+
+/docs/ @coritech/documentation-owners
+/.github/ @coritech/repository-admins
+/apps/ @coritech/application-owners
+/packages/ @coritech/application-owners
+/scripts/ @coritech/repository-admins

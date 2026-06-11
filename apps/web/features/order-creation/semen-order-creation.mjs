@@ -205,6 +205,7 @@ export async function createSemenOrderFromForm(input) {
     const service = createOrderService({
       repository: input.repository,
       auditContext: input.auditContext,
+      notificationService: input.notificationService,
       transaction: input.transaction,
     });
     const orderId = normalizeOptionalString(form.orderId);

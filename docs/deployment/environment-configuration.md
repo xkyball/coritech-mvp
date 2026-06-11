@@ -49,7 +49,14 @@ ignored by git and must stay outside version control.
 | `AUTH_PROVIDER_CLIENT_SECRET` | Google OAuth Web client secret | Must never appear in docs or commits |
 | `AUTH_PROVIDER_DOMAIN` | Managed auth issuer | Use `https://accounts.google.com` for Google hosted login |
 | `AUTH_SESSION_SECRET` | Optional CoriTech session-cookie signing secret | Recommended for staging and production; falls back to `AUTH_PROVIDER_CLIENT_SECRET` when omitted |
-| `EMAIL_PROVIDER_API_KEY` | Outbound email provider API key | Placeholder only until Ticket 9.1 |
+| `EMAIL_PROVIDER` | Outbound email provider selector | Use `console` only for local development; use `http_api` in staging and production |
+| `EMAIL_PROVIDER_API_KEY` | Outbound email provider API key | Secret-managed outside local examples |
+| `EMAIL_PROVIDER_ENDPOINT` | Outbound email provider send endpoint | Staging and production must point to a CoriTech-controlled provider account endpoint |
+| `EMAIL_FROM_ADDRESS` | Outbound sender email address | Must be a CoriTech-controlled sender address/domain before live use |
+| `EMAIL_FROM_NAME` | Outbound sender display name | Human-readable product sender name |
+| `MONITORING_PROVIDER` | Monitoring/error integration selector | Use `console` only for local development; use a hosted provider value once selected |
+| `MONITORING_ENDPOINT` | Monitoring ingestion endpoint | Staging and production must point to a CoriTech-controlled monitoring account endpoint |
+| `ERROR_TRACKING_DSN` | Error tracking project DSN or equivalent project key | Store outside git for staging and production |
 | `OBJECT_STORAGE_PROVIDER` | Object storage provider selector | Use `minio` for local development; use `s3-compatible` for replaceable production-compatible storage |
 | `OBJECT_STORAGE_ENDPOINT` | Object storage endpoint host | Local Compose uses `minio`; developer-machine MinIO uses `localhost`; production must point to a CoriTech-controlled account endpoint |
 | `OBJECT_STORAGE_PORT` | Object storage API port | Local MinIO uses `9000`; TLS-backed production storage commonly uses `443` |
@@ -58,7 +65,7 @@ ignored by git and must stay outside version control.
 | `OBJECT_STORAGE_REGION` | Object storage region or local region label | Local MinIO uses `local-dev`; production should match the selected CoriTech-controlled storage region |
 | `OBJECT_STORAGE_ACCESS_KEY` | Object storage access key | Secret-managed outside local examples |
 | `OBJECT_STORAGE_SECRET_KEY` | Object storage secret key | Secret-managed outside local examples |
-| `PAYMENT_PROVIDER_SECRET` | Future payment-reference provider secret | Placeholder only until Ticket 10.2 |
+| `PAYMENT_PROVIDER_SECRET` | Future payment-provider secret | Not used by the Ticket 10.2 placeholder; reserved for a later real provider adapter |
 | `LOGISTICS_PROVIDER_API_KEY` | Future logistics adapter credential | Placeholder only until the logistics adapter ticket |
 | `APP_BASE_URL` | Frontend/application public base URL | Must be an absolute URL |
 | `API_BASE_URL` | API public base URL | Must be an absolute URL |
@@ -84,11 +91,17 @@ It validates that:
 - all required variables are present;
 - `CORITECH_ENVIRONMENT` is one of `local`, `staging` or `production`;
 - `APP_BASE_URL` and `API_BASE_URL` are absolute URLs;
+- `EMAIL_PROVIDER` is `console` or `http_api`;
+- `EMAIL_PROVIDER=console` is local-only;
+- `EMAIL_PROVIDER_ENDPOINT` is an absolute URL;
+- `EMAIL_FROM_ADDRESS` is a valid email address;
+- `MONITORING_ENDPOINT` is an absolute URL;
 - `OBJECT_STORAGE_PORT` is a positive integer;
 - `OBJECT_STORAGE_USE_SSL` is either `true` or `false`;
 - `AUDIT_LOG_RETENTION_DAYS` is a positive integer;
 - staging and production values are not placeholder strings;
-- staging and production base URLs do not point to `localhost`.
+- staging and production base/provider/monitoring URLs do not point to
+  `localhost`.
 
 The Ticket 2.1 managed auth contract adds a second guard that prevents hosted
 auth routes from being enabled with placeholder provider values, including in
@@ -123,6 +136,15 @@ Ticket 6.1 will implement document upload, metadata persistence, controlled
 access URLs, file validation, malware-scanning placeholder behavior and audit
 hooks. This prerequisite only provides configuration and provider foundation.
 
+## Email Provider Boundary
+
+Local development can use the `console` email provider so notification rendering
+and logging can be tested without a live vendor. Staging and production must use
+`http_api` with a CoriTech-controlled provider account, sender domain/address,
+API key and endpoint stored outside version control. The provider adapter is
+generic HTTPS JSON; template ownership, recipient rules and delivery logging
+remain in CoriTech code and database records.
+
 ## Secrets Vault Placeholder
 
 Current status: `[PENDING_SECRETS_VAULT_SELECTION]`
@@ -134,3 +156,12 @@ Before any live staging or production launch, CoriTech should document:
 - administrator and backup administrator access;
 - rotation and recovery steps;
 - handover steps for a future internal team or software partner.
+
+## Monitoring and Error Tracking Boundary
+
+Local development uses `MONITORING_PROVIDER=console` and a local monitoring
+endpoint placeholder. Staging and production must use a CoriTech-controlled
+monitoring/error account, a non-local ingestion endpoint and secret-managed
+error tracking project key. This ticket documents and validates the environment
+contract only; it does not add a monitoring SDK or provider-specific runtime
+client.

@@ -9,12 +9,18 @@
     "./audit/*": "./src/audit/*",
     "./auth/*": "./src/auth/*",
     "./catalog/*": "./src/catalog/*",
+    "./data-quality/*": "./src/data-quality/*",
     "./documents/*": "./src/documents/*",
     "./identity/*": "./src/identity/*",
+    "./notifications/*": "./src/notifications/*",
+    "./onboarding/*": "./src/onboarding/*",
     "./orders/*": "./src/orders/*",
+    "./payments/*": "./src/payments/*",
     "./proof/*": "./src/proof/*",
     "./shipments/*": "./src/shipments/*",
-    "./storage/*": "./src/storage/*"
+    "./storage/*": "./src/storage/*",
+    "./support/*": "./src/support/*",
+    "./testing/*": "./src/testing/*"
   },
   "dependencies": {
     "@coritech/config": "0.1.0"

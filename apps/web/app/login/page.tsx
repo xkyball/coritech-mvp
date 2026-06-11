@@ -35,6 +35,8 @@ export default async function LoginPage({
   const runtime = getManagedAuthRuntime();
   const errorCode = readParam(params.error);
   const error = errorCode ? getAuthErrorDisplay(errorCode) : null;
+  const onboarding = readParam(params.onboarding);
+  const loginHint = readParam(params.loginHint);
 
   return (
     <main className="ct-auth" aria-labelledby="login-title">
@@ -58,6 +60,14 @@ export default async function LoginPage({
           </Alert>
         ) : null}
 
+        {onboarding === "accepted" ? (
+          <Alert title="Invitation accepted" tone="success">
+            <p>
+              Sign in with the invited email to open the assigned CoriTech workspace.
+            </p>
+          </Alert>
+        ) : null}
+
         {!runtime.enabled ? (
           <Alert title="Hosted login is not configured for this environment" tone="warning">
             <p>
@@ -76,6 +86,7 @@ export default async function LoginPage({
           >
             <Input
               autoComplete="email"
+              defaultValue={loginHint ?? ""}
               id="loginHint"
               name="loginHint"
               placeholder="name@example.com"

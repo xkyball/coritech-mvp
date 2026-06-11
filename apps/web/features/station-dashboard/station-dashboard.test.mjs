@@ -279,6 +279,50 @@ const otherStationDocument = {
   originalFileName: "other-station.pdf",
 };
 
+const stationProofEvent = {
+  id: "proof-station-confirmed",
+  eventType: "CONFIRMED",
+  source: "ORDER_STATUS_CHANGE",
+  triggerType: "SEMEN_ORDER_STATUS_CHANGE",
+  triggerRef: {
+    targetType: "SemenOrder",
+    targetId: "order-received",
+    statusHistoryId: "history-received",
+  },
+  semenOrderId: "order-received",
+  shipmentId: null,
+  horseId: null,
+  orderNumber: "SO-20260609-000002",
+  breederOrganizationId,
+  breedingStationOrganizationId: stationOrganizationId,
+  lifecycleStage: "ORDER_CONFIRMED",
+  verificationLevel: "STATION_CONFIRMED",
+  status: "RECORDED",
+  actorUserId: "user-station-a",
+  actorRoleCode: "BREEDING_STATION",
+  actorOrganizationId: stationOrganizationId,
+  documentationRefs: [
+    {
+      documentId: "document-station",
+    },
+  ],
+  signatureRef: null,
+  attestationRefs: [],
+  auditLogId: "audit-station-confirmed",
+  auditHookRef: {},
+  occurredAt: confirmedAt,
+  createdAt: confirmedAt,
+  updatedAt: confirmedAt,
+};
+
+const otherStationProofEvent = {
+  ...stationProofEvent,
+  id: "proof-other-station",
+  semenOrderId: "order-other-station",
+  orderNumber: "SO-20260609-000004",
+  breedingStationOrganizationId: otherStationOrganizationId,
+};
+
 test("station dashboard scopes listings, orders, shipments and documents to the station organization", () => {
   const dashboard = createStationDashboardViewModel({
     actor: stationActor,
@@ -388,6 +432,7 @@ test("station dashboard opens assigned order detail without exposing another sta
     orders: [receivedOrder, otherStationOrder],
     statusHistory: [receivedHistory, otherStationHistory],
     documents: [stationDocument, otherStationDocument],
+    proofEvents: [stationProofEvent, otherStationProofEvent],
   });
 
   assert.equal(dashboard.selectedOrder?.id, "order-received");
@@ -401,6 +446,18 @@ test("station dashboard opens assigned order detail without exposing another sta
   assert.deepEqual(
     dashboard.selectedOrder?.documents.map((document) => document.id),
     ["document-station"],
+  );
+  assert.deepEqual(
+    dashboard.selectedOrder?.proofTimeline.items.map((event) => event.id),
+    ["proof-station-confirmed"],
+  );
+  assert.equal(
+    dashboard.selectedOrder?.proofTimeline.items[0]?.verificationLevel,
+    "STATION_CONFIRMED",
+  );
+  assert.equal(
+    dashboard.selectedOrder?.proofTimeline.items[0]?.linkedDocumentLabel,
+    "1 linked document",
   );
 
   assert.throws(

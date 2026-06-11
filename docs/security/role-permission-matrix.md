@@ -26,7 +26,7 @@ document classification helpers.
 | Route-level RBAC | `packages/domain/src/auth/rbac-middleware.mjs` | Protected routes check role, organization and object context before handlers run. |
 | Object-level grants | `packages/domain/src/access/access-permission.mjs` | Grants are explicit, scoped, revocable, optionally expiring and audit logged. They do not create broad marketplace, buyer or data-space access. |
 | Document visibility | `packages/domain/src/documents/document-evidence.mjs` | Documents are filtered by classification, lifecycle status and object participation. No public unrestricted document links are created. |
-| Audit evidence | `packages/domain/src/audit/audit-log.mjs` and proof hooks | Denied RBAC decisions, elevated admin access and permission changes can be retained as review evidence. |
+| Audit evidence | `packages/domain/src/audit/audit-log.mjs` and proof hooks | Denied RBAC decisions, elevated admin access and permission changes can be retained as review evidence and queried by Platform Admin. |
 
 ## Active Organization And Role Context
 
@@ -109,9 +109,45 @@ Legend:
 | View evidence document | Context-limited by own order participation, classification and explicit grant. | Context-limited by assigned station participation, classification and explicit grant. | Support override subject to classification and audit review. |
 | Attach evidence to proof event | Context-limited when the breeder can view both the document and the proof event. | Context-limited when the station can view both the document and the proof event. | Support override. |
 | View proof timeline or audit trail | Context-limited to visible proof events and audit entries for own operational records. | Context-limited to visible proof events and audit entries for assigned station records. | Operational review of proof and audit evidence. |
-| Manage users and organizations | No. | Own organization user administration only if a later approved admin workflow grants it; no broad Phase 1 authority in this matrix. | Allowed for Phase 1 role assignment, revocation and organization support workflows. |
+| Manage users, organizations and invitations | No. | Own organization user administration only if a later approved admin workflow grants it; no broad Phase 1 authority in this matrix. | Allowed for Phase 1 role assignment, invitation creation, revocation and organization support workflows. |
 | Grant object-level permissions | No. | No. | Allowed only through explicit object-level AccessPermission workflows, with reason, scope, grantor and expiry/revocation evidence. |
 | Access production configuration or secrets | No. | No. | Restricted to named CoriTech-controlled admins; production-critical accounts must remain CoriTech-owned or transferable. |
+
+## User And Organization Administration
+
+Ticket 8.2 adds Platform Admin workflows for organization creation/editing,
+organization disabling, user disabling and Phase 1 role assignment. The workflow
+does not delete users, organizations or role assignments. Disabled users cannot
+create managed-auth sessions, and disabled organizations are filtered out of
+active role context.
+
+Role assignments are limited to active Phase 1 roles and create
+`CHANGE_PERMISSION` audit entries. User and organization admin changes create
+`ADMIN_EDIT` audit entries.
+
+Ticket 18.04 adds Platform Admin invitation creation for breeder and
+breeding-station users. Invitation acceptance grants no role until an expiring
+token is validated; acceptance then creates or links the user, creates the
+`UserOrganizationRole` and records the role-assignment audit log. Email delivery
+is queued until the dedicated email-provider ticket supplies real delivery.
+
+## Permission Management Workflow
+
+Ticket 18.22 adds the Platform Admin permission-management surface at
+`/app/admin/permissions`. The workflow grants and revokes only explicit
+object-level `AccessPermission` records through the access-permission service.
+
+Supported Phase 1 workflow rules:
+
+- Grants target a named user or organization, a supported Phase 1 object type,
+  an exact object ID and one active permission scope.
+- Grants may include an expiry timestamp and reason.
+- Revocation requires a reason and records the revoking Platform Admin.
+- Active, expired and revoked permissions remain visible for review.
+- Every grant and revocation is audit logged as a `CHANGE_PERMISSION` entry.
+- `BUYER_VIEW` remains a prepared future scope and is not grantable from the UI.
+- The workflow does not create wildcard, buyer, marketplace or full database
+  access.
 
 ## Permission Domains
 

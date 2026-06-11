@@ -104,6 +104,7 @@ npm run docker:up
 Open:
 
 - Web app: `http://localhost:3000`
+- Health endpoint: `http://localhost:3000/api/health`
 - Adminer: `http://localhost:8080`
 
 Adminer connection values:
@@ -152,14 +153,36 @@ DATABASE_URL="postgresql://coritech:coritech_dev_password@localhost:5432/coritec
 ```bash
 npm run dev
 npm run build
+npm run lint
+npm run typecheck
+npm test
+npm run test:unit
+npm run test:integration
+npm run test:e2e
 npm run db:migrate
 npm run db:seed
 npm run db:reset
 npm run db:studio
+npm run backup:database
+npm run restore:database
 npm run docker:up
 npm run docker:down
 npm run docker:reset
 ```
+
+Testing conventions, shared factories and auth-context mocks are documented in
+`docs/development/testing.md`. The minimal MVP happy path is documented in
+`docs/development/minimal-e2e-happy-path.md`.
+
+The baseline CI/CD workflow is documented in
+`docs/deployment/cicd-baseline.md`.
+Staging and production setup requirements are documented in
+`docs/deployment/staging-production-setup.md`.
+Backup and restore baseline procedures are documented in
+`docs/deployment/backup-restore-baseline.md`.
+Repository ownership and branch-protection evidence requirements are documented
+in `docs/source-control/repository-ownership.md` and
+`docs/source-control/branch-protection.md`.
 
 ## UI System
 

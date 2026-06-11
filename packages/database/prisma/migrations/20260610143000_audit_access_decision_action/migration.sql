@@ -1,0 +1,2 @@
+ALTER TYPE coritech_audit_log_action
+  ADD VALUE IF NOT EXISTS 'ACCESS_DECISION';

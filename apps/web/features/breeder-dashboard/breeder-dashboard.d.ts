@@ -9,11 +9,17 @@ import type {
   SemenOrderLike as ApiSemenOrderLike,
   SemenOrderStatus,
 } from "@coritech/domain/orders/semen-order.d.ts";
+import type { ShipmentLike as ApiShipmentLike } from "@coritech/domain/shipments/shipment.d.ts";
 import type {
   DocumentAccessClassification,
   DocumentLike as ApiDocumentLike,
   DocumentLinkTargetType,
 } from "@coritech/domain/documents/document-evidence.d.ts";
+import type {
+  ActionRequiredActionType,
+  ActionRequiredObjectType,
+  ActionRequiredPriority,
+} from "../action-required/action-required.d.ts";
 
 export type BreederDashboardViewState = "LOADING" | "READY" | "ERROR";
 
@@ -28,6 +34,7 @@ export interface BreederDashboardInput {
   organizationName?: string | null;
   listingRecords?: SemenListingRecordLike[];
   orders?: SemenOrderLike[];
+  shipments?: ShipmentLike[];
   statusHistory?: OrderStatusHistoryLike[];
   documents?: DocumentLike[];
   recentDocumentsLimit?: number;
@@ -44,6 +51,8 @@ export interface SemenOrderLike extends ApiSemenOrderLike {
 }
 
 export interface OrderStatusHistoryLike extends OrderStatusHistory {}
+
+export interface ShipmentLike extends ApiShipmentLike {}
 
 export interface DocumentLike extends ApiDocumentLike {}
 
@@ -153,11 +162,17 @@ export interface BreederDashboardDocumentRow {
 export interface BreederDashboardActionItem {
   id: string;
   orderNumber: string;
-  status: SemenOrderStatus;
+  actionType: ActionRequiredActionType;
+  objectType: ActionRequiredObjectType;
+  objectId: string;
   title: string;
   description: string;
   actionLabel: string;
   actionHref: string | null;
+  priority: ActionRequiredPriority;
+  dueAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 export declare const BREEDER_DASHBOARD_VIEW_STATES: readonly BreederDashboardViewState[];

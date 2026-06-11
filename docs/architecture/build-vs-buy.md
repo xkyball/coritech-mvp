@@ -16,7 +16,7 @@ reduces delivery risk, security risk and investor diligence friction.
 | Audit trail | Build | Core diligence evidence and operational control | Implemented by Ticket 1.8 |
 | Authentication | Buy/manage | Managed auth reduces security and compliance risk | OIDC-compatible contract implemented by Ticket 2.1; provider selection and tenant evidence pending |
 | Object storage | Buy/manage | Evidence files require durable controlled storage | Local MinIO foundation added for development; production S3-compatible provider selection pending |
-| Email delivery | Buy/manage | Commodity notification infrastructure | `[PENDING_VENDOR_SELECTION]` |
+| Email delivery | Buy/manage | Commodity notification infrastructure | Provider-neutral adapter implemented; vendor/account evidence pending |
 | Hosting/database | Buy/manage | Commodity infrastructure with clear CoriTech account ownership | `[PENDING_VENDOR_SELECTION]` |
 | Logistics provider connection | Adapter first | Phase 1 should not depend on full automation | `[PENDING_PROVIDER_SELECTION]` |
 | Payment processing | Reference first | Phase 1 can track payment references before deep payment automation | `[PENDING_FUTURE_TICKET]` |

@@ -2,11 +2,21 @@
 
 import { canViewDocument } from "@coritech/domain/documents/document-evidence.mjs";
 import { isActiveRoleAssignment } from "@coritech/domain/identity/role-model.mjs";
-import { canViewSemenOrder } from "@coritech/domain/orders/semen-order.mjs";
+import {
+  canTransitionSemenOrderStatus,
+  canViewSemenOrder,
+} from "@coritech/domain/orders/semen-order.mjs";
 import {
   canConfirmShipmentReceived,
   canViewShipment,
 } from "@coritech/domain/shipments/shipment.mjs";
+import {
+  createOrderActivityPanelViewModel,
+  renderOrderActivityPanel,
+} from "../order-activity/order-activity.mjs";
+import { createPaymentReferencePanelViewModel } from "../payment-references/payment-reference-ui.mjs";
+import { createProofTimelineViewModel } from "../proof-timeline/proof-timeline.mjs";
+import { createSupportRequestFormViewModel } from "../support-requests/support-requests.mjs";
 
 export const BREEDER_ORDER_DETAIL_VIEW_STATES = /** @type {const} */ ([
   "LOADING",
@@ -108,16 +118,42 @@ export function createBreederOrderDetailViewModel(input) {
     )
     .sort(compareProofEventAscending);
   const proofEventIds = buildIdSet(proofEvents);
-  const documents = (input.documents ?? [])
+  const visibleDocuments = (input.documents ?? [])
     .filter((document) =>
       matchesDocumentContext(order, document, shipmentIds, proofEventIds) &&
       canViewDocument(actor, document)
     )
-    .sort(compareDocumentCreatedDescending)
-    .map(toDocumentRow);
+    .sort(compareDocumentCreatedDescending);
+  const documents = visibleDocuments.map(toDocumentRow);
+  const proofTimeline = createProofTimelineViewModel({
+    title: "Proof timeline",
+    emptyMessage: "No proof events have been recorded for this order.",
+    orderId: normalizeOptionalString(order.id),
+    orderNumber: order.orderNumber,
+    shipmentIds: shipments.map((shipment) => shipment.id),
+    proofEvents,
+    documents: visibleDocuments,
+  });
   const latestStatusChange = statusHistory.length > 0
     ? statusHistory[statusHistory.length - 1]
     : null;
+  const activity = createOrderActivityPanelViewModel({
+    actor: buildOrderActivityActor({
+      actor,
+      organizationContext,
+    }),
+    order,
+    activities: input.orderActivities ?? [],
+    statusHistory,
+  });
+  const supportRequest = createSupportRequestFormViewModel({
+    actor: buildOrderActivityActor({
+      actor,
+      organizationContext,
+    }),
+    order,
+    confirmation: input.supportConfirmation,
+  });
 
   return Object.freeze({
     state: "READY",
@@ -133,10 +169,21 @@ export function createBreederOrderDetailViewModel(input) {
       orderNumber: order.orderNumber,
       supportEmail: input.supportEmail,
     }),
+    supportRequest,
+    cancellationAction: buildCancellationAction({
+      actor,
+      order,
+    }),
     order: orderSummary,
     currentStatus: Object.freeze({
       status: order.status,
       latestChange: latestStatusChange,
+    }),
+    paymentReference: createPaymentReferencePanelViewModel({
+      actor,
+      order,
+      paymentReference: input.paymentReference ?? null,
+      returnTo: `${BREEDER_ORDER_DETAIL_ROUTES.orders}/${order.id ?? order.orderNumber}`,
     }),
     sections: Object.freeze({
       orderSummary: Object.freeze({
@@ -168,10 +215,11 @@ export function createBreederOrderDetailViewModel(input) {
         items: Object.freeze(documents),
       }),
       proofEvents: Object.freeze({
-        title: "Proof events",
-        emptyMessage: "No proof events have been recorded for this order.",
-        items: Object.freeze(proofEvents.map(toProofEventRow)),
+        title: proofTimeline.title,
+        emptyMessage: proofTimeline.emptyMessage,
+        items: proofTimeline.items,
       }),
+      activity,
     }),
   });
 }
@@ -258,12 +306,14 @@ export function validateBreederOrderDetailInput(input) {
   validateOptionalNonBlankString(input.organizationId, "organizationId", issues);
   validateOptionalNonBlankString(input.organizationName, "organizationName", issues);
   validateOptionalNonBlankString(input.supportEmail, "supportEmail", issues);
+  validateOptionalNonBlankString(input.supportConfirmation, "supportConfirmation", issues);
   validateOptionalArray(input.orders, "orders", issues);
   validateOptionalArray(input.statusHistory, "statusHistory", issues);
   validateOptionalArray(input.shipments, "shipments", issues);
   validateOptionalArray(input.shipmentTrackingEvents, "shipmentTrackingEvents", issues);
   validateOptionalArray(input.documents, "documents", issues);
   validateOptionalArray(input.proofEvents, "proofEvents", issues);
+  validateOptionalArray(input.orderActivities, "orderActivities", issues);
 
   return issues;
 }
@@ -310,6 +360,23 @@ function resolveBreederOrganizationContext(input) {
     organizationName: normalizeOptionalString(input.organizationName) ??
       input.order.breederOrganizationId,
     roleCode: "BREEDER",
+  });
+}
+
+/**
+ * @param {{
+ *   actor: import("./breeder-order-detail.d.ts").BreederOrderDetailActorContext;
+ *   organizationContext: import("./breeder-order-detail.d.ts").BreederOrderDetailOrganizationContext;
+ * }} input
+ * @returns {import("@coritech/domain/orders/order-activity.d.ts").OrderActivityActorContext}
+ */
+function buildOrderActivityActor(input) {
+  return Object.freeze({
+    userId: input.actor.userId,
+    organizationId: input.organizationContext.organizationId,
+    organizationName: input.organizationContext.organizationName,
+    roleCode: input.organizationContext.roleCode,
+    roles: input.actor.roles,
   });
 }
 
@@ -507,27 +574,6 @@ function toDocumentRow(document) {
 }
 
 /**
- * @param {import("./breeder-order-detail.d.ts").ProofEventLike} proofEvent
- * @returns {import("./breeder-order-detail.d.ts").BreederOrderProofEventRow}
- */
-function toProofEventRow(proofEvent) {
-  return Object.freeze({
-    id: normalizeOptionalString(proofEvent.id),
-    eventType: proofEvent.eventType,
-    source: proofEvent.source,
-    lifecycleStage: proofEvent.lifecycleStage,
-    verificationLevel: proofEvent.verificationLevel,
-    status: proofEvent.status,
-    actorRoleCode: proofEvent.actorRoleCode,
-    actorOrganizationId: proofEvent.actorOrganizationId,
-    documentationCount: Array.isArray(proofEvent.documentationRefs)
-      ? proofEvent.documentationRefs.length
-      : 0,
-    occurredAt: proofEvent.occurredAt,
-  });
-}
-
-/**
  * @param {import("./breeder-order-detail.d.ts").SemenOrderLike} order
  * @param {{ semenOrderId?: string | null, orderNumber?: string | null }} target
  * @returns {boolean}
@@ -658,6 +704,29 @@ function buildSupportAction(input) {
 }
 
 /**
+ * @param {{
+ *   actor: import("./breeder-order-detail.d.ts").BreederOrderDetailActorContext;
+ *   order: import("./breeder-order-detail.d.ts").SemenOrderLike;
+ * }} input
+ * @returns {import("./breeder-order-detail.d.ts").BreederOrderCancellationAction | null}
+ */
+function buildCancellationAction(input) {
+  const orderId = normalizeOptionalString(input.order.id);
+
+  if (!orderId || !canTransitionSemenOrderStatus(input.actor, input.order, "CANCELLED")) {
+    return null;
+  }
+
+  return Object.freeze({
+    orderId,
+    title: "Cancel order",
+    description: "Cancel this order with a required reason before station fulfilment continues.",
+    reasonLabel: "Cancellation reason",
+    buttonLabel: "Cancel order",
+  });
+}
+
+/**
  * @param {import("./breeder-order-detail.d.ts").BreederOrderDetailViewModel} viewModel
  * @returns {string}
  */
@@ -666,13 +735,37 @@ function renderReadyOrderDetail(viewModel) {
     `<main class="breeder-order-detail" data-organization-id="${escapeAttribute(viewModel.organizationContext.organizationId)}">`,
     renderHeader(viewModel),
     renderCurrentStatus(viewModel.currentStatus),
+    renderCancellationSection(viewModel.cancellationAction),
     renderSummarySection(viewModel.sections.orderSummary),
     renderStatusHistorySection(viewModel.sections.statusHistory),
     renderShipmentSection(viewModel.sections.shipments),
     renderDocumentsSection(viewModel.sections.documents),
     renderProofEventsSection(viewModel.sections.proofEvents),
+    renderOrderActivityPanel(viewModel.sections.activity),
     renderSupportSection(viewModel.supportAction),
     "</main>",
+  ].join("\n");
+}
+
+/**
+ * @param {import("./breeder-order-detail.d.ts").BreederOrderCancellationAction | null} action
+ * @returns {string}
+ */
+function renderCancellationSection(action) {
+  if (!action) {
+    return "";
+  }
+
+  return [
+    "  <section class=\"breeder-order-detail__section breeder-order-detail__cancellation\" aria-labelledby=\"order-cancellation-heading\">",
+    `    <h2 id="order-cancellation-heading">${escapeHtml(action.title)}</h2>`,
+    `    <p>${escapeHtml(action.description)}</p>`,
+    "    <form>",
+    `      <input name="orderId" type="hidden" value="${escapeAttribute(action.orderId)}">`,
+    `      <label>${escapeHtml(action.reasonLabel)}<textarea name="reason" required></textarea></label>`,
+    `      <button type="submit">${escapeHtml(action.buttonLabel)}</button>`,
+    "    </form>",
+    "  </section>",
   ].join("\n");
 }
 
@@ -859,14 +952,16 @@ function renderProofEventsSection(section) {
     ? renderEmptyMessage(section.emptyMessage)
     : [
       "    <table>",
-      "      <thead><tr><th>Occurred</th><th>Event</th><th>Source</th><th>Verification</th><th>Status</th></tr></thead>",
+      "      <thead><tr><th>Occurred</th><th>Event</th><th>Actor</th><th>Organization</th><th>Verification</th><th>Linked documents</th><th>Status</th></tr></thead>",
       "      <tbody>",
       section.items.map((event) => [
         "        <tr>",
         `          <td>${escapeHtml(event.occurredAt)}</td>`,
         `          <td>${escapeHtml(formatStatus(event.eventType))}</td>`,
-        `          <td>${escapeHtml(formatStatus(event.source))}</td>`,
+        `          <td>${escapeHtml(formatStatus(event.actorRoleCode))}</td>`,
+        `          <td>${escapeHtml(event.actorOrganizationId ?? "Organization not recorded")}</td>`,
         `          <td>${escapeHtml(formatStatus(event.verificationLevel))}</td>`,
+        `          <td>${escapeHtml(event.linkedDocumentLabel)}</td>`,
         `          <td>${escapeHtml(formatStatus(event.status))}</td>`,
         "        </tr>",
       ].join("\n")).join("\n"),

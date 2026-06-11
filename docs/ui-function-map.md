@@ -25,6 +25,29 @@ can read more like a status page than a product entry point.
 Required new UI pattern -> Product entry surface with restrained operational
 overview, role entry actions and proof-chain summary. No fake marketing hero.
 
+### `/accept-invite`
+
+Status: implemented
+
+Route / Page -> Invitation acceptance
+
+User role -> Invited breeder or breeding-station user before managed login.
+
+Primary user goal -> Validate an invitation token, complete profile basics and
+continue into managed login for the assigned workspace.
+
+Main actions -> Review invited email/organization/role, enter display name,
+accept invitation, continue to managed login.
+
+Data displayed -> Invitation state, email, organization, role, expiry and clear
+invalid/expired/used/revoked state messages.
+
+Current UI problems -> Email delivery is queued until the later email-provider
+ticket supplies concrete delivery.
+
+Required new UI pattern -> Public onboarding form with explicit token state,
+minimal profile completion and no role/organization self-selection.
+
 ### `/breeder-dashboard`
 
 Status: implemented
@@ -147,19 +170,43 @@ Route / Page -> Breeder order detail
 User role -> Breeder
 
 Primary user goal -> Understand current order status, shipment state,
-documents, status history and proof events.
+documents, status history, proof events and order activity.
 
-Main actions -> Return to dashboard, contact support, view linked documents if
-document detail exists.
+Main actions -> Return to dashboard, add shared order comment, submit support
+request, contact support, view linked documents if document detail exists.
 
 Data displayed -> Order status, summary metadata, status history, shipments,
-tracking events, documents, proof events.
+tracking events, documents, proof timeline and order activity feed.
 
-Current UI problems -> Proof events use a table instead of proof-event card or
-timeline rows; document links point to missing detail routes.
+Current UI problems -> Breeder proof events now use the shared proof timeline
+model and timeline component in the React surface; document links remain
+controlled-access metadata/detail links rather than public file links.
 
 Required new UI pattern -> Detail page with status summary, metadata grid,
 status/audit timeline, shipment table, document table and proof-event timeline.
+
+### `/app/station/stallions`
+
+Status: implemented
+
+Route / Page -> Station stallion management
+
+User role -> Breeding Station
+
+Primary user goal -> Create, edit, activate and inactivate station-owned
+stallion records before opening semen listings.
+
+Main actions -> Search stallions by name/UELN/chip ID, save stallion, activate
+or inactivate stallion, create listing from an active stallion.
+
+Data displayed -> Stallion editor, station stallion table, identifiers, status,
+validation issues, confirmation state and audit hook summary.
+
+Current UI problems -> The route still uses the shared demo catalog repository
+until the app has durable station catalog API wiring.
+
+Required new UI pattern -> Same operational table/form pattern as station
+listing management, with audit notice and safe status action placement.
 
 ### `/app/station/listings`
 
@@ -189,7 +236,7 @@ table pattern, audit notice, status badges and safe action placement.
 
 ### `/app/station/orders`
 
-Status: referenced but missing
+Status: implemented
 
 Route / Page -> Station order management
 
@@ -204,9 +251,8 @@ upload documents.
 Data displayed -> Orders, statuses, breeder, listing, shipment state, documents,
 proof events, next action.
 
-Current UI problems -> Referenced by the station dashboard view model for
-future use, but no page exists. The migrated sidebar does not expose it as a
-normal route.
+Current UI problems -> Proof timeline is available on selected station order
+detail; deeper audit-log inspection remains separate admin work.
 
 Required new UI pattern -> Searchable data table with status badges, action bar,
 detail route/drawer, proof/audit visibility.
@@ -236,20 +282,30 @@ or proof context, not a document-first product area.
 
 ### Admin, Audit, Proof Event And User/Organization Routes
 
-Status: not in scope for this migration
+Status: partial
 
-Route / Page -> Future operational/admin areas
+Route / Page -> `/app/admin`, `/app/admin/proof` plus operational/admin areas
 
 User role -> Platform Admin and future personas.
 
 Primary user goal -> Administer users, organizations, amendments, audit logs and
 proof records.
 
-Main actions -> search, inspect, review, amend, export, verify.
+Main actions -> search, inspect, review, navigate to amendment entry point,
+verify.
 
 Data displayed -> Audit logs, proof events, organizations, roles, documents.
 
-Current UI problems -> Domain concepts exist; UI pages do not.
+Current UI problems -> `/app/admin` exposes the Platform Admin operational
+overview, order search handoff and admin navigation areas. Admin proof timeline
+exists for read-only proof-event inspection, `/app/admin/audit` exposes the
+Platform Admin audit log query surface with filters, expandable detail and
+pagination, `/app/admin/orders` exposes read-only order support search and
+detail context, `/app/admin/permissions` manages explicit object-level grants
+and revocations, `/app/admin/amendments` records controlled corrections, and
+`/app/admin/invitations` creates breeder/station onboarding invitations. Users
+and organizations now have Platform Admin management routes for existing
+records.
 
 Required new UI pattern -> Admin data tables, proof/audit timelines, safe
 destructive/approval actions and read-heavy detail pages.

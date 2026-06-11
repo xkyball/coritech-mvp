@@ -168,10 +168,18 @@ export type SemenOrderListFilters = {
   statuses?: SemenOrderStatus[];
 };
 
+export type ProofEventListFilters = {
+  semenOrderId?: string;
+  limit?: number | null;
+};
+
 export interface PrismaSemenOrderRepository extends SemenOrderRepository {
   listSemenOrders(filters?: SemenOrderListFilters): Promise<SemenOrder[]>;
   listAllOrderStatusHistory(filters?: SemenOrderListFilters): Promise<OrderStatusHistory[]>;
+  listProofEventsForOrder(orderId: string): Promise<ProofEvent[]>;
+  listProofEvents(filters?: ProofEventListFilters): Promise<ProofEvent[]>;
   listOrderableSemenListingRecords(): Promise<SemenListingRecord[]>;
+  listOrganizationsByIds(organizationIds: string[]): Promise<{ organizationId: string; name: string }[]>;
   listStationOrganizations(): Promise<{ organizationId: string; name: string }[]>;
 }
 
@@ -294,6 +302,20 @@ export function createPrismaSemenOrderRepository(
 
       return proofEvents.map(toProofEvent);
     },
+    async listProofEvents(filters = {}) {
+      const proofEvents = await client.proofEvent.findMany({
+        where: {
+          ...(filters.semenOrderId ? { semenOrderId: filters.semenOrderId } : {}),
+        },
+        orderBy: [
+          { occurredAt: "desc" },
+          { id: "asc" },
+        ],
+        take: filters.limit === null ? undefined : filters.limit ?? 100,
+      });
+
+      return proofEvents.map(toProofEvent);
+    },
     async listSemenOrders(filters = {}) {
       const orders = await client.semenOrder.findMany({
         where: toSemenOrderWhere(filters),
@@ -364,6 +386,29 @@ export function createPrismaSemenOrderRepository(
           stallion: toStallion(stallion),
         }];
       });
+    },
+    async listOrganizationsByIds(organizationIds) {
+      const uniqueOrganizationIds = [...new Set(organizationIds)].filter(Boolean);
+
+      if (uniqueOrganizationIds.length === 0) {
+        return [];
+      }
+
+      const organizations = await client.organization.findMany({
+        where: {
+          id: {
+            in: uniqueOrganizationIds,
+          },
+        },
+        orderBy: {
+          name: "asc",
+        },
+      });
+
+      return organizations.map((organization) => ({
+        organizationId: organization.id,
+        name: organization.name,
+      }));
     },
     async listStationOrganizations() {
       const organizations = await client.organization.findMany({

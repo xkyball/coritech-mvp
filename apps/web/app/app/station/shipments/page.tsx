@@ -5,6 +5,7 @@ import { requireActiveContextActor } from "../../../../features/auth/active-cont
 import {
   createPrismaSemenOrderRepository,
 } from "../../../../features/order-creation/prisma-semen-order-repository";
+import { createNotificationService } from "../../../../features/notifications/notification-runtime";
 import { ShipmentManagement } from "../../../../features/shipments/ShipmentManagement";
 import {
   createPrismaShipmentRepository,
@@ -48,6 +49,7 @@ async function saveShipmentCommand(formData: FormData) {
     shipmentId: formValue(formData, "shipmentId"),
     repository,
     transaction: createPrismaShipmentTransaction(),
+    notificationService: createNotificationService(),
     auditContext: {
       userAgent: (await headers()).get("user-agent"),
     },

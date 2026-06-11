@@ -8,11 +8,15 @@ import {
   AuditLogAuthorizationError,
   AuditLogValidationError,
   canDeleteAuditLog,
+  canQueryAuditLogsForAdmin,
   canUpdateAuditLog,
   canViewAuditLogsForObject,
+  createAuditLogFromAccessDecision,
   createAuditLogFromHook,
+  listAuditLogsForAdmin,
   listAuditLogsForObject,
   prepareAuditLogEntry,
+  prepareAuditLogEntryFromAccessDecision,
   prepareAuditLogEntryFromHook,
 } from "./audit-log.mjs";
 import { assignUserOrganizationRole } from "../identity/role-model.mjs";
@@ -99,6 +103,7 @@ test("audit log contract exposes only Phase 1 normalized actions and append-only
     "STATUS_CHANGE",
     "UPLOAD_DOCUMENT",
     "VIEW_DOCUMENT",
+    "ACCESS_DECISION",
     "CREATE_PROOF_EVENT",
     "CHANGE_PERMISSION",
     "ADMIN_EDIT",
@@ -108,7 +113,7 @@ test("audit log contract exposes only Phase 1 normalized actions and append-only
   ]);
   assert.deepEqual(
     AUDIT_LOG_ROUTES.map((route) => `${route.method} ${route.path}`),
-    ["GET /audit-logs"],
+    ["GET /audit-logs", "GET /admin/audit-logs"],
   );
   assert.equal(AUDIT_LOG_MUTATION_POLICY.appendOnly, true);
   assert.equal(canUpdateAuditLog(), false);
@@ -233,6 +238,72 @@ test("document, proof-event, permission and admin-edit hooks map to canonical au
   assert.equal(adminEditLog.actorRoleCode, "PLATFORM_ADMIN");
 });
 
+test("RBAC access decisions materialize sensitive allow and deny audit logs", async () => {
+  const repository = buildAuditRepository();
+  const deniedDocumentLog = await createAuditLogFromAccessDecision({
+    repository,
+    decision: {
+      outcome: "DENY",
+      allowed: false,
+      status: 403,
+      action: "VIEW_DOCUMENT",
+      actorUserId: "user-breeder-b",
+      actorRoleCode: "BREEDER",
+      actorOrganizationId: "org-breeder-b",
+      targetType: "Document",
+      targetId: "document-1",
+      targetRef: {
+        accessClassification: "ORDER_PARTICIPANTS",
+      },
+      handlerName: "getDocumentEndpoint",
+      reason: "Actor may view only participant-visible documents.",
+      deferred: false,
+      occurredAt: timestamp,
+    },
+    requestContext: {
+      ipAddress: "203.0.113.30",
+      userAgent: "node-test/rbac-deny",
+    },
+  });
+  const adminOrderLog = prepareAuditLogEntryFromAccessDecision({
+    decision: {
+      outcome: "ALLOW",
+      allowed: true,
+      status: null,
+      action: "VIEW_SEMEN_ORDER",
+      actorUserId: "user-admin",
+      actorRoleCode: "PLATFORM_ADMIN",
+      actorOrganizationId: platformOrganizationId,
+      targetType: "SemenOrder",
+      targetId: "order-1",
+      targetRef: {
+        orderNumber: "SO-20260609-000001",
+      },
+      handlerName: "getSemenOrderEndpoint",
+      reason: "Platform admin may view semen orders and must be logged.",
+      deferred: false,
+      occurredAt: timestamp,
+    },
+  });
+
+  assert.equal(deniedDocumentLog.action, "ACCESS_DECISION");
+  assert.equal(deniedDocumentLog.sourceAction, "RBAC_VIEW_DOCUMENT_DENY");
+  assert.equal(deniedDocumentLog.objectType, "Document");
+  assert.equal(deniedDocumentLog.objectId, "document-1");
+  assert.equal(deniedDocumentLog.actorUserId, "user-breeder-b");
+  assert.equal(deniedDocumentLog.actorRoleCode, "BREEDER");
+  assert.equal(deniedDocumentLog.metadata.permissionAction, "VIEW_DOCUMENT");
+  assert.equal(deniedDocumentLog.metadata.accessOutcome, "DENY");
+  assert.equal(deniedDocumentLog.newValues?.status, 403);
+  assert.equal(deniedDocumentLog.ipAddress, "203.0.113.30");
+  assert.equal(deniedDocumentLog.occurredAt, timestamp);
+  assert.equal(adminOrderLog.action, "ACCESS_DECISION");
+  assert.equal(adminOrderLog.sourceAction, "RBAC_VIEW_SEMEN_ORDER_ALLOW");
+  assert.equal(adminOrderLog.actorRoleCode, "PLATFORM_ADMIN");
+  assert.equal(adminOrderLog.objectType, "SemenOrder");
+  assert.equal(adminOrderLog.objectId, "order-1");
+});
+
 test("normal users cannot create admin-edit audit entries", () => {
   assert.throws(
     () =>
@@ -251,6 +322,79 @@ test("normal users cannot create admin-edit audit entries", () => {
       error.issues.includes(
         "ADMIN_EDIT audit logs must be created by PLATFORM_ADMIN actors.",
       ),
+  );
+});
+
+test("platform admins can query the broader audit stream but normal users cannot", async () => {
+  const repository = buildAuditRepository();
+
+  await createAuditLogFromHook({
+    repository,
+    auditHook: prepareTransitionSemenOrderStatus({
+      existingOrder: draftOrder,
+      toStatus: "SUBMITTED",
+      reason: "Ready for station review",
+      actor: breederActor,
+      now: timestamp,
+    }).auditHook,
+  });
+  await createAuditLogFromAccessDecision({
+    repository,
+    decision: {
+      outcome: "ALLOW",
+      allowed: true,
+      status: null,
+      action: "VIEW_SEMEN_ORDER",
+      actorUserId: "user-admin",
+      actorRoleCode: "PLATFORM_ADMIN",
+      actorOrganizationId: platformOrganizationId,
+      targetType: "SemenOrder",
+      targetId: "order-1",
+      targetRef: {},
+      handlerName: "getSemenOrderEndpoint",
+      reason: "Platform admin may view semen orders and must be logged.",
+      deferred: false,
+      occurredAt: "2026-06-09T08:05:00.000Z",
+    },
+  });
+
+  assert.equal(canQueryAuditLogsForAdmin(adminActor), true);
+  assert.equal(canQueryAuditLogsForAdmin(breederActor), false);
+
+  const accessLogs = await listAuditLogsForAdmin({
+    repository,
+    actor: adminActor,
+    filters: {
+      action: "ACCESS_DECISION",
+      objectType: "SemenOrder",
+      objectId: "order-1",
+    },
+  });
+
+  assert.equal(accessLogs.length, 1);
+  assert.equal(accessLogs[0].action, "ACCESS_DECISION");
+  assert.equal(accessLogs[0].actorRoleCode, "PLATFORM_ADMIN");
+
+  await assert.rejects(
+    () =>
+      listAuditLogsForAdmin({
+        repository,
+        actor: breederActor,
+        filters: {},
+      }),
+    AuditLogAuthorizationError,
+  );
+
+  await assert.rejects(
+    () =>
+      listAuditLogsForAdmin({
+        repository,
+        actor: adminActor,
+        filters: {
+          limit: 500,
+        },
+      }),
+    AuditLogValidationError,
   );
 });
 
@@ -318,6 +462,7 @@ test("audit logs are queryable by object with participant-aware access", async (
 
 function buildAuditRepository() {
   const auditLogsByObject = new Map();
+  const auditLogs = [];
   let auditLogSequence = 1;
 
   return {
@@ -330,11 +475,43 @@ function buildAuditRepository() {
 
       objectLogs.push(persistedAuditLog);
       auditLogsByObject.set(persistedAuditLog.objectId, objectLogs);
+      auditLogs.push(persistedAuditLog);
 
       return persistedAuditLog;
     },
     async listAuditLogsForObject(_objectType, objectId) {
       return auditLogsByObject.get(objectId) ?? [];
+    },
+    async listAuditLogs(filters = {}) {
+      return auditLogs.filter((auditLog) => {
+        if (filters.action && auditLog.action !== filters.action) {
+          return false;
+        }
+
+        if (filters.objectType && auditLog.objectType !== filters.objectType) {
+          return false;
+        }
+
+        if (filters.objectId && auditLog.objectId !== filters.objectId) {
+          return false;
+        }
+
+        if (
+          filters.actorUserId &&
+          auditLog.actorUserId !== filters.actorUserId
+        ) {
+          return false;
+        }
+
+        if (
+          filters.actorOrganizationId &&
+          auditLog.actorOrganizationId !== filters.actorOrganizationId
+        ) {
+          return false;
+        }
+
+        return true;
+      });
     },
   };
 }

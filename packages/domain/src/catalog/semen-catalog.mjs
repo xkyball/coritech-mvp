@@ -25,6 +25,13 @@ export const SEMEN_LISTING_AUDIT_ACTIONS = /** @type {const} */ ([
   "SEMEN_LISTING_DEACTIVATED",
 ]);
 
+export const STALLION_AUDIT_ACTIONS = /** @type {const} */ ([
+  "STALLION_CREATED",
+  "STALLION_UPDATED",
+  "STALLION_ACTIVATED",
+  "STALLION_DEACTIVATED",
+]);
+
 export const SEMEN_CATALOG_ROUTES = Object.freeze([
   Object.freeze({
     method: "GET",
@@ -248,6 +255,7 @@ export function validateCreateStallionInput(input) {
 
   validateOptionalNonBlankString(input.ueln, "ueln", issues);
   validateOptionalNonBlankString(input.microchipNumber, "microchipNumber", issues);
+  validateOptionalNonBlankString(input.changeReason, "changeReason", issues);
   validateOptionalTimestamp(input.createdAt, "createdAt", issues);
   validateOptionalTimestamp(input.now, "now", issues);
 
@@ -266,22 +274,31 @@ export function prepareCreateStallion(input) {
   }
 
   const occurredAt = toIsoTimestamp(input.createdAt ?? input.now ?? new Date());
+  const stallion = Object.freeze({
+    id: normalizeOptionalString(input.stallionId),
+    name: input.name.trim(),
+    breed: input.breed.trim(),
+    ueln: normalizeOptionalString(input.ueln),
+    microchipNumber: normalizeOptionalString(input.microchipNumber),
+    breedingStationOrganizationId: input.breedingStationOrganizationId.trim(),
+    status: /** @type {import("./semen-catalog.d.ts").StallionStatus} */ (
+      input.status?.trim() ?? "ACTIVE"
+    ),
+    createdByUserId: input.actor.userId.trim(),
+    updatedByUserId: input.actor.userId.trim(),
+    createdAt: occurredAt,
+    updatedAt: occurredAt,
+  });
 
   return Object.freeze({
-    stallion: Object.freeze({
-      id: normalizeOptionalString(input.stallionId),
-      name: input.name.trim(),
-      breed: input.breed.trim(),
-      ueln: normalizeOptionalString(input.ueln),
-      microchipNumber: normalizeOptionalString(input.microchipNumber),
-      breedingStationOrganizationId: input.breedingStationOrganizationId.trim(),
-      status: /** @type {import("./semen-catalog.d.ts").StallionStatus} */ (
-        input.status?.trim() ?? "ACTIVE"
-      ),
-      createdByUserId: input.actor.userId.trim(),
-      updatedByUserId: input.actor.userId.trim(),
-      createdAt: occurredAt,
-      updatedAt: occurredAt,
+    stallion,
+    auditHook: buildStallionAuditHook({
+      action: "STALLION_CREATED",
+      actor: input.actor,
+      stallion,
+      previousStallion: null,
+      reason: normalizeOptionalString(input.changeReason),
+      occurredAt,
     }),
   });
 }
@@ -327,6 +344,7 @@ export function prepareUpdateStallion(input) {
 
   validateOptionalNonBlankString(updates.ueln, "ueln", issues);
   validateOptionalNonBlankString(updates.microchipNumber, "microchipNumber", issues);
+  validateOptionalNonBlankString(updates.changeReason, "changeReason", issues);
 
   if (issues.length > 0) {
     throw new SemenCatalogValidationError(issues);
@@ -334,8 +352,7 @@ export function prepareUpdateStallion(input) {
 
   const occurredAt = toIsoTimestamp(input.now ?? updates.now ?? new Date());
 
-  return Object.freeze({
-    stallion: Object.freeze({
+  const stallion = Object.freeze({
       ...input.existingStallion,
       name: hasOwn(updates, "name") ? updates.name.trim() : input.existingStallion.name,
       breed: hasOwn(updates, "breed") ? updates.breed.trim() : input.existingStallion.breed,
@@ -350,6 +367,23 @@ export function prepareUpdateStallion(input) {
         : input.existingStallion.status,
       updatedByUserId: input.actor.userId.trim(),
       updatedAt: occurredAt,
+  });
+  const action = stallion.status === "INACTIVE" &&
+    input.existingStallion.status !== "INACTIVE"
+    ? "STALLION_DEACTIVATED"
+    : stallion.status === "ACTIVE" && input.existingStallion.status === "INACTIVE"
+      ? "STALLION_ACTIVATED"
+      : "STALLION_UPDATED";
+
+  return Object.freeze({
+    stallion,
+    auditHook: buildStallionAuditHook({
+      action,
+      actor: input.actor,
+      stallion,
+      previousStallion: input.existingStallion,
+      reason: normalizeOptionalString(updates.changeReason),
+      occurredAt,
     }),
   });
 }
@@ -625,6 +659,44 @@ export function buildSemenListingAuditHook(input) {
 }
 
 /**
+ * @param {import("./semen-catalog.d.ts").StallionAuditHookInput} input
+ * @returns {import("./semen-catalog.d.ts").StallionAuditHook}
+ */
+export function buildStallionAuditHook(input) {
+  const managementRole = findCatalogManagementRole(
+    input.actor,
+    input.stallion.breedingStationOrganizationId,
+  );
+
+  if (!managementRole) {
+    throw new SemenCatalogAuthorizationError(
+      "actor must be authorized before building a stallion audit hook.",
+    );
+  }
+
+  return Object.freeze({
+    eventType: "STALLION_CHANGE",
+    action: input.action,
+    actorUserId: input.actor.userId.trim(),
+    actorRoleCode: /** @type {"BREEDING_STATION" | "PLATFORM_ADMIN"} */ (
+      managementRole.roleCode
+    ),
+    actorOrganizationId: managementRole.organizationId,
+    targetType: "Stallion",
+    targetId: input.stallion.id,
+    targetRef: Object.freeze({
+      breedingStationOrganizationId: input.stallion.breedingStationOrganizationId,
+    }),
+    previousValue: input.previousStallion
+      ? stallionAuditValue(input.previousStallion)
+      : null,
+    newValue: stallionAuditValue(input.stallion),
+    reason: input.reason,
+    occurredAt: input.occurredAt,
+  });
+}
+
+/**
  * @param {import("./semen-catalog.d.ts").SemenListingRecord[]} records
  * @param {import("./semen-catalog.d.ts").SemenListingSearchFilters} filters
  * @param {import("./semen-catalog.d.ts").CatalogActorContext} actor
@@ -765,10 +837,25 @@ export async function createStallionEndpoint(request) {
     actor: request.actor,
   });
   const stallion = await createStallion(prepared.stallion);
+  const auditHook = buildStallionAuditHook({
+    action: "STALLION_CREATED",
+    actor: request.actor,
+    stallion,
+    previousStallion: null,
+    reason: prepared.auditHook.reason,
+    occurredAt: stallion.createdAt,
+  });
+  const auditLog = await createAuditLogFromHook({
+    repository: request.repository,
+    auditHook,
+    requestContext: request.auditContext,
+  });
 
   return Object.freeze({
     status: 201,
     body: Object.freeze({ stallion }),
+    auditHook,
+    auditLog,
   });
 }
 
@@ -791,10 +878,25 @@ export async function updateStallionEndpoint(request) {
     actor: request.actor,
   });
   const stallion = await updateStallion(prepared.stallion);
+  const auditHook = buildStallionAuditHook({
+    action: prepared.auditHook.action,
+    actor: request.actor,
+    stallion,
+    previousStallion: existingStallion,
+    reason: prepared.auditHook.reason,
+    occurredAt: stallion.updatedAt,
+  });
+  const auditLog = await createAuditLogFromHook({
+    repository: request.repository,
+    auditHook,
+    requestContext: request.auditContext,
+  });
 
   return Object.freeze({
     status: 200,
     body: Object.freeze({ stallion }),
+    auditHook,
+    auditLog,
   });
 }
 
@@ -1081,6 +1183,21 @@ function listingAuditValue(listing) {
     availabilityStatus: listing.availabilityStatus,
     listingStatus: listing.listingStatus,
     termsSummary: listing.termsSummary,
+  });
+}
+
+/**
+ * @param {import("./semen-catalog.d.ts").StallionLike} stallion
+ * @returns {Readonly<import("./semen-catalog.d.ts").StallionAuditValue>}
+ */
+function stallionAuditValue(stallion) {
+  return Object.freeze({
+    name: stallion.name,
+    breed: stallion.breed,
+    ueln: normalizeOptionalString(stallion.ueln),
+    microchipNumber: normalizeOptionalString(stallion.microchipNumber),
+    breedingStationOrganizationId: stallion.breedingStationOrganizationId,
+    status: stallion.status,
   });
 }
 

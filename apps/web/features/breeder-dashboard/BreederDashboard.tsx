@@ -313,9 +313,10 @@ function ActionRequiredSection({
             <article className="ct-record-card" key={item.id}>
               <div className="ct-record-card__header">
                 <h3>{item.title}</h3>
-                <StatusBadge value={item.status} />
+                <StatusBadge value={item.priority} />
               </div>
               <span>{item.orderNumber}</span>
+              <span>{formatActionDate(item)}</span>
               <p>{item.description}</p>
               {item.actionHref ? (
                 <ButtonLink href={item.actionHref} variant="secondary">
@@ -345,6 +346,22 @@ function DashboardSection({
       {children}
     </Card>
   );
+}
+
+function formatActionDate(item: BreederDashboardActionItem) {
+  if (item.dueAt) {
+    return `Due ${item.dueAt}`;
+  }
+
+  if (item.updatedAt) {
+    return `Updated ${item.updatedAt}`;
+  }
+
+  if (item.createdAt) {
+    return `Created ${item.createdAt}`;
+  }
+
+  return "No date recorded";
 }
 
 function EmptyMessage({ message }: Readonly<{ message: string }>) {

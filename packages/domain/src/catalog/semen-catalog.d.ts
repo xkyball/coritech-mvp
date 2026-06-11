@@ -19,6 +19,12 @@ export type SemenListingAuditAction =
   | "SEMEN_LISTING_UPDATED"
   | "SEMEN_LISTING_DEACTIVATED";
 
+export type StallionAuditAction =
+  | "STALLION_CREATED"
+  | "STALLION_UPDATED"
+  | "STALLION_ACTIVATED"
+  | "STALLION_DEACTIVATED";
+
 export interface CatalogActorContext {
   userId: string;
   roles: UserOrganizationRoleLike[];
@@ -83,6 +89,7 @@ export interface CreateStallionInputBody {
   microchipNumber?: string | null;
   breedingStationOrganizationId: string;
   status?: StallionStatus | string;
+  changeReason?: string | null;
   createdAt?: string | Date;
   now?: string | Date;
 }
@@ -97,6 +104,7 @@ export interface UpdateStallionInputBody {
   ueln?: string | null;
   microchipNumber?: string | null;
   status?: StallionStatus | string;
+  changeReason?: string | null;
   now?: string | Date;
 }
 
@@ -109,6 +117,42 @@ export interface UpdateStallionInput {
 
 export interface PreparedStallionChange {
   stallion: Stallion;
+  auditHook: StallionAuditHook;
+}
+
+export interface StallionAuditValue {
+  name: string;
+  breed: string;
+  ueln: string | null;
+  microchipNumber: string | null;
+  breedingStationOrganizationId: string;
+  status: StallionStatus;
+}
+
+export interface StallionAuditHook {
+  eventType: "STALLION_CHANGE";
+  action: StallionAuditAction;
+  actorUserId: string;
+  actorRoleCode: "BREEDING_STATION" | "PLATFORM_ADMIN";
+  actorOrganizationId: string;
+  targetType: "Stallion";
+  targetId: string | null;
+  targetRef: {
+    breedingStationOrganizationId: string;
+  };
+  previousValue: Readonly<StallionAuditValue> | null;
+  newValue: Readonly<StallionAuditValue>;
+  reason: string | null;
+  occurredAt: string;
+}
+
+export interface StallionAuditHookInput {
+  action: StallionAuditAction;
+  actor: CatalogActorContext;
+  stallion: StallionLike;
+  previousStallion: StallionLike | null;
+  reason: string | null;
+  occurredAt: string;
 }
 
 export interface CreateSemenListingInputBody {
@@ -248,6 +292,7 @@ export declare const STALLION_STATUSES: readonly StallionStatus[];
 export declare const SEMEN_AVAILABILITY_STATUSES: readonly SemenAvailabilityStatus[];
 export declare const SEMEN_LISTING_STATUSES: readonly SemenListingStatus[];
 export declare const SEMEN_LISTING_AUDIT_ACTIONS: readonly SemenListingAuditAction[];
+export declare const STALLION_AUDIT_ACTIONS: readonly StallionAuditAction[];
 export declare const SEMEN_CATALOG_ROUTES: readonly {
   method: string;
   path: string;
@@ -300,6 +345,9 @@ export declare function prepareCreateStallion(
 export declare function prepareUpdateStallion(
   input: UpdateStallionInput,
 ): PreparedStallionChange;
+export declare function buildStallionAuditHook(
+  input: StallionAuditHookInput,
+): StallionAuditHook;
 export declare function validateCreateSemenListingInput(
   input: CreateSemenListingInput,
 ): string[];
@@ -329,10 +377,10 @@ export declare function normalizeSemenListingSearchFilters(
 ): NormalizedSemenListingSearchFilters;
 export declare function createStallionEndpoint(
   request: EndpointRequest<CreateStallionInputBody>,
-): Promise<EndpointResponse<{ stallion: Stallion }>>;
+): Promise<EndpointResponse<{ stallion: Stallion }, StallionAuditHook>>;
 export declare function updateStallionEndpoint(
   request: EndpointRequest<UpdateStallionInputBody>,
-): Promise<EndpointResponse<{ stallion: Stallion }>>;
+): Promise<EndpointResponse<{ stallion: Stallion }, StallionAuditHook>>;
 export declare function getStallionEndpoint(
   request: EndpointRequest,
 ): Promise<EndpointResponse<{ stallion: Stallion }>>;

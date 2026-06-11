@@ -28,6 +28,7 @@ dist/
 build/
 coverage/
 out/
+*.tsbuildinfo
 
 # Logs
 *.log
@@ -35,6 +36,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Local backup artifacts
+backups/
 
 # Python cache and virtual environments
 __pycache__/

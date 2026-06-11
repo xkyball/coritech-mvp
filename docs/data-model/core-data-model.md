@@ -13,10 +13,13 @@ the remaining entities are still conceptual placeholders.
 | User | Authenticated person using CoriTech | Implemented by Ticket 1.1; belongs to one or more organizations through roles |
 | Organization | Breeder, breeding station or CoriTech platform entity | Implemented by Ticket 1.1; owns users and later workflow records |
 | Role | Permission group scoped to organization context | Implemented by Ticket 1.1; grants Phase 1 role context |
+| UserInvitation | Admin-created onboarding invite | Implemented by Ticket 18.04; stores invite email, organization, role, status, token hash, expiry, inviter and acceptance metadata |
 | Stallion | Horse record used for semen listing context | Implemented by Ticket 1.2; owned by a breeding station |
 | SemenListing | Offer record for available semen | Implemented by Ticket 1.2; linked to stallion and breeding station |
 | SemenOrder | Operational order between breeder and breeding station | Implemented by Ticket 1.3; links breeder, station and listing |
 | OrderStatusHistory | Ordered record of order state changes | Implemented by Ticket 1.3; linked to semen order and actor context |
+| OrderActivity | Lightweight order timeline/comment entry | Implemented by Ticket 18.12; linked to semen order, actor context and visibility level |
+| SupportRequest | Order-linked user support request | Implemented by Ticket 18.32; linked to semen order/object context, requester, category, status and queued admin notification state |
 | Shipment | Delivery record for semen order fulfillment | Implemented by Ticket 1.4; linked to confirmed semen order and tracking events |
 | ShipmentTrackingEvent | Milestone, carrier update or manual tracking note | Implemented by Ticket 1.4; linked to shipment, actor context and normalized source |
 | Document | Metadata, lifecycle status and object-storage references for uploaded evidence documents | Implemented by Ticket 1.5 and extended by Phase 1.1 document workflow tickets; linked to order, shipment or proof event |
@@ -26,7 +29,8 @@ the remaining entities are still conceptual placeholders.
 | AuditLog | Immutable operational audit entry | Implemented by Ticket 1.8; links actor, role, organization, action, target object, request metadata and timestamp |
 | AccessPermission | Controlled document or workflow access grant | Implemented by Ticket 2.3; links subject, resource, scope, grantor, expiry and audit evidence |
 | Amendment | Controlled correction record | Implemented by Ticket 1.9; links target record, original/amended values, reason, actor, optional approver, audit evidence and optional proof evidence |
-| PaymentReference | Non-processing payment reference | Links order to external payment evidence when applicable |
+| NotificationLog | Provider-agnostic notification delivery log | Implemented by Tickets 18.18, 9.1 and 9.2; records event type, template id, recipient rule/context, payload, delivery status, provider message id, attempts and provider failure details |
+| PaymentReference | Reference-only payment status | Implemented by Ticket 10.1; links order to external/manual payment reference metadata without card or sensitive payment data |
 
 ## Implemented Identity Foundation
 
@@ -42,6 +46,7 @@ Implemented tables:
 | `organizations` | Phase 1 breeder, breeding station and CoriTech platform organizations. |
 | `roles` | Role catalog with Phase 1 assignable roles and future prepared enum values. |
 | `user_organization_roles` | Organization-scoped user role assignments with assignment and revocation metadata. |
+| `user_invitations` | Platform Admin-created onboarding invitations with hashed token, expiry, queued email status and acceptance metadata. |
 
 Phase 1 assignable role codes are `BREEDER`, `BREEDING_STATION` and
 `PLATFORM_ADMIN`.
@@ -55,6 +60,11 @@ and the API identity helper emits a `ROLE_ASSIGNMENT` audit hook. Ticket 1.8
 adds the AuditLog service helper that materializes those hooks as
 `CHANGE_PERMISSION` audit entries when permission changes are persisted through
 an audit-aware repository.
+
+Ticket 18.04 adds the `user_invitations` table and invitation lifecycle enums.
+Invitation tokens are stored only as hashes. Accepted invitations create or
+link the user record and then create the `UserOrganizationRole`; pending
+invitations alone do not grant access.
 
 ## Implemented Catalog Foundation
 
@@ -102,6 +112,8 @@ Implemented tables:
 | --- | --- |
 | `semen_orders` | Breeder-to-breeding-station order records linked to a semen listing, with unique human-readable order numbers and breeder-entered creation details. |
 | `order_status_history` | Append-only status transition records with actor user, role, organization, timestamp and reason. |
+| `order_activities` | Lightweight comments and internal notes for authorized order participants; status history can be rendered into the same feed as system activity. |
+| `support_requests` | Categorized order-linked support requests created by authorized breeders/stations and reviewed by Platform Admin users. |
 
 Implemented order status values:
 
@@ -149,6 +161,17 @@ details inline on `semen_orders` rather than adding a separate table:
 `mare_name`, `mare_registration_reference`, `mare_breed`, optional
 `mare_owner_name`, optional `intended_insemination_context` and optional
 `vet_or_recipient_contact`.
+
+Ticket 18.12 adds `order_activities` for practical order context and
+communication. Activity comments preserve actor user, organization, role,
+message, visibility and timestamp, but they do not replace
+`order_status_history`, `proof_events` or `audit_logs` as evidence records.
+
+Ticket 18.32 adds `support_requests` for order-linked support triage. Requests
+store object type/id/ref, category, message, requester actor context, status
+and queued admin-notification state. Tickets 9.1 and 9.2 record provider email
+attempts in `notification_logs`; support request queue lifecycle remains a
+later notification surface.
 
 Draft orders may be saved before every detail is complete. Application
 validation requires requested delivery date, mare name, mare registration
@@ -326,18 +349,21 @@ Implemented audit actions:
 
 | Enum | Values |
 | --- | --- |
-| `coritech_audit_log_action` | `CREATE`, `UPDATE`, `STATUS_CHANGE`, `UPLOAD_DOCUMENT`, `VIEW_DOCUMENT`, `CREATE_PROOF_EVENT`, `CHANGE_PERMISSION`, `ADMIN_EDIT`, `CREATE_AMENDMENT`, `LOGIN`, `LOGOUT` |
+| `coritech_audit_log_action` | `CREATE`, `UPDATE`, `STATUS_CHANGE`, `UPLOAD_DOCUMENT`, `VIEW_DOCUMENT`, `ACCESS_DECISION`, `CREATE_PROOF_EVENT`, `CHANGE_PERMISSION`, `ADMIN_EDIT`, `CREATE_AMENDMENT`, `LOGIN`, `LOGOUT` |
 
 The API audit helper materializes existing workflow audit hooks into normalized
 AuditLog entries. Critical Phase 1 hooks currently wired to persistence are
 order creation/status changes, shipment creation/status changes, document
 upload/view, evidence attachment, explicit proof-event creation, role
-assignment permission changes and platform-admin listing edits.
+assignment permission changes, platform-admin listing edits and RBAC allow/deny
+decisions for concrete protected objects.
 
 Audit logs are queryable by `object_type` and `object_id`. Participant-aware
 query helpers allow platform-admin access, or Phase 1 breeder/station access
 when the caller supplies authorized object context. Future buyer access remains
-unavailable in Phase 1.
+unavailable in Phase 1. Platform admins can also query the broader audit stream
+through the admin audit route and API; no normal mutation route exists for audit
+entries.
 
 Audit logs are append-only from normal application flows. The domain module
 exposes no update/delete service, and the migration blocks database updates and

@@ -1,13 +1,25 @@
 import type {
   AnchorHTMLAttributes,
   ButtonHTMLAttributes,
+  FormHTMLAttributes,
   InputHTMLAttributes as ReactInputHTMLAttributes,
   HTMLAttributes,
   InputHTMLAttributes,
   ReactNode,
+  RefObject,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
+import {
+  formatStatusDisplayLabel,
+  getStatusBadgeTone,
+  getStatusDescription,
+  getStatusNextActionHint,
+} from "../../features/status-display/status-display-registry.mjs";
+import type {
+  StatusDisplayKind,
+  StatusDisplayRoleCode,
+} from "../../features/status-display/status-display.d.ts";
 
 type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "accent";
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -288,14 +300,16 @@ export function Badge({
 }
 
 export function StatusBadge({
+  kind,
   label,
   value,
 }: Readonly<{
+  kind?: StatusDisplayKind;
   label?: string;
   value: unknown;
 }>) {
-  const formatted = label ?? formatStatusLabel(value);
-  const tone = statusTone(value);
+  const formatted = label ?? formatStatusLabel(value, kind);
+  const tone = statusTone(value, kind);
 
   return (
     <span className={cx("ct-badge", "ct-badge--status", `ct-badge--${tone}`)}>
@@ -305,12 +319,54 @@ export function StatusBadge({
   );
 }
 
+export function OrderStatusBadge({ value }: Readonly<{ value: unknown }>) {
+  return <StatusBadge kind="order" value={value} />;
+}
+
+export function ShipmentStatusBadge({ value }: Readonly<{ value: unknown }>) {
+  return <StatusBadge kind="shipment" value={value} />;
+}
+
+export function PaymentStatusBadge({ value }: Readonly<{ value: unknown }>) {
+  return <StatusBadge kind="payment" value={value} />;
+}
+
+export function VerificationLevelBadge({ value }: Readonly<{ value: unknown }>) {
+  return <StatusBadge kind="verification" value={value} />;
+}
+
 export function VerificationBadge({
   value,
 }: Readonly<{
   value: unknown;
 }>) {
-  return <StatusBadge label={formatVerificationLevel(value)} value={value} />;
+  return <VerificationLevelBadge value={value} />;
+}
+
+export function StatusDescription({
+  kind,
+  roleCode,
+  status,
+}: Readonly<{
+  kind: StatusDisplayKind;
+  roleCode?: StatusDisplayRoleCode | string | null;
+  status: unknown;
+}>) {
+  const description = getStatusDescription(status, kind);
+  const nextAction = roleCode
+    ? getStatusNextActionHint({ kind, status, roleCode })
+    : null;
+
+  if (!description && !nextAction) {
+    return null;
+  }
+
+  return (
+    <div className="ct-status-description">
+      {description ? <p>{description}</p> : null}
+      {nextAction ? <p>{nextAction}</p> : null}
+    </div>
+  );
 }
 
 export function MetricCard({
@@ -390,11 +446,46 @@ export function Field({
   );
 }
 
+export function SearchField({
+  defaultValue = "",
+  hint,
+  id,
+  label = "Search",
+  name = "query",
+  placeholder = "Search",
+}: Readonly<{
+  defaultValue?: string;
+  hint?: string;
+  id: string;
+  label?: string;
+  name?: string;
+  placeholder?: string;
+}>) {
+  return (
+    <Field hint={hint} htmlFor={id} label={label}>
+      <Input
+        defaultValue={defaultValue}
+        id={id}
+        name={name}
+        placeholder={placeholder}
+        type="search"
+      />
+    </Field>
+  );
+}
+
 export function Input({
   className,
   ...props
 }: Readonly<InputHTMLAttributes<HTMLInputElement>>) {
   return <input className={cx("ct-input", className)} {...props} />;
+}
+
+export function DateInput({
+  className,
+  ...props
+}: Readonly<Omit<InputHTMLAttributes<HTMLInputElement>, "type">>) {
+  return <input className={cx("ct-input", className)} type="date" {...props} />;
 }
 
 export function Select({
@@ -409,6 +500,20 @@ export function Textarea({
   ...props
 }: Readonly<TextareaHTMLAttributes<HTMLTextAreaElement>>) {
   return <textarea className={cx("ct-textarea", className)} {...props} />;
+}
+
+export function FormError({
+  children,
+  id,
+}: Readonly<{
+  children: ReactNode;
+  id?: string;
+}>) {
+  return (
+    <p className="ct-form-error" id={id} role="alert">
+      {children}
+    </p>
+  );
 }
 
 export function Checkbox({
@@ -453,6 +558,49 @@ export function Table({
     <div className="ct-table-wrap">
       <table className={cx("ct-table", className)}>{children}</table>
     </div>
+  );
+}
+
+export function PaginationControls({
+  className,
+  firstHref,
+  hasNextPage,
+  hasPreviousPage,
+  label,
+  nextHref,
+  previousHref,
+}: Readonly<{
+  className?: string;
+  firstHref?: string;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  label: string;
+  nextHref: string;
+  previousHref: string;
+}>) {
+  return (
+    <nav aria-label={label} className={cx("ct-pagination", className)}>
+      <ButtonLink
+        aria-disabled={!hasPreviousPage}
+        href={previousHref}
+        variant="secondary"
+      >
+        Previous
+      </ButtonLink>
+      <span>{label}</span>
+      <ButtonLink
+        aria-disabled={!hasNextPage}
+        href={nextHref}
+        variant="secondary"
+      >
+        Next
+      </ButtonLink>
+      {firstHref ? (
+        <ButtonLink href={firstHref} variant="ghost">
+          First page
+        </ButtonLink>
+      ) : null}
+    </nav>
   );
 }
 
@@ -516,6 +664,62 @@ export function ToastMessage({
       <strong>{title}</strong>
       <span>{children}</span>
     </section>
+  );
+}
+
+export function ConfirmationDialog({
+  action,
+  cancelLabel = "Cancel",
+  children,
+  confirmLabel,
+  confirmVariant = "danger",
+  description,
+  dialogRef,
+  hiddenFields = [],
+  id,
+  title,
+}: Readonly<{
+  action: NonNullable<FormHTMLAttributes<HTMLFormElement>["action"]>;
+  cancelLabel?: string;
+  children?: ReactNode;
+  confirmLabel: string;
+  confirmVariant?: ButtonVariant;
+  description: string;
+  dialogRef?: RefObject<HTMLDialogElement | null>;
+  hiddenFields?: ReadonlyArray<{ name: string; value: string }>;
+  id: string;
+  title: string;
+}>) {
+  const titleId = `${id}-title`;
+  const descriptionId = `${id}-description`;
+
+  return (
+    <dialog
+      aria-describedby={descriptionId}
+      aria-labelledby={titleId}
+      className="ct-dialog"
+      id={id}
+      ref={dialogRef}
+    >
+      <form action={action} className="ct-dialog__body" method="post">
+        {hiddenFields.map((field) => (
+          <input key={field.name} name={field.name} type="hidden" value={field.value} />
+        ))}
+        <header>
+          <h2 id={titleId}>{title}</h2>
+          <p id={descriptionId}>{description}</p>
+        </header>
+        {children}
+        <div className="ct-form-actions">
+          <Button type="submit" variant={confirmVariant}>
+            {confirmLabel}
+          </Button>
+          <Button formMethod="dialog" type="submit" variant="secondary">
+            {cancelLabel}
+          </Button>
+        </div>
+      </form>
+    </dialog>
   );
 }
 
@@ -645,71 +849,14 @@ export function ErrorState({
   );
 }
 
-export function formatStatusLabel(value: unknown) {
-  return String(value)
-    .toLowerCase()
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+export function formatStatusLabel(value: unknown, kind?: StatusDisplayKind) {
+  return formatStatusDisplayLabel(value, kind);
 }
 
 export function formatVerificationLevel(value: unknown) {
-  const normalized = String(value).toUpperCase();
-  const labels: Record<string, string> = {
-    SELF_REPORTED: "Self-reported",
-    SYSTEM_RECORDED: "System-recorded",
-    STATION_CONFIRMED: "Station-confirmed",
-    ADMIN_REVIEWED: "Admin-reviewed",
-    VET_SIGNED: "Vet-signed",
-    FEDERATION_ATTESTED: "Federation-attested",
-    VERIFIED_FOR_TRANSACTION: "Verified for transaction",
-  };
-
-  return labels[normalized] ?? formatStatusLabel(value);
+  return formatStatusDisplayLabel(value, "verification");
 }
 
-function statusTone(value: unknown): Tone {
-  const normalized = String(value).toLowerCase();
-
-  if (
-    normalized.includes("unavailable") ||
-    normalized.includes("cancel") ||
-    normalized.includes("reject") ||
-    normalized.includes("error") ||
-    normalized.includes("fail")
-  ) {
-    return "danger";
-  }
-
-  if (
-    normalized.includes("verified") ||
-    normalized.includes("available") ||
-    normalized === "active" ||
-    normalized.includes("complete") ||
-    normalized.includes("delivered") ||
-    normalized.includes("submitted") ||
-    normalized.includes("approved")
-  ) {
-    return "success";
-  }
-
-  if (
-    normalized.includes("pending") ||
-    normalized.includes("draft") ||
-    normalized.includes("requested") ||
-    normalized.includes("transit") ||
-    normalized.includes("review")
-  ) {
-    return "warning";
-  }
-
-  if (
-    normalized.includes("tracking") ||
-    normalized.includes("shipment") ||
-    normalized.includes("document") ||
-    normalized.includes("proof")
-  ) {
-    return "info";
-  }
-
-  return "neutral";
+function statusTone(value: unknown, kind?: StatusDisplayKind): Tone {
+  return getStatusBadgeTone(value, kind);
 }

@@ -15,6 +15,7 @@ import {
   formatStatusLabel,
 } from "../../components/ui";
 import { stationNavigation } from "../navigation";
+import { ProofTimeline } from "../proof-timeline/ProofTimeline";
 import type {
   StationDashboardActionItem,
   StationDashboardDocumentRow,
@@ -231,6 +232,14 @@ function SelectedOrderSection({
           )}
         </tbody>
       </Table>
+
+      <div className="ct-section-divider">
+        <SectionHeader
+          id="station-dashboard-proof-timeline-heading"
+          title={order.proofTimeline.title}
+        />
+        <ProofTimeline viewModel={order.proofTimeline} />
+      </div>
     </DashboardSection>
   );
 }

@@ -14,6 +14,10 @@ import {
   formatStatusLabel,
 } from "../../components/ui";
 import { stationNavigation } from "../navigation";
+import { OrderActivityPanel } from "../order-activity/OrderActivityPanel";
+import { PaymentReferencePanel } from "../payment-references/PaymentReferencePanel";
+import { ProofTimeline } from "../proof-timeline/ProofTimeline";
+import { SupportRequestFormPanel } from "../support-requests/SupportRequestFormPanel";
 import type {
   StationOrderCommandAction,
   StationOrderManagementSelectedOrder,
@@ -21,10 +25,16 @@ import type {
 } from "./station-order-management.d.ts";
 
 export function StationOrderManagement({
+  addCommentAction,
   executeAction,
+  supportRequestAction,
+  paymentReferenceAction,
   viewModel,
 }: Readonly<{
+  addCommentAction?: (formData: FormData) => Promise<void>;
   executeAction?: (formData: FormData) => Promise<void>;
+  paymentReferenceAction?: (formData: FormData) => Promise<void>;
+  supportRequestAction?: (formData: FormData) => Promise<void>;
   viewModel: StationOrderManagementViewModel;
 }>) {
   return (
@@ -99,8 +109,11 @@ export function StationOrderManagement({
 
         {viewModel.selectedOrder ? (
           <SelectedOrder
+            addCommentAction={addCommentAction}
             executeAction={executeAction}
             order={viewModel.selectedOrder as StationOrderManagementSelectedOrder}
+            paymentReferenceAction={paymentReferenceAction}
+            supportRequestAction={supportRequestAction}
           />
         ) : null}
       </div>
@@ -109,11 +122,17 @@ export function StationOrderManagement({
 }
 
 function SelectedOrder({
+  addCommentAction,
   executeAction,
   order,
+  paymentReferenceAction,
+  supportRequestAction,
 }: Readonly<{
+  addCommentAction?: (formData: FormData) => Promise<void>;
   executeAction?: (formData: FormData) => Promise<void>;
   order: StationOrderManagementSelectedOrder;
+  paymentReferenceAction?: (formData: FormData) => Promise<void>;
+  supportRequestAction?: (formData: FormData) => Promise<void>;
 }>) {
   return (
     <Card>
@@ -143,6 +162,12 @@ function SelectedOrder({
         <DetailItem label="Contact" value={order.shippingContactName ?? "Not recorded"} />
         <DetailItem label="Destination" value={order.shippingDestination ?? "Not recorded"} />
       </div>
+
+      <PaymentReferencePanel
+        action={paymentReferenceAction}
+        surface="section"
+        viewModel={order.paymentReference}
+      />
 
       {order.commandActions.length > 0 ? (
         <div className="ct-card-grid">
@@ -207,6 +232,27 @@ function SelectedOrder({
           )}
         </tbody>
       </Table>
+
+      <div className="ct-section-divider">
+        <SectionHeader
+          id="station-order-proof-timeline-heading"
+          title={order.proofTimeline.title}
+        />
+        <ProofTimeline viewModel={order.proofTimeline} />
+      </div>
+
+      <OrderActivityPanel
+        commentAction={addCommentAction}
+        orderId={order.id ?? order.orderNumber}
+        surface="section"
+        viewModel={order.activity}
+      />
+
+      <SupportRequestFormPanel
+        action={supportRequestAction}
+        surface="section"
+        viewModel={order.supportRequest}
+      />
     </Card>
   );
 }

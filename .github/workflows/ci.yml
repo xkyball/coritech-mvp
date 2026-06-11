@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  CORITECH_ENVIRONMENT: local
+  NODE_ENV: test
+  NEXT_PUBLIC_APP_NAME: CoriTech MVP
+  APP_BASE_URL: http://localhost:3000
+  API_BASE_URL: http://localhost:3000
+  WEB_PORT: "3000"
+  DATABASE_URL: postgresql://coritech:coritech_dev_password@localhost:5432/coritech_ci?schema=public
+  AUDIT_LOG_RETENTION_DAYS: "30"
+  AUTH_PROVIDER_CLIENT_ID: ci-managed-auth-client
+  AUTH_PROVIDER_CLIENT_SECRET: ci-managed-auth-secret
+  AUTH_PROVIDER_DOMAIN: https://accounts.google.com
+  AUTH_SESSION_SECRET: ci-session-secret
+  EMAIL_PROVIDER: console
+  EMAIL_PROVIDER_API_KEY: ci-email-placeholder
+  EMAIL_PROVIDER_ENDPOINT: http://localhost:3000/api/dev-email
+  EMAIL_FROM_ADDRESS: support@ci.coritech.test
+  EMAIL_FROM_NAME: CoriTech CI
+  MONITORING_PROVIDER: console
+  MONITORING_ENDPOINT: http://localhost:3000/api/dev-monitoring
+  ERROR_TRACKING_DSN: ci-error-tracking-disabled
+  OBJECT_STORAGE_PROVIDER: minio
+  OBJECT_STORAGE_ENDPOINT: localhost
+  OBJECT_STORAGE_PORT: "9000"
+  OBJECT_STORAGE_USE_SSL: "false"
+  OBJECT_STORAGE_BUCKET: coritech-ci
+  OBJECT_STORAGE_REGION: local-ci
+  OBJECT_STORAGE_ACCESS_KEY: coritech_ci_minio
+  OBJECT_STORAGE_SECRET_KEY: coritech_ci_minio_secret
+  PAYMENT_PROVIDER_SECRET: ci-payment-placeholder
+  LOGISTICS_PROVIDER_API_KEY: ci-logistics-placeholder
+
+jobs:
+  verify:
+    name: Install, lint, typecheck, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Minimal E2E happy path
+        run: npm run test:e2e
+
+      - name: Build
+        run: npm run build

@@ -374,6 +374,7 @@ test("breeder can view own order detail with history, shipment, documents and pr
   assert.equal(detail.order.mareRegistrationReference, "M-REG-2048");
   assert.equal(detail.currentStatus.status, "CONFIRMED");
   assert.equal(detail.currentStatus.latestChange?.id, "history-confirmed");
+  assert.equal(detail.cancellationAction, null);
   assert.deepEqual(
     detail.sections.statusHistory.items.map((history) => history.id),
     ["history-draft", "history-submitted", "history-confirmed"],
@@ -396,16 +397,41 @@ test("breeder can view own order detail with history, shipment, documents and pr
     detail.sections.proofEvents.items.map((event) => event.id),
     ["proof-submitted", "proof-shipment"],
   );
+  assert.equal(detail.sections.proofEvents.title, "Proof timeline");
+  assert.equal(detail.sections.proofEvents.items[1].linkedDocumentLabel, "1 linked document");
   assert.match(html, /Order SO-20260609-000001/);
   assert.match(html, /Willow Queen/);
   assert.match(html, /Status history/);
   assert.match(html, /Shipment information/);
   assert.match(html, /Receipt confirmation available/);
   assert.match(html, /shipment-handoff.pdf/);
-  assert.match(html, /Proof events/);
+  assert.match(html, /Proof timeline/);
   assert.match(html, /station confirmed/);
+  assert.match(html, /1 linked document/);
   assert.doesNotMatch(html, /station-internal-note.pdf/);
   assert.doesNotMatch(html, /other-breeder-document.pdf/);
+});
+
+test("breeder order detail exposes cancellation reason action for own submitted orders", () => {
+  const submittedOrder = {
+    ...ownOrder,
+    status: "SUBMITTED",
+    updatedByUserId: "user-breeder-a",
+    updatedAt: submittedAt,
+  };
+  const detail = createBreederOrderDetailViewModel({
+    actor: breederActor,
+    orderId: "order-a",
+    orders: [submittedOrder],
+    statusHistory: [draftHistory, submittedHistory],
+  });
+  const html = renderBreederOrderDetail(detail);
+
+  assert.equal(detail.cancellationAction?.orderId, "order-a");
+  assert.equal(detail.cancellationAction?.title, "Cancel order");
+  assert.match(html, /Cancel order/);
+  assert.match(html, /Cancellation reason/);
+  assert.match(html, /textarea name="reason" required/);
 });
 
 test("order detail blocks unrelated breeder, station and buyer access", () => {

@@ -15,6 +15,8 @@ import {
   canManageShipment,
   canViewShipment,
 } from "@coritech/domain/shipments/shipment.mjs";
+import { createStationActionRequiredItems } from "../action-required/action-required.mjs";
+import { createProofTimelineViewModel } from "../proof-timeline/proof-timeline.mjs";
 
 export const STATION_DASHBOARD_VIEW_STATES = /** @type {const} */ ([
   "LOADING",
@@ -82,6 +84,7 @@ export function createStationDashboardViewModel(input) {
   const shipments = input.shipments ?? [];
   const shipmentTrackingEvents = input.shipmentTrackingEvents ?? [];
   const documents = input.documents ?? [];
+  const proofEvents = input.proofEvents ?? [];
 
   const ownListings = listingRecords
     .filter((record) =>
@@ -124,6 +127,13 @@ export function createStationDashboardViewModel(input) {
     shipments: visibleShipments,
     limit: limitOrDefault(input.shipmentsToUpdateLimit, 6),
   });
+  const actionRequired = createStationActionRequiredItems({
+    actor,
+    organizationId: stationOrganizationId,
+    orders: ownOrders,
+    shipments: visibleShipments,
+    limit: limitOrDefault(input.actionItemsLimit, 8),
+  });
   const orderActions = buildOrderActionItems({
     actor,
     orders: ownOrders,
@@ -138,6 +148,7 @@ export function createStationDashboardViewModel(input) {
     shipments: visibleShipments,
     shipmentTrackingEvents,
     statusHistory,
+    proofEvents,
   });
   const statusSummary = SEMEN_ORDER_STATUSES.map((status) =>
     Object.freeze({
@@ -178,6 +189,11 @@ export function createStationDashboardViewModel(input) {
         emptyMessage: "No station order activity is available.",
         items: Object.freeze(statusSummary),
       }),
+      actionRequired: Object.freeze({
+        title: "Action required",
+        emptyMessage: "No station action is currently required.",
+        items: Object.freeze(actionRequired),
+      }),
       ordersNeedingAction: Object.freeze({
         title: "Orders needing action",
         emptyMessage: "No station order action is currently available.",
@@ -201,6 +217,7 @@ export function createStationDashboardViewModel(input) {
     }),
     isEmpty: ownListings.length === 0 &&
       orderRows.length === 0 &&
+      actionRequired.length === 0 &&
       orderActions.length === 0 &&
       shipmentsToUpdate.length === 0 &&
       recentDocuments.length === 0 &&
@@ -292,6 +309,7 @@ export function validateStationDashboardInput(input) {
   validateOptionalArray(input.shipments, "shipments", issues);
   validateOptionalArray(input.shipmentTrackingEvents, "shipmentTrackingEvents", issues);
   validateOptionalArray(input.documents, "documents", issues);
+  validateOptionalArray(input.proofEvents, "proofEvents", issues);
   validateOptionalPositiveInteger(input.recentDocumentsLimit, "recentDocumentsLimit", issues);
   validateOptionalPositiveInteger(input.actionItemsLimit, "actionItemsLimit", issues);
   validateOptionalPositiveInteger(input.shipmentsToUpdateLimit, "shipmentsToUpdateLimit", issues);
@@ -405,6 +423,7 @@ function toOrderRow(order, actor, statusHistory, ownOrderKeys) {
  *   shipments: import("./station-dashboard.d.ts").ShipmentLike[];
  *   shipmentTrackingEvents: import("./station-dashboard.d.ts").ShipmentTrackingEventLike[];
  *   documents: import("./station-dashboard.d.ts").DocumentLike[];
+ *   proofEvents: import("./station-dashboard.d.ts").ProofEventLike[];
  * }} input
  * @returns {import("./station-dashboard.d.ts").StationDashboardSelectedOrder | null}
  */
@@ -430,13 +449,22 @@ function resolveSelectedOrder(input) {
     .filter((shipment) => matchesOrderContext(order, shipment))
     .sort(compareUpdatedDescending);
   const shipmentKeys = buildShipmentKeySet(orderShipments);
-  const orderDocuments = input.documents
+  const visibleDocuments = input.documents
     .filter((document) =>
       canViewDocument(input.actor, document) &&
       matchesKnownStationContext(document, ownOrderKeys, shipmentKeys)
     )
-    .sort(compareCreatedDescending)
-    .map(toDocumentRow);
+    .sort(compareCreatedDescending);
+  const orderDocuments = visibleDocuments.map(toDocumentRow);
+  const proofTimeline = createProofTimelineViewModel({
+    title: "Proof timeline",
+    emptyMessage: "No proof events have been recorded for this order.",
+    orderId: normalizeOptionalString(order.id),
+    orderNumber: order.orderNumber,
+    shipmentIds: orderShipments.map((shipment) => shipment.id),
+    proofEvents: input.proofEvents,
+    documents: visibleDocuments,
+  });
   const statusHistory = orderStatusHistoryForOrder(order, input.statusHistory, ownOrderKeys);
   const row = toOrderRow(order, input.actor, input.statusHistory, ownOrderKeys);
 
@@ -463,6 +491,7 @@ function resolveSelectedOrder(input) {
       ),
     ),
     documents: Object.freeze(orderDocuments),
+    proofTimeline,
   });
 }
 
@@ -1109,6 +1138,7 @@ function renderReadyDashboard(viewModel) {
     renderSelectedOrder(viewModel.selectedOrder),
     renderListingsSection(sections.activeListings),
     renderOrdersSection(sections.incomingOrders),
+    renderActionRequiredSection(sections.actionRequired),
     renderActionSection(sections.ordersNeedingAction),
     renderShipmentActionSection(sections.shipmentsToUpdate),
     renderDocumentSection(sections.recentDocuments),
@@ -1215,6 +1245,24 @@ function renderOrdersSection(section) {
 }
 
 /**
+ * @param {import("./station-dashboard.d.ts").StationDashboardSection<import("../action-required/action-required.d.ts").ActionRequiredItem>} section
+ * @returns {string}
+ */
+function renderActionRequiredSection(section) {
+  const body = section.items.length === 0
+    ? `    <p>${escapeHtml(section.emptyMessage)}</p>`
+    : section.items.map((item) => [
+      `    <li data-action-kind="${escapeAttribute(item.actionType)}" data-priority="${escapeAttribute(item.priority)}">`,
+      `      <a href="${escapeAttribute(item.href ?? "#")}">${escapeHtml(item.actionLabel)}</a>`,
+      `      <span>${escapeHtml(item.objectLabel)} - ${escapeHtml(item.title)}</span>`,
+      `      <span>${escapeHtml(formatActionDate(item))}</span>`,
+      "    </li>",
+    ].join("\n")).join("\n");
+
+  return renderListSection(section.title, "action-required-heading", body);
+}
+
+/**
  * @param {import("./station-dashboard.d.ts").StationDashboardSection<import("./station-dashboard.d.ts").StationDashboardActionItem>} section
  * @returns {string}
  */
@@ -1224,6 +1272,26 @@ function renderActionSection(section) {
     : renderActions(section.items);
 
   return renderListSection(section.title, "orders-needing-action-heading", body);
+}
+
+/**
+ * @param {import("../action-required/action-required.d.ts").ActionRequiredItem} item
+ * @returns {string}
+ */
+function formatActionDate(item) {
+  if (item.dueAt) {
+    return `Due ${item.dueAt}`;
+  }
+
+  if (item.updatedAt) {
+    return `Updated ${item.updatedAt}`;
+  }
+
+  if (item.createdAt) {
+    return `Created ${item.createdAt}`;
+  }
+
+  return "No date recorded";
 }
 
 /**

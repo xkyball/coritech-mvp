@@ -6,7 +6,11 @@ import {
   SemenOrderAuthorizationError,
   SemenOrderValidationError,
 } from "@coritech/domain/orders/semen-order.mjs";
+import { createOrderActivityPanelViewModel } from "../order-activity/order-activity.mjs";
+import { createPaymentReferencePanelViewModel } from "../payment-references/payment-reference-ui.mjs";
+import { createProofTimelineViewModel } from "../proof-timeline/proof-timeline.mjs";
 import { createStationDashboardViewModel } from "../station-dashboard/station-dashboard.mjs";
+import { createSupportRequestFormViewModel } from "../support-requests/support-requests.mjs";
 
 export const STATION_ORDER_MANAGEMENT_ACTIONS = /** @type {const} */ ([
   "receive",
@@ -43,7 +47,13 @@ export function createStationOrderManagementViewModel(input) {
     }),
     orders: dashboard.sections.incomingOrders.items,
     selectedOrder: selectedOrder
-      ? buildManagedOrder(selectedOrder, input.actor)
+      ? buildManagedOrder({
+        activities: input.orderActivities ?? [],
+        actor: input.actor,
+        order: selectedOrder,
+        organizationContext: dashboard.organizationContext,
+        paymentReferences: input.paymentReferences ?? [],
+      })
       : null,
     actionFeedback: normalizeActionFeedback(input.actionFeedback),
     isEmpty: dashboard.sections.incomingOrders.items.length === 0,
@@ -127,11 +137,17 @@ export async function executeStationOrderAction(input) {
 }
 
 /**
- * @param {import("./station-order-management.d.ts").StationOrderManagementSelectedOrder | import("../station-dashboard/station-dashboard.d.ts").StationDashboardOrderRow} order
- * @param {import("../station-dashboard/station-dashboard.d.ts").StationDashboardActorContext} actor
+ * @param {{
+ *   activities: readonly import("@coritech/domain/orders/order-activity.d.ts").OrderActivity[];
+ *   actor: import("../station-dashboard/station-dashboard.d.ts").StationDashboardActorContext;
+ *   order: import("./station-order-management.d.ts").StationOrderManagementSelectedOrder | import("../station-dashboard/station-dashboard.d.ts").StationDashboardSelectedOrder | import("../station-dashboard/station-dashboard.d.ts").StationDashboardOrderRow;
+ *   organizationContext: import("../station-dashboard/station-dashboard.d.ts").StationOrganizationContext;
+ *   paymentReferences: readonly import("@coritech/domain/payments/payment-reference.d.ts").PaymentReferenceLike[];
+ * }} input
  * @returns {import("./station-order-management.d.ts").StationOrderManagementSelectedOrder}
  */
-function buildManagedOrder(order, actor) {
+function buildManagedOrder(input) {
+  const { activities, actor, order, organizationContext } = input;
   const baseActions = "actions" in order ? [...order.actions] : [];
   const commandActions = [];
 
@@ -153,12 +169,88 @@ function buildManagedOrder(order, actor) {
 
   return Object.freeze({
     ...order,
+    mareName: "mareName" in order ? order.mareName : null,
+    mareRegistrationReference: "mareRegistrationReference" in order ? order.mareRegistrationReference : null,
+    mareBreed: "mareBreed" in order ? order.mareBreed : null,
+    mareOwnerName: "mareOwnerName" in order ? order.mareOwnerName : null,
+    intendedInseminationContext: "intendedInseminationContext" in order ? order.intendedInseminationContext : null,
+    vetOrRecipientContact: "vetOrRecipientContact" in order ? order.vetOrRecipientContact : null,
+    shippingContactName: "shippingContactName" in order ? order.shippingContactName : null,
+    shippingContactPhone: "shippingContactPhone" in order ? order.shippingContactPhone : null,
+    shippingDestination: "shippingDestination" in order ? order.shippingDestination : null,
+    specialInstructions: "specialInstructions" in order ? order.specialInstructions : null,
+    statusHistory: "statusHistory" in order ? order.statusHistory : Object.freeze([]),
+    shipments: "shipments" in order ? order.shipments : Object.freeze([]),
+    documents: "documents" in order ? order.documents : Object.freeze([]),
     commandActions: Object.freeze(commandActions),
     workflowActions: Object.freeze(baseActions.filter((action) =>
       action.actionKind === "CREATE_SHIPMENT" ||
       action.actionKind === "UPLOAD_DOCUMENT" ||
       action.actionKind === "OPEN_ORDER"
     )),
+    activity: createOrderActivityPanelViewModel({
+      actor: buildOrderActivityActor({
+        actor,
+        organizationContext,
+      }),
+      order,
+      activities,
+      statusHistory: "statusHistory" in order ? order.statusHistory : [],
+    }),
+    paymentReference: createPaymentReferencePanelViewModel({
+      actor,
+      order,
+      paymentReference: findPaymentReferenceForOrder({
+        order,
+        paymentReferences: input.paymentReferences,
+      }),
+      returnTo: `${STATION_ORDER_MANAGEMENT_ROUTES.orderManagement}?orderId=${encodeURIComponent(order.id ?? order.orderNumber)}`,
+    }),
+    supportRequest: createSupportRequestFormViewModel({
+      actor: buildOrderActivityActor({
+        actor,
+        organizationContext,
+      }),
+      order,
+    }),
+    proofTimeline: "proofTimeline" in order
+      ? order.proofTimeline
+      : createProofTimelineViewModel({
+        title: "Proof timeline",
+        emptyMessage: "Select an order detail to review proof events.",
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+      }),
+  });
+}
+
+/**
+ * @param {{
+ *   order: { id?: string | null, orderNumber: string };
+ *   paymentReferences: readonly import("@coritech/domain/payments/payment-reference.d.ts").PaymentReferenceLike[];
+ * }}
+ */
+function findPaymentReferenceForOrder(input) {
+  return input.paymentReferences.find((paymentReference) =>
+    (input.order.id && paymentReference.semenOrderId === input.order.id) ||
+    paymentReference.orderNumber === input.order.orderNumber
+  ) ?? null;
+}
+
+/**
+ * @param {{
+ *   actor: import("../station-dashboard/station-dashboard.d.ts").StationDashboardActorContext;
+ *   organizationContext: import("../station-dashboard/station-dashboard.d.ts").StationOrganizationContext;
+ * }} input
+ * @returns {import("@coritech/domain/orders/order-activity.d.ts").OrderActivityActorContext}
+ */
+function buildOrderActivityActor(input) {
+  return Object.freeze({
+    userId: input.actor.userId,
+    organizationId: input.organizationContext.organizationId,
+    organizationName: input.organizationContext.organizationName,
+    roleCode: input.organizationContext.roleCode,
+    roles: input.actor.roles,
   });
 }
 

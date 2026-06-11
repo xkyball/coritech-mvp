@@ -10,8 +10,8 @@ events and notification hooks are applied consistently.
 
 `ShipmentService` lives in `packages/domain/src/shipments/shipment.mjs`.
 
-Shipment mutation endpoints, server actions and provider adapters must call
-`ShipmentService` instead of writing shipment and tracking-event records
+Shipment mutation endpoints, server actions and logistics provider adapters must
+call `ShipmentService` instead of writing shipment and tracking-event records
 directly. The service owns these commands:
 
 - `createShipment`
@@ -34,7 +34,8 @@ Read-only shipment queries remain outside the command service.
   overwritten.
 - Manual and provider-originated tracking updates use the same normalized
   tracking-event shape (`eventSource`, `sourceEventId`, `providerStatus`,
-  `location`, notes and timestamps).
+  `location`, notes and timestamps). Ticket 5.2 exposes this through the
+  `LogisticsProviderAdapter` interface and the `manual` Phase 1 adapter.
 
 ## Delivery Confirmation Policy
 
@@ -65,7 +66,8 @@ runtime supplies one.
 - Notification hooks are emitted as provider-neutral request objects only.
 
 This ticket does not select an external carrier, notification provider or
-automation queue.
+automation queue. The `external_placeholder` logistics adapter fails closed
+until a future provider-specific ticket supplies an implementation.
 
 ## Phase 1 Boundaries
 

@@ -264,7 +264,8 @@ export type OrderNotificationEventType =
   | "ORDER_CONFIRMED"
   | "ORDER_REJECTED"
   | "ORDER_IN_FULFILMENT"
-  | "ORDER_COMPLETED";
+  | "ORDER_COMPLETED"
+  | "ORDER_CANCELLED";
 
 export interface OrderNotificationHook {
   hookType: "NOTIFICATION_REQUEST";
@@ -285,6 +286,7 @@ export interface OrderNotificationHook {
     roleCode: SemenOrderStatusActorRoleCode;
     organizationId: string;
   };
+  reason: string | null;
   occurredAt: string;
 }
 

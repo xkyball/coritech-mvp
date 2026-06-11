@@ -190,7 +190,10 @@ async function upsertUserFromManagedIdentity(
       );
     }
 
-    if (allowLocalEmailLinking) {
+    if (
+      allowLocalEmailLinking ||
+      isInvitationPlaceholderSubject(existingByEmail.managedAuthSubject)
+    ) {
       const mappedUser = mapManagedAuthIdentityToInternalUser({
         identity,
         userId: existingByEmail.id,
@@ -429,6 +432,10 @@ function toManagedAuthMappedUser(user: {
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };
+}
+
+export function isInvitationPlaceholderSubject(value: unknown) {
+  return typeof value === "string" && value.startsWith("invitation|");
 }
 
 function normalizeString(value: unknown) {

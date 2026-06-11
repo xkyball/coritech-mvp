@@ -13,7 +13,11 @@ import { pathToFileURL } from "node:url";
  * @property {string} AUTH_PROVIDER_CLIENT_ID
  * @property {string} AUTH_PROVIDER_CLIENT_SECRET
  * @property {string} AUTH_PROVIDER_DOMAIN
+ * @property {"console" | "http_api"} EMAIL_PROVIDER
  * @property {string} EMAIL_PROVIDER_API_KEY
+ * @property {string} EMAIL_PROVIDER_ENDPOINT
+ * @property {string} EMAIL_FROM_ADDRESS
+ * @property {string} EMAIL_FROM_NAME
  * @property {string} OBJECT_STORAGE_PROVIDER
  * @property {string} OBJECT_STORAGE_ENDPOINT
  * @property {number} OBJECT_STORAGE_PORT
@@ -24,6 +28,9 @@ import { pathToFileURL } from "node:url";
  * @property {string} OBJECT_STORAGE_SECRET_KEY
  * @property {string} PAYMENT_PROVIDER_SECRET
  * @property {string} LOGISTICS_PROVIDER_API_KEY
+ * @property {string} MONITORING_PROVIDER
+ * @property {string} MONITORING_ENDPOINT
+ * @property {string} ERROR_TRACKING_DSN
  * @property {string} APP_BASE_URL
  * @property {string} API_BASE_URL
  * @property {number} AUDIT_LOG_RETENTION_DAYS
@@ -40,7 +47,11 @@ export const REQUIRED_ENVIRONMENT_KEYS = /** @type {const} */ ([
   "AUTH_PROVIDER_CLIENT_ID",
   "AUTH_PROVIDER_CLIENT_SECRET",
   "AUTH_PROVIDER_DOMAIN",
+  "EMAIL_PROVIDER",
   "EMAIL_PROVIDER_API_KEY",
+  "EMAIL_PROVIDER_ENDPOINT",
+  "EMAIL_FROM_ADDRESS",
+  "EMAIL_FROM_NAME",
   "OBJECT_STORAGE_PROVIDER",
   "OBJECT_STORAGE_ENDPOINT",
   "OBJECT_STORAGE_PORT",
@@ -51,6 +62,9 @@ export const REQUIRED_ENVIRONMENT_KEYS = /** @type {const} */ ([
   "OBJECT_STORAGE_SECRET_KEY",
   "PAYMENT_PROVIDER_SECRET",
   "LOGISTICS_PROVIDER_API_KEY",
+  "MONITORING_PROVIDER",
+  "MONITORING_ENDPOINT",
+  "ERROR_TRACKING_DSN",
   "APP_BASE_URL",
   "API_BASE_URL",
   "AUDIT_LOG_RETENTION_DAYS",
@@ -106,6 +120,10 @@ export function loadEnvironment(source = process.env) {
 
   validateUrl("APP_BASE_URL", values.APP_BASE_URL, issues);
   validateUrl("API_BASE_URL", values.API_BASE_URL, issues);
+  validateUrl("EMAIL_PROVIDER_ENDPOINT", values.EMAIL_PROVIDER_ENDPOINT, issues);
+  validateEmailProvider(values.EMAIL_PROVIDER, environmentName, issues);
+  validateEmailAddress("EMAIL_FROM_ADDRESS", values.EMAIL_FROM_ADDRESS, issues);
+  validateUrl("MONITORING_ENDPOINT", values.MONITORING_ENDPOINT, issues);
 
   const objectStoragePort = parsePositiveInteger(
     values.OBJECT_STORAGE_PORT,
@@ -136,6 +154,16 @@ export function loadEnvironment(source = process.env) {
 
     validateNonLocalUrl("APP_BASE_URL", values.APP_BASE_URL, issues);
     validateNonLocalUrl("API_BASE_URL", values.API_BASE_URL, issues);
+    validateNonLocalUrl(
+      "EMAIL_PROVIDER_ENDPOINT",
+      values.EMAIL_PROVIDER_ENDPOINT,
+      issues,
+    );
+    validateNonLocalUrl(
+      "MONITORING_ENDPOINT",
+      values.MONITORING_ENDPOINT,
+      issues,
+    );
   }
 
   if (issues.length > 0) {
@@ -148,7 +176,11 @@ export function loadEnvironment(source = process.env) {
     AUTH_PROVIDER_CLIENT_ID: values.AUTH_PROVIDER_CLIENT_ID,
     AUTH_PROVIDER_CLIENT_SECRET: values.AUTH_PROVIDER_CLIENT_SECRET,
     AUTH_PROVIDER_DOMAIN: values.AUTH_PROVIDER_DOMAIN,
+    EMAIL_PROVIDER: /** @type {"console" | "http_api"} */ (values.EMAIL_PROVIDER),
     EMAIL_PROVIDER_API_KEY: values.EMAIL_PROVIDER_API_KEY,
+    EMAIL_PROVIDER_ENDPOINT: values.EMAIL_PROVIDER_ENDPOINT,
+    EMAIL_FROM_ADDRESS: values.EMAIL_FROM_ADDRESS,
+    EMAIL_FROM_NAME: values.EMAIL_FROM_NAME,
     OBJECT_STORAGE_PROVIDER: values.OBJECT_STORAGE_PROVIDER,
     OBJECT_STORAGE_ENDPOINT: values.OBJECT_STORAGE_ENDPOINT,
     OBJECT_STORAGE_PORT: objectStoragePort,
@@ -159,6 +191,9 @@ export function loadEnvironment(source = process.env) {
     OBJECT_STORAGE_SECRET_KEY: values.OBJECT_STORAGE_SECRET_KEY,
     PAYMENT_PROVIDER_SECRET: values.PAYMENT_PROVIDER_SECRET,
     LOGISTICS_PROVIDER_API_KEY: values.LOGISTICS_PROVIDER_API_KEY,
+    MONITORING_PROVIDER: values.MONITORING_PROVIDER,
+    MONITORING_ENDPOINT: values.MONITORING_ENDPOINT,
+    ERROR_TRACKING_DSN: values.ERROR_TRACKING_DSN,
     APP_BASE_URL: values.APP_BASE_URL,
     API_BASE_URL: values.API_BASE_URL,
     AUDIT_LOG_RETENTION_DAYS: retentionDays,
@@ -279,6 +314,39 @@ function validateNonLocalUrl(key, value, issues) {
     }
   } catch {
     // validateUrl reports URL parsing issues.
+  }
+}
+
+/**
+ * @param {string | undefined} value
+ * @param {CoriTechEnvironment} environmentName
+ * @param {string[]} issues
+ * @returns {void}
+ */
+function validateEmailProvider(value, environmentName, issues) {
+  if (value !== "console" && value !== "http_api") {
+    issues.push("EMAIL_PROVIDER must be one of: console, http_api.");
+    return;
+  }
+
+  if (environmentName !== "local" && value === "console") {
+    issues.push("EMAIL_PROVIDER cannot be console outside local development.");
+  }
+}
+
+/**
+ * @param {string} key
+ * @param {string | undefined} value
+ * @param {string[]} issues
+ * @returns {void}
+ */
+function validateEmailAddress(key, value, issues) {
+  if (!value) {
+    return;
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    issues.push(`${key} must be a valid email address.`);
   }
 }
 

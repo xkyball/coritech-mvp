@@ -13,6 +13,8 @@ import type {
   SemenOrderRepository,
   SemenOrderStatusAuditHook,
 } from "@coritech/domain/orders/semen-order.d.ts";
+import type { OrderActivity } from "@coritech/domain/orders/order-activity.d.ts";
+import type { PaymentReferenceLike } from "@coritech/domain/payments/payment-reference.d.ts";
 import type {
   StationDashboardActionItem,
   StationDashboardActorContext,
@@ -21,6 +23,9 @@ import type {
   StationDashboardOrderRow,
   StationDashboardSelectedOrder,
 } from "../station-dashboard/station-dashboard.d.ts";
+import type { OrderActivityPanelViewModel } from "../order-activity/order-activity.d.ts";
+import type { PaymentReferencePanelViewModel } from "../payment-references/payment-reference-ui.d.ts";
+import type { SupportRequestFormViewModel } from "../support-requests/support-requests.d.ts";
 
 export type StationOrderManagementAction =
   | "receive"
@@ -36,6 +41,8 @@ export interface StationOrderActionFeedback {
 
 export interface StationOrderManagementInput extends StationDashboardInput {
   actionFeedback?: StationOrderActionFeedback;
+  orderActivities?: readonly OrderActivity[];
+  paymentReferences?: readonly PaymentReferenceLike[];
 }
 
 export interface StationOrderCommandAction {
@@ -51,6 +58,9 @@ export interface StationOrderManagementSelectedOrder
   extends StationDashboardSelectedOrder {
   commandActions: readonly StationOrderCommandAction[];
   workflowActions: readonly StationDashboardActionItem[];
+  activity: OrderActivityPanelViewModel;
+  paymentReference: PaymentReferencePanelViewModel;
+  supportRequest: SupportRequestFormViewModel;
 }
 
 export interface StationOrderManagementViewModel {
@@ -63,7 +73,7 @@ export interface StationOrderManagementViewModel {
   };
   navigation: StationDashboardNavigation;
   orders: readonly StationDashboardOrderRow[];
-  selectedOrder: StationOrderManagementSelectedOrder | StationDashboardOrderRow | null;
+  selectedOrder: StationOrderManagementSelectedOrder | null;
   actionFeedback: StationOrderActionFeedback | null;
   isEmpty: boolean;
 }

@@ -8,6 +8,7 @@ import {
   SemenListingNotOrderableError,
   canManageStationCatalog,
   canViewSemenListing,
+  createStallionEndpoint,
   createSemenListingEndpoint,
   deleteSemenListingEndpoint,
   ensureSemenListingCanBeOrdered,
@@ -16,6 +17,7 @@ import {
   prepareCreateStallion,
   prepareUpdateSemenListing,
   searchSemenListingRecords,
+  updateStallionEndpoint,
   updateSemenListingEndpoint,
 } from "./semen-catalog.mjs";
 
@@ -170,6 +172,8 @@ test("breeding station can create stallions and semen listings for its own stati
   assert.equal(preparedStallion.stallion.name, "Blue Meridian");
   assert.equal(preparedStallion.stallion.breed, "Oldenburg");
   assert.equal(preparedStallion.stallion.breedingStationOrganizationId, "org-station-a");
+  assert.equal(preparedStallion.auditHook.action, "STALLION_CREATED");
+  assert.equal(preparedStallion.auditHook.targetType, "Stallion");
   assert.equal(canManageStationCatalog(stationActor, "org-station-a"), true);
 
   const preparedListing = prepareCreateSemenListing({
@@ -218,6 +222,72 @@ test("breeding station can create stallions and semen listings for its own stati
     reason: "Initial station listing",
     occurredAt: timestamp,
   });
+});
+
+test("stallion endpoint handlers create, update and deactivate with audit hooks", async () => {
+  const repository = buildRepository({
+    stallions: [],
+    listings: [],
+  });
+
+  const created = await createStallionEndpoint({
+    actor: stationActor,
+    repository,
+    body: {
+      stallionId: "stallion-endpoint",
+      name: "Copper Vale",
+      breed: "KWPN",
+      ueln: "UELN-900",
+      microchipNumber: null,
+      breedingStationOrganizationId: "org-station-a",
+      changeReason: "Station created the stallion profile",
+      createdAt: timestamp,
+    },
+  });
+
+  assert.equal(created.status, 201);
+  assert.equal(created.body.stallion.name, "Copper Vale");
+  assert.equal(created.auditHook?.action, "STALLION_CREATED");
+  assert.equal(created.auditHook?.reason, "Station created the stallion profile");
+  assert.equal(created.auditLog?.action, "CREATE");
+  assert.equal(created.auditLog?.objectType, "Stallion");
+
+  const updated = await updateStallionEndpoint({
+    actor: stationActor,
+    repository,
+    params: {
+      stallionId: "stallion-endpoint",
+    },
+    body: {
+      microchipNumber: "chip-900",
+      changeReason: "Chip recorded after intake",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.stallion.microchipNumber, "chip-900");
+  assert.equal(updated.auditHook?.action, "STALLION_UPDATED");
+  assert.equal(updated.auditHook?.previousValue?.microchipNumber, null);
+  assert.equal(updated.auditHook?.newValue.microchipNumber, "chip-900");
+  assert.equal(updated.auditLog?.action, "UPDATE");
+
+  const deactivated = await updateStallionEndpoint({
+    actor: stationActor,
+    repository,
+    params: {
+      stallionId: "stallion-endpoint",
+    },
+    body: {
+      status: "INACTIVE",
+      changeReason: "Paused from collection roster",
+      now: timestamp,
+    },
+  });
+
+  assert.equal(deactivated.body.stallion.status, "INACTIVE");
+  assert.equal(deactivated.auditHook?.action, "STALLION_DEACTIVATED");
+  assert.equal(deactivated.auditLog?.reason, "Paused from collection roster");
 });
 
 test("listing management is limited to owning station or platform admin", () => {

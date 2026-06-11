@@ -16,6 +16,7 @@ due diligence and repository transferability.
 | Backup admin | `[CORITECH_BACKUP_ADMIN]` | `[PENDING_CONFIRMATION]` |
 | Personal-only repository dependency | Not allowed | `[PENDING_CONFIRMATION]` |
 | Agency-owned production-critical dependency | Not allowed | `[PENDING_CONFIRMATION]` |
+| Observed local remote | Must resolve to CoriTech-controlled organization before acceptance | `https://github.com/xkyball/coritech-mvp.git` observed locally; not sufficient ownership proof |
 
 ## Due-Diligence Evidence Pack
 
@@ -30,14 +31,17 @@ data room:
 - Branch protection evidence for `main`.
 - Pull-request requirement evidence for `main`.
 - CODEOWNERS or required-reviewer evidence.
+- Branch protection and review policy evidence described in
+  `docs/source-control/branch-protection.md`.
 - Repository transfer or access continuity notes, if applicable.
 
 ## Current Local Note
 
-The local Git remote is not sufficient proof of CoriTech ownership. Before this
-repository is used as an investor or production evidence source, replace or
-confirm the remote under a CoriTech-controlled source-control organization and
-attach the evidence listed above.
+The local Git remote is not sufficient proof of CoriTech ownership. The observed
+remote at implementation time points to `https://github.com/xkyball/coritech-mvp.git`.
+Before this repository is used as an investor or production evidence source,
+replace or confirm the remote under a CoriTech-controlled source-control
+organization and attach the evidence listed above.
 
 ## Review Cadence
 

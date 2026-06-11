@@ -121,6 +121,7 @@ const NOTIFICATION_EVENT_BY_COMMAND = Object.freeze({
   REJECT_ORDER: "ORDER_REJECTED",
   MOVE_TO_FULFILMENT: "ORDER_IN_FULFILMENT",
   COMPLETE_ORDER: "ORDER_COMPLETED",
+  CANCEL_ORDER: "ORDER_CANCELLED",
 });
 
 export class SemenOrderValidationError extends Error {
@@ -1147,6 +1148,7 @@ function buildOrderNotificationHook(input) {
       roleCode: input.change.statusHistory.actorRoleCode,
       organizationId: input.change.statusHistory.actorOrganizationId,
     },
+    reason: input.change.statusHistory.reason ?? null,
     occurredAt: input.change.statusHistory.changedAt,
   });
 }
@@ -1348,15 +1350,10 @@ function findTransitionActorRole(actor, order, toStatus) {
 
   if (toStatus === "CANCELLED") {
     const breederRole = findActorRole(actor, "BREEDER", order.breederOrganizationId);
-    const stationRole = findActorRole(
-      actor,
-      "BREEDING_STATION",
-      order.breedingStationOrganizationId,
-    );
 
     return order.status === "DRAFT" || order.status === "SUBMITTED"
       ? breederRole
-      : stationRole ?? breederRole;
+      : undefined;
   }
 
   if (toStatus === "COMPLETED") {

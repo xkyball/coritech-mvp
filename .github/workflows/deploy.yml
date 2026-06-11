@@ -1,0 +1,114 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "Deployment target"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+
+env:
+  CORITECH_ENVIRONMENT: local
+  NODE_ENV: test
+  NEXT_PUBLIC_APP_NAME: CoriTech MVP
+  APP_BASE_URL: http://localhost:3000
+  API_BASE_URL: http://localhost:3000
+  WEB_PORT: "3000"
+  DATABASE_URL: postgresql://coritech:coritech_dev_password@localhost:5432/coritech_deploy_check?schema=public
+  AUDIT_LOG_RETENTION_DAYS: "30"
+  AUTH_PROVIDER_CLIENT_ID: deploy-managed-auth-client
+  AUTH_PROVIDER_CLIENT_SECRET: deploy-managed-auth-secret
+  AUTH_PROVIDER_DOMAIN: https://accounts.google.com
+  AUTH_SESSION_SECRET: deploy-session-secret
+  EMAIL_PROVIDER: console
+  EMAIL_PROVIDER_API_KEY: deploy-email-placeholder
+  EMAIL_PROVIDER_ENDPOINT: http://localhost:3000/api/dev-email
+  EMAIL_FROM_ADDRESS: support@deploy.coritech.test
+  EMAIL_FROM_NAME: CoriTech Deploy Check
+  MONITORING_PROVIDER: console
+  MONITORING_ENDPOINT: http://localhost:3000/api/dev-monitoring
+  ERROR_TRACKING_DSN: deploy-error-tracking-disabled
+  OBJECT_STORAGE_PROVIDER: minio
+  OBJECT_STORAGE_ENDPOINT: localhost
+  OBJECT_STORAGE_PORT: "9000"
+  OBJECT_STORAGE_USE_SSL: "false"
+  OBJECT_STORAGE_BUCKET: coritech-deploy-check
+  OBJECT_STORAGE_REGION: local-deploy-check
+  OBJECT_STORAGE_ACCESS_KEY: coritech_deploy_minio
+  OBJECT_STORAGE_SECRET_KEY: coritech_deploy_minio_secret
+  PAYMENT_PROVIDER_SECRET: deploy-payment-placeholder
+  LOGISTICS_PROVIDER_API_KEY: deploy-logistics-placeholder
+
+jobs:
+  staging:
+    name: Staging deployment placeholder
+    if: inputs.target_environment == 'staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify before staging deploy
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run test:e2e
+          npm run build
+
+      - name: Staging deploy placeholder
+        run: |
+          echo "Staging deploy is intentionally a placeholder until Ticket 14.1 selects hosted infrastructure."
+          echo "No production secrets or vendor-owned account credentials are used by this workflow."
+
+  production:
+    name: Production deployment approval placeholder
+    if: inputs.target_environment == 'production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify before production placeholder
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run test:e2e
+          npm run build
+
+      - name: Production deploy placeholder
+        run: |
+          echo "Production deploy requires the protected GitHub environment named production."
+          echo "This job is a manual approval placeholder and does not deploy to live infrastructure."

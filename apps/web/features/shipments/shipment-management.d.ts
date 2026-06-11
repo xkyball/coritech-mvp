@@ -9,6 +9,7 @@ import type {
   ShipmentNotificationHook,
   ShipmentProofHook,
   ShipmentRepository,
+  ShipmentServiceOptions,
   ShipmentStatus,
   ShipmentTrackingAuditHook,
   ShipmentTrackingEvent,
@@ -115,6 +116,7 @@ export type ExecuteShipmentManagementActionInput = {
   repository: ShipmentRepository;
   form: ShipmentManagementFormInput;
   auditContext?: AuditRequestContext | null;
+  notificationService?: ShipmentServiceOptions["notificationService"] | null;
   transaction?: <T>(
     operation: (repository?: ShipmentRepository) => Promise<T>,
   ) => Promise<T>;
@@ -126,6 +128,7 @@ export type ConfirmShipmentReceivedActionInput = {
   repository: ShipmentRepository;
   notes?: string | null;
   auditContext?: AuditRequestContext | null;
+  notificationService?: ShipmentServiceOptions["notificationService"] | null;
   transaction?: <T>(
     operation: (repository?: ShipmentRepository) => Promise<T>,
   ) => Promise<T>;

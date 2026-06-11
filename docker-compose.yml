@@ -76,7 +76,14 @@ services:
       AUTH_PROVIDER_CLIENT_SECRET: ${AUTH_PROVIDER_CLIENT_SECRET:-replace-before-managed-auth-setup}
       AUTH_PROVIDER_DOMAIN: ${AUTH_PROVIDER_DOMAIN:-https://accounts.google.com}
       AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:-}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
       EMAIL_PROVIDER_API_KEY: ${EMAIL_PROVIDER_API_KEY:-replace-before-email-provider-setup}
+      EMAIL_PROVIDER_ENDPOINT: ${EMAIL_PROVIDER_ENDPOINT:-http://localhost:3000/api/dev-email}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@local.coritech.test}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-CoriTech Local}
+      MONITORING_PROVIDER: ${MONITORING_PROVIDER:-console}
+      MONITORING_ENDPOINT: ${MONITORING_ENDPOINT:-http://localhost:3000/api/dev-monitoring}
+      ERROR_TRACKING_DSN: ${ERROR_TRACKING_DSN:-local-error-tracking-disabled}
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-CoriTech MVP}
       OBJECT_STORAGE_PROVIDER: ${OBJECT_STORAGE_PROVIDER:-minio}
       OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT:-minio}

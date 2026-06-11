@@ -7,6 +7,7 @@ import {
 import { canViewDocument } from "@coritech/domain/documents/document-evidence.mjs";
 import { isActiveRoleAssignment } from "@coritech/domain/identity/role-model.mjs";
 import { SEMEN_ORDER_STATUSES } from "@coritech/domain/orders/semen-order.mjs";
+import { createBreederActionRequiredItems } from "../action-required/action-required.mjs";
 
 export const BREEDER_DASHBOARD_VIEW_STATES = /** @type {const} */ ([
   "LOADING",
@@ -19,24 +20,6 @@ export const BREEDER_DASHBOARD_ROUTES = Object.freeze({
   newOrder: "/app/orders/new",
   orderDetail: "/app/orders",
   documentDetail: "/app/documents",
-});
-
-const ACTION_STATUS_COPY = Object.freeze({
-  DRAFT: Object.freeze({
-    title: "Draft order awaiting submission",
-    description: "Review and submit the order when it is ready for station review.",
-    actionLabel: "Edit draft",
-  }),
-  REJECTED: Object.freeze({
-    title: "Station response needs review",
-    description: "Review the station response and decide the next operational step.",
-    actionLabel: "Review order",
-  }),
-  DELIVERED: Object.freeze({
-    title: "Delivered order awaiting completion",
-    description: "Check received material and complete the order when records are ready.",
-    actionLabel: "Complete order",
-  }),
 });
 
 export class BreederDashboardValidationError extends Error {
@@ -80,6 +63,7 @@ export function createBreederDashboardViewModel(input) {
 
   const listingRecords = input.listingRecords ?? [];
   const orders = input.orders ?? [];
+  const shipments = input.shipments ?? [];
   const statusHistory = input.statusHistory ?? [];
   const documents = input.documents ?? [];
   const ownOrders = orders
@@ -104,10 +88,13 @@ export function createBreederDashboardViewModel(input) {
     .sort(compareCreatedDescending)
     .slice(0, limitOrDefault(input.recentDocumentsLimit, 5))
     .map(toDocumentRow);
-  const actionRequired = buildActionItems(
-    ownOrders,
-    limitOrDefault(input.actionItemsLimit, 6),
-  );
+  const actionRequired = createBreederActionRequiredItems({
+    actor,
+    organizationId: organizationContext.organizationId,
+    orders: ownOrders,
+    shipments,
+    limit: limitOrDefault(input.actionItemsLimit, 6),
+  }).map(toActionItem);
   const statusSummary = SEMEN_ORDER_STATUSES.map((status) =>
     Object.freeze({
       status,
@@ -234,6 +221,7 @@ export function validateDashboardInput(input) {
   validateOptionalNonBlankString(input.organizationName, "organizationName", issues);
   validateOptionalArray(input.listingRecords, "listingRecords", issues);
   validateOptionalArray(input.orders, "orders", issues);
+  validateOptionalArray(input.shipments, "shipments", issues);
   validateOptionalArray(input.statusHistory, "statusHistory", issues);
   validateOptionalArray(input.documents, "documents", issues);
   validateOptionalPositiveInteger(input.recentDocumentsLimit, "recentDocumentsLimit", issues);
@@ -396,38 +384,6 @@ function toDocumentRow(document) {
       ? `${BREEDER_DASHBOARD_ROUTES.documentDetail}/${encodeURIComponent(documentId)}`
       : null,
   });
-}
-
-/**
- * @param {import("./breeder-dashboard.d.ts").SemenOrderLike[]} orders
- * @param {number} limit
- * @returns {import("./breeder-dashboard.d.ts").BreederDashboardActionItem[]}
- */
-function buildActionItems(orders, limit) {
-  return orders
-    .filter((order) => hasOwn(ACTION_STATUS_COPY, order.status))
-    .slice(0, limit)
-    .map((order) => {
-      const copy =
-        /** @type {Record<string, { title: string, description: string, actionLabel: string }>} */ (
-          ACTION_STATUS_COPY
-        )[order.status];
-      const orderId = normalizeOptionalString(order.id);
-
-      return Object.freeze({
-        id: `${order.orderNumber}-${order.status}`,
-        orderNumber: order.orderNumber,
-        status: order.status,
-        title: copy.title,
-        description: copy.description,
-        actionLabel: copy.actionLabel,
-        actionHref: order.status === "DRAFT" && orderId
-          ? `${BREEDER_DASHBOARD_ROUTES.newOrder}?draftOrderId=${encodeURIComponent(orderId)}`
-          : orderId
-          ? `${BREEDER_DASHBOARD_ROUTES.orderDetail}/${encodeURIComponent(orderId)}`
-          : null,
-      });
-    });
 }
 
 /**
@@ -631,7 +587,8 @@ function renderActionRequiredSection(section) {
       section.items.map((item) => [
         "      <li>",
         `        <strong>${escapeHtml(item.title)}</strong>`,
-        `        <span>${escapeHtml(item.orderNumber)} - ${escapeHtml(formatStatus(item.status))}</span>`,
+        `        <span>${escapeHtml(item.orderNumber)} - ${escapeHtml(formatStatus(item.actionType))} - ${escapeHtml(formatStatus(item.priority))}</span>`,
+        `        <span>${escapeHtml(formatActionDate(item))}</span>`,
         `        <p>${escapeHtml(item.description)}</p>`,
         `        ${item.actionHref ? `<a href="${escapeAttribute(item.actionHref)}">${escapeHtml(item.actionLabel)}</a>` : ""}`,
         "      </li>",
@@ -640,6 +597,48 @@ function renderActionRequiredSection(section) {
     ].join("\n");
 
   return renderSection(section.title, "action-required-heading", body);
+}
+
+/**
+ * @param {import("../action-required/action-required.d.ts").ActionRequiredItem} item
+ * @returns {import("./breeder-dashboard.d.ts").BreederDashboardActionItem}
+ */
+function toActionItem(item) {
+  return Object.freeze({
+    id: item.id,
+    orderNumber: item.objectLabel,
+    actionType: item.actionType,
+    objectType: item.objectType,
+    objectId: item.objectId,
+    title: item.title,
+    description: item.description,
+    actionLabel: item.actionLabel,
+    actionHref: item.href,
+    priority: item.priority,
+    dueAt: item.dueAt,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  });
+}
+
+/**
+ * @param {import("./breeder-dashboard.d.ts").BreederDashboardActionItem} item
+ * @returns {string}
+ */
+function formatActionDate(item) {
+  if (item.dueAt) {
+    return `Due ${item.dueAt}`;
+  }
+
+  if (item.updatedAt) {
+    return `Updated ${item.updatedAt}`;
+  }
+
+  if (item.createdAt) {
+    return `Created ${item.createdAt}`;
+  }
+
+  return "No date recorded";
 }
 
 /**
@@ -813,14 +812,6 @@ function validateOptionalPositiveInteger(value, fieldName, issues) {
   }
 }
 
-/**
- * @param {object} object
- * @param {string} key
- * @returns {boolean}
- */
-function hasOwn(object, key) {
-  return Object.prototype.hasOwnProperty.call(object, key);
-}
 
 /**
  * @param {string} value

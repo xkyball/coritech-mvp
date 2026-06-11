@@ -9,15 +9,7 @@ import type {
   SemenOrderLike as ApiSemenOrderLike,
   SemenOrderStatus,
 } from "@coritech/domain/orders/semen-order.d.ts";
-import type {
-  ProofEvent,
-  ProofEventActorRoleCode,
-  ProofEventLifecycleStage,
-  ProofEventSource,
-  ProofEventStatus,
-  ProofEventType,
-} from "@coritech/domain/proof/proof-event.d.ts";
-import type { ActivePhase1VerificationLevel } from "@coritech/domain/proof/verification-level.d.ts";
+import type { ProofEvent } from "@coritech/domain/proof/proof-event.d.ts";
 import type {
   ShipmentLike as ApiShipmentLike,
   ShipmentConfirmationSource,
@@ -25,6 +17,12 @@ import type {
   ShipmentTrackingEvent,
   ShipmentTrackingEventSource,
 } from "@coritech/domain/shipments/shipment.d.ts";
+import type { OrderActivity } from "@coritech/domain/orders/order-activity.d.ts";
+import type { PaymentReferenceLike } from "@coritech/domain/payments/payment-reference.d.ts";
+import type { OrderActivityPanelViewModel } from "../order-activity/order-activity.d.ts";
+import type { PaymentReferencePanelViewModel } from "../payment-references/payment-reference-ui.d.ts";
+import type { ProofTimelineItem } from "../proof-timeline/proof-timeline.d.ts";
+import type { SupportRequestFormViewModel } from "../support-requests/support-requests.d.ts";
 
 export type BreederOrderDetailViewState = "LOADING" | "READY" | "ERROR";
 
@@ -44,7 +42,10 @@ export interface BreederOrderDetailInput {
   shipmentTrackingEvents?: ShipmentTrackingEventLike[];
   documents?: DocumentLike[];
   proofEvents?: ProofEventLike[];
+  orderActivities?: OrderActivityLike[];
+  paymentReference?: PaymentReferenceLike | null;
   supportEmail?: string | null;
+  supportConfirmation?: string | null;
 }
 
 export interface SemenOrderLike extends ApiSemenOrderLike {}
@@ -53,6 +54,7 @@ export interface ShipmentLike extends ApiShipmentLike {}
 export interface ShipmentTrackingEventLike extends ShipmentTrackingEvent {}
 export interface DocumentLike extends ApiDocumentLike {}
 export interface ProofEventLike extends ProofEvent {}
+export interface OrderActivityLike extends OrderActivity {}
 
 export interface BreederOrderDetailOrganizationContext {
   organizationId: string;
@@ -71,6 +73,14 @@ export interface BreederOrderDetailSupportAction {
   orderNumber: string;
 }
 
+export interface BreederOrderCancellationAction {
+  orderId: string;
+  title: string;
+  description: string;
+  reasonLabel: string;
+  buttonLabel: string;
+}
+
 export interface BreederOrderDetailViewModel {
   state: "READY";
   actorUserId: string;
@@ -79,14 +89,18 @@ export interface BreederOrderDetailViewModel {
   organizationContext: BreederOrderDetailOrganizationContext;
   navigation: BreederOrderDetailNavigation;
   supportAction: BreederOrderDetailSupportAction;
+  supportRequest: SupportRequestFormViewModel;
+  cancellationAction: BreederOrderCancellationAction | null;
   order: BreederOrderSummary;
   currentStatus: BreederOrderCurrentStatus;
+  paymentReference: PaymentReferencePanelViewModel;
   sections: {
     orderSummary: BreederOrderDetailSection<BreederOrderSummaryItem>;
     statusHistory: BreederOrderDetailSection<BreederOrderStatusHistoryRow>;
     shipments: BreederOrderDetailSection<BreederOrderShipmentRow>;
     documents: BreederOrderDetailSection<BreederOrderDocumentRow>;
     proofEvents: BreederOrderDetailSection<BreederOrderProofEventRow>;
+    activity: OrderActivityPanelViewModel;
   };
 }
 
@@ -186,18 +200,7 @@ export interface BreederOrderDocumentRow {
   detailHref: string | null;
 }
 
-export interface BreederOrderProofEventRow {
-  id: string | null;
-  eventType: ProofEventType;
-  source: ProofEventSource;
-  lifecycleStage: ProofEventLifecycleStage;
-  verificationLevel: ActivePhase1VerificationLevel;
-  status: ProofEventStatus;
-  actorRoleCode: ProofEventActorRoleCode;
-  actorOrganizationId: string;
-  documentationCount: number;
-  occurredAt: string;
-}
+export interface BreederOrderProofEventRow extends ProofTimelineItem {}
 
 export interface BreederOrderDetailLoadingViewModel {
   state: "LOADING";

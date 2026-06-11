@@ -154,6 +154,7 @@ export async function executeShipmentManagementAction(input) {
     const service = createShipmentService({
       repository: input.repository,
       auditContext: input.auditContext,
+      notificationService: input.notificationService,
       transaction: input.transaction,
     });
     const body = {
@@ -223,6 +224,7 @@ export async function confirmShipmentReceivedAction(input) {
     const service = createShipmentService({
       repository: input.repository,
       auditContext: input.auditContext,
+      notificationService: input.notificationService,
       transaction: input.transaction,
     });
     const result = await service.confirmReceived({

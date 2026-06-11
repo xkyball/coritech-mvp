@@ -83,6 +83,8 @@ The provider abstraction supports infrastructure-level object operations:
   scanner adapter.
 - Production object storage accounts, buckets, access keys, backup
   administrators and recovery paths must be CoriTech-controlled.
+- Staging and production backup/versioning expectations are documented in
+  `docs/deployment/backup-restore-baseline.md`.
 - Vendor-owned production-critical account assumptions are not accepted without
   an explicit documented exception.
 

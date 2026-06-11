@@ -443,7 +443,7 @@ export async function recordRbacAccessDecision(request, decision, options = {}) 
     return null;
   }
 
-  const persisted = await logger(decision);
+  const persisted = await logger(decision, request.auditContext ?? null);
 
   return Object.freeze(persisted ?? decision);
 }

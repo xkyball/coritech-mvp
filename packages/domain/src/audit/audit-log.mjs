@@ -9,6 +9,7 @@ export const AUDIT_LOG_ACTIONS = /** @type {const} */ ([
   "STATUS_CHANGE",
   "UPLOAD_DOCUMENT",
   "VIEW_DOCUMENT",
+  "ACCESS_DECISION",
   "CREATE_PROOF_EVENT",
   "CHANGE_PERMISSION",
   "ADMIN_EDIT",
@@ -24,6 +25,13 @@ export const AUDIT_LOG_ROUTES = Object.freeze([
     handler: "listAuditLogsForObject",
     access:
       "PLATFORM_ADMIN, or an authenticated Phase 1 participant when the caller supplies authorized object context",
+  }),
+  Object.freeze({
+    method: "GET",
+    path: "/admin/audit-logs",
+    handler: "listAuditLogsForAdmin",
+    access:
+      "PLATFORM_ADMIN only. Used for sensitive access review and support queries.",
   }),
 ]);
 
@@ -250,6 +258,57 @@ export async function createAuditLogFromHook(input) {
 }
 
 /**
+ * @param {import("./audit-log.d.ts").AuditLogFromAccessDecisionInput} input
+ * @returns {import("./audit-log.d.ts").AuditLog}
+ */
+export function prepareAuditLogEntryFromAccessDecision(input) {
+  const decision = normalizeAccessDecision(input?.decision);
+
+  return prepareAuditLogEntry({
+    auditLogId: input.auditLogId,
+    actorUserId: decision.actorUserId,
+    actorRoleCode: decision.actorRoleCode,
+    actorOrganizationId: decision.actorOrganizationId,
+    action: "ACCESS_DECISION",
+    sourceAction: `RBAC_${decision.action}_${decision.outcome}`,
+    objectType: decision.targetType,
+    objectId: decision.targetId,
+    objectRef: decision.targetRef,
+    previousValues: null,
+    newValues: {
+      outcome: decision.outcome,
+      allowed: decision.allowed,
+      status: decision.status,
+    },
+    reason: decision.reason,
+    ipAddress: input.requestContext?.ipAddress,
+    userAgent: input.requestContext?.userAgent,
+    metadata: {
+      permissionAction: decision.action,
+      accessOutcome: decision.outcome,
+      handlerName: decision.handlerName,
+      deferred: decision.deferred,
+      source: "RBAC_MIDDLEWARE",
+    },
+    occurredAt: decision.occurredAt,
+    createdAt: input.createdAt,
+    now: input.now,
+  });
+}
+
+/**
+ * @param {import("./audit-log.d.ts").CreateAuditLogFromAccessDecisionInput} input
+ * @returns {Promise<import("./audit-log.d.ts").AuditLog>}
+ */
+export async function createAuditLogFromAccessDecision(input) {
+  const createAuditLog = requireRepositoryMethod(input.repository, "createAuditLog");
+  const auditLog = prepareAuditLogEntryFromAccessDecision(input);
+  const persisted = await createAuditLog(auditLog);
+
+  return Object.freeze(persisted ?? auditLog);
+}
+
+/**
  * @param {import("./audit-log.d.ts").AuditLogObjectQueryInput} input
  * @returns {string[]}
  */
@@ -306,6 +365,14 @@ export function canViewAuditLogsForObject(actor, objectContext) {
 }
 
 /**
+ * @param {import("./audit-log.d.ts").AuditLogActorContext} actor
+ * @returns {boolean}
+ */
+export function canQueryAuditLogsForAdmin(actor) {
+  return Boolean(findActorRole(actor, "PLATFORM_ADMIN"));
+}
+
+/**
  * @param {import("./audit-log.d.ts").ListAuditLogsForObjectInput} input
  * @returns {Promise<import("./audit-log.d.ts").AuditLog[]>}
  */
@@ -343,6 +410,80 @@ export async function listAuditLogsForObject(input) {
   );
 
   return listByObject(objectType, objectId);
+}
+
+/**
+ * @param {import("./audit-log.d.ts").AuditLogListFilters | null | undefined} input
+ * @returns {string[]}
+ */
+export function validateAuditLogListFilters(input) {
+  const issues = [];
+
+  if (input == null) {
+    return issues;
+  }
+
+  if (typeof input !== "object") {
+    return ["audit log filters must be an object when provided."];
+  }
+
+  validateOptionalNonBlankString(input.objectType, "objectType", issues);
+  validateOptionalNonBlankString(input.objectId, "objectId", issues);
+  validateOptionalNonBlankString(input.actorUserId, "actorUserId", issues);
+  validateOptionalNonBlankString(
+    input.actorOrganizationId,
+    "actorOrganizationId",
+    issues,
+  );
+  validateOptionalTimestamp(input.fromOccurredAt, "fromOccurredAt", issues);
+  validateOptionalTimestamp(input.toOccurredAt, "toOccurredAt", issues);
+
+  if (input.action != null && !isAuditLogAction(input.action)) {
+    issues.push(`action must be one of: ${AUDIT_LOG_ACTIONS.join(", ")}.`);
+  }
+
+  if (
+    input.limit != null &&
+    (
+      !Number.isInteger(input.limit) ||
+      input.limit < 1 ||
+      input.limit > 200
+    )
+  ) {
+    issues.push("limit must be an integer between 1 and 200 when provided.");
+  }
+
+  if (
+    input.page != null &&
+    (!Number.isInteger(input.page) || input.page < 1)
+  ) {
+    issues.push("page must be a positive integer when provided.");
+  }
+
+  return issues;
+}
+
+/**
+ * @param {import("./audit-log.d.ts").ListAuditLogsForAdminInput} input
+ * @returns {Promise<import("./audit-log.d.ts").AuditLog[]>}
+ */
+export async function listAuditLogsForAdmin(input) {
+  if (!canQueryAuditLogsForAdmin(input.actor)) {
+    throw new AuditLogAuthorizationError(
+      "only active PLATFORM_ADMIN actors may query audit logs for admin review.",
+    );
+  }
+
+  const filters = normalizeAuditLogListFilters(input.filters ?? {});
+  const issues = validateAuditLogListFilters(filters);
+
+  if (issues.length > 0) {
+    throw new AuditLogValidationError(issues);
+  }
+
+  const listAuditLogs = requireRepositoryMethod(input.repository, "listAuditLogs");
+
+  return listAuditLogs(filters);
 }
 
 /**
@@ -432,6 +573,114 @@ function normalizeAuditHook(value) {
   }
 
   return normalized;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {{
+ *   outcome: string,
+ *   allowed: boolean,
+ *   status: number | null,
+ *   action: string,
+ *   actorUserId: string,
+ *   actorRoleCode: string,
+ *   actorOrganizationId: string,
+ *   targetType: string,
+ *   targetId: string,
+ *   targetRef: Readonly<Record<string, unknown>>,
+ *   handlerName: string | null,
+ *   reason: string,
+ *   deferred: boolean,
+ *   occurredAt: string | Date,
+ * }}
+ */
+function normalizeAccessDecision(value) {
+  if (!value || typeof value !== "object") {
+    throw new AuditLogValidationError(["decision is required."]);
+  }
+
+  const decision = /** @type {Record<string, unknown>} */ (value);
+  const normalized = {
+    outcome: normalizeRequiredString(decision.outcome),
+    allowed: Boolean(decision.allowed),
+    status: typeof decision.status === "number" ? decision.status : null,
+    action: normalizeRequiredString(decision.action),
+    actorUserId: normalizeRequiredString(decision.actorUserId),
+    actorRoleCode: normalizeRequiredString(decision.actorRoleCode),
+    actorOrganizationId: normalizeRequiredString(decision.actorOrganizationId),
+    targetType: normalizeRequiredString(decision.targetType),
+    targetId: normalizeRequiredString(decision.targetId),
+    targetRef: freezeJsonObject(normalizeJsonObject(decision.targetRef) ?? {}),
+    handlerName: normalizeOptionalString(decision.handlerName),
+    reason: normalizeRequiredString(decision.reason),
+    deferred: Boolean(decision.deferred),
+    occurredAt: /** @type {string | Date} */ (decision.occurredAt),
+  };
+  const issues = [];
+
+  validateRequiredNonBlankString(normalized.outcome, "decision.outcome", issues);
+  validateRequiredNonBlankString(normalized.action, "decision.action", issues);
+  validateRequiredNonBlankString(
+    normalized.actorUserId,
+    "decision.actorUserId",
+    issues,
+  );
+  validateRequiredNonBlankString(
+    normalized.actorRoleCode,
+    "decision.actorRoleCode",
+    issues,
+  );
+  validateRequiredNonBlankString(
+    normalized.actorOrganizationId,
+    "decision.actorOrganizationId",
+    issues,
+  );
+  validateRequiredNonBlankString(
+    normalized.targetType,
+    "decision.targetType",
+    issues,
+  );
+  validateRequiredNonBlankString(normalized.targetId, "decision.targetId", issues);
+  validateRequiredNonBlankString(normalized.reason, "decision.reason", issues);
+
+  if (normalized.outcome !== "ALLOW" && normalized.outcome !== "DENY") {
+    issues.push("decision.outcome must be ALLOW or DENY.");
+  }
+
+  if (normalized.occurredAt === undefined || normalized.occurredAt === null) {
+    issues.push("decision.occurredAt is required.");
+  } else {
+    validateOptionalTimestamp(
+      normalized.occurredAt,
+      "decision.occurredAt",
+      issues,
+    );
+  }
+
+  if (issues.length > 0) {
+    throw new AuditLogValidationError(issues);
+  }
+
+  return normalized;
+}
+
+/**
+ * @param {import("./audit-log.d.ts").AuditLogListFilters} filters
+ * @returns {import("./audit-log.d.ts").AuditLogListFilters}
+ */
+function normalizeAuditLogListFilters(filters) {
+  return {
+    objectType: normalizeOptionalString(filters.objectType) ?? undefined,
+    objectId: normalizeOptionalString(filters.objectId) ?? undefined,
+    actorUserId: normalizeOptionalString(filters.actorUserId) ?? undefined,
+    actorOrganizationId: normalizeOptionalString(filters.actorOrganizationId) ??
+      undefined,
+    action: filters.action,
+    fromOccurredAt: normalizeOptionalTimestamp(filters.fromOccurredAt),
+    toOccurredAt: normalizeOptionalTimestamp(filters.toOccurredAt),
+    limit: filters.limit,
+    page: filters.page,
+  };
 }
 
 /**
@@ -771,6 +1020,22 @@ function normalizeOptionalString(value) {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string | undefined}
+ */
+function normalizeOptionalTimestamp(value) {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (!isValidTimestamp(value)) {
+    return /** @type {string | undefined} */ (value);
+  }
+
+  return toIsoTimestamp(/** @type {string | Date} */ (value));
 }
 
 /**

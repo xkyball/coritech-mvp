@@ -12,11 +12,22 @@ export const stationNavigation = Object.freeze([
   Object.freeze({ href: "/app/station/orders", label: "Order Management" }),
   Object.freeze({ href: "/app/station/shipments", label: "Shipments" }),
   Object.freeze({ href: "/app/documents/upload", label: "Documents" }),
+  Object.freeze({ href: "/app/station/stallions", label: "Stallion Management" }),
   Object.freeze({ href: "/app/station/listings", label: "Listing Management" }),
 ]);
 
 export const adminNavigation = Object.freeze([
   Object.freeze({ href: "/app/admin", label: "Admin Overview" }),
+  Object.freeze({ href: "/app/admin/users", label: "Users" }),
+  Object.freeze({ href: "/app/admin/invitations", label: "Invitations" }),
+  Object.freeze({ href: "/app/admin/organizations", label: "Organizations" }),
+  Object.freeze({ href: "/app/admin/roles", label: "Roles" }),
+  Object.freeze({ href: "/app/admin/orders", label: "Order Support" }),
+  Object.freeze({ href: "/app/admin/support", label: "Support Requests" }),
+  Object.freeze({ href: "/app/admin/proof", label: "Proof Timeline" }),
+  Object.freeze({ href: "/app/admin/audit", label: "Audit Logs" }),
+  Object.freeze({ href: "/app/admin/permissions", label: "Permissions" }),
+  Object.freeze({ href: "/app/admin/amendments", label: "Amendments" }),
   Object.freeze({ href: "/app/documents/upload", label: "Documents" }),
 ]);
 

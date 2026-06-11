@@ -5,6 +5,9 @@
 This starter note records the Phase 1 security and privacy posture for technical
 due diligence. It is not legal advice.
 
+The canonical Ticket 12.3 due-diligence note lives in
+`docs/security/security-gdpr-note.md`.
+
 ## Data Classes
 
 | Data class | Examples | Phase 1 handling |
@@ -14,7 +17,7 @@ due diligence. It is not legal advice.
 | Evidence documents | Certificates, order documents, shipment evidence | Controlled storage and restricted viewing |
 | Access permission data | User, organization or role grant subject, object target, scope, grantor, expiry and revocation metadata | Object-level least-privilege grants with audit-logged changes |
 | Audit data | Actor, role, organization, timestamp, action, target object, before/after values, reason, IP address and user agent when available | Append-only retention for diligence and operational accountability |
-| Payment reference data | External reference IDs or manual payment notes | No payment processing unless later approved |
+| Payment reference data | External/manual reference IDs, amount, currency and status | Reference-only; no card data, bank credentials, checkout or payment processing |
 
 ## Security Principles
 
@@ -38,9 +41,11 @@ admin MFA evidence and account-ownership requirements are documented in
 
 Ticket 2.2 RBAC middleware enforces Phase 1 role, organization and object
 boundaries before protected endpoint handlers run. Denied access returns `403`
-and is logged through normalized RBAC access-decision events when the route
-repository exposes `recordRbacAccessDecision`; successful `PLATFORM_ADMIN`
-access is logged by default.
+and can be materialized as an immutable `ACCESS_DECISION` AuditLog entry when
+the route repository exposes `recordRbacAccessDecision`; successful
+`PLATFORM_ADMIN` access is logged by default for concrete protected objects.
+Ticket 12.1 adds a Platform Admin audit query page and API for reviewing those
+records alongside document views and permission-change logs.
 
 Ticket 2.3 AccessPermission grants add explicit object-level visibility checks
 for later controlled workflows. Grants are user, organization or active Phase 1

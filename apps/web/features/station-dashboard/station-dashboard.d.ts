@@ -19,6 +19,9 @@ import type {
   ShipmentStatus,
   ShipmentTrackingEvent,
 } from "@coritech/domain/shipments/shipment.d.ts";
+import type { ProofEvent } from "@coritech/domain/proof/proof-event.d.ts";
+import type { ProofTimelineViewModel } from "../proof-timeline/proof-timeline.d.ts";
+import type { ActionRequiredItem } from "../action-required/action-required.d.ts";
 
 export type StationDashboardViewState = "LOADING" | "READY" | "ERROR";
 
@@ -47,6 +50,7 @@ export interface StationDashboardInput {
   shipments?: ShipmentLike[];
   shipmentTrackingEvents?: ShipmentTrackingEventLike[];
   documents?: DocumentLike[];
+  proofEvents?: ProofEventLike[];
   recentDocumentsLimit?: number;
   actionItemsLimit?: number;
   shipmentsToUpdateLimit?: number;
@@ -70,6 +74,8 @@ export interface ShipmentTrackingEventLike extends ShipmentTrackingEvent {}
 
 export interface DocumentLike extends ApiDocumentLike {}
 
+export interface ProofEventLike extends ProofEvent {}
+
 export interface StationOrganizationContext {
   organizationId: string;
   organizationName: string;
@@ -86,6 +92,7 @@ export interface StationDashboardViewModel {
     activeListings: StationDashboardSection<StationDashboardListingCard>;
     incomingOrders: StationDashboardSection<StationDashboardOrderRow>;
     orderStatusSummary: StationDashboardSection<StationDashboardStatusSummaryItem>;
+    actionRequired: StationDashboardSection<ActionRequiredItem>;
     ordersNeedingAction: StationDashboardSection<StationDashboardActionItem>;
     shipmentsToUpdate: StationDashboardSection<StationDashboardShipmentAction>;
     recentDocuments: StationDashboardSection<StationDashboardDocumentRow>;
@@ -162,6 +169,7 @@ export interface StationDashboardSelectedOrder extends StationDashboardOrderRow 
   statusHistory: readonly StationDashboardStatusHistoryRow[];
   shipments: readonly StationDashboardShipmentRow[];
   documents: readonly StationDashboardDocumentRow[];
+  proofTimeline: ProofTimelineViewModel;
 }
 
 export interface StationDashboardStatusHistoryRow {

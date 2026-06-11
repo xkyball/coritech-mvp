@@ -5,6 +5,7 @@ import {
   ButtonLink,
   Card,
   DashboardShell,
+  DateInput,
   DetailList,
   ErrorState as UiErrorState,
   Field,
@@ -441,10 +442,13 @@ function OrderInput({
   value: string;
 }>) {
   const id = `order-${name}`;
+  const control = type === "date"
+    ? <DateInput id={id} name={name} defaultValue={value} required={required} />
+    : <Input id={id} name={name} type={type} defaultValue={value} required={required} />;
 
   return (
     <Field htmlFor={id} label={label}>
-      <Input id={id} name={name} type={type} defaultValue={value} required={required} />
+      {control}
     </Field>
   );
 }

@@ -45,6 +45,9 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
     };
     const orders = await repository.listSemenOrders(filters);
     const orderIds = orders.flatMap((order) => order.id ? [order.id] : []);
+    const proofEvents = (await Promise.all(
+      orderIds.map((orderId) => repository.listProofEventsForOrder(orderId)),
+    )).flat();
 
     return createStationDashboardViewModel({
       actor: activeContext,
@@ -59,6 +62,7 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
       shipments: await shipmentRepository.listShipments(filters),
       shipmentTrackingEvents: await shipmentRepository.listShipmentTrackingEventsForOrders(orderIds),
       documents: await documentRepository.listDocumentsForOrders(orderIds),
+      proofEvents,
       selectedOrderId: firstSearchParam(searchParams.orderId),
     });
   } catch (error) {

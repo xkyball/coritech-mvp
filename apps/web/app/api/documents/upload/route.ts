@@ -18,6 +18,7 @@ import {
 import { requireActiveContextActor, ActiveContextRequiredError } from "../../../../features/auth/active-context-server";
 import { getDocumentObjectStorageProvider } from "../../../../features/documents/object-storage-runtime";
 import { createPrismaDocumentRepository } from "../../../../features/documents/prisma-document-repository";
+import { createNotificationService } from "../../../../features/notifications/notification-runtime";
 
 export const runtime = "nodejs";
 
@@ -48,6 +49,9 @@ export async function POST(request: NextRequest) {
       accessClassification: formDataValue(formData, "accessClassification"),
       body,
     });
+    await createNotificationService().sendDocumentUploadNotification(
+      result.body.document,
+    );
 
     return NextResponse.json(
       {
@@ -139,10 +143,11 @@ function errorResponse(error: unknown) {
     return jsonError(error.message, 404);
   }
 
-  if (
-    error instanceof EnvironmentConfigError ||
-    error instanceof ObjectStorageConfigError
-  ) {
+  if (error instanceof EnvironmentConfigError) {
+    return jsonError("Document upload dependencies are not configured.", 503);
+  }
+
+  if (error instanceof ObjectStorageConfigError) {
     return jsonError("Object storage is not configured for document uploads.", 503);
   }
 

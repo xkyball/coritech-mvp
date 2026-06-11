@@ -9,14 +9,21 @@ import {
   EmptyState,
   ErrorState as UiErrorState,
   LoadingState as UiLoadingState,
+  OrderStatusBadge,
   PageHeader,
   ProofEventList,
   SectionHeader,
+  ShipmentStatusBadge,
+  StatusDescription,
   StatusBadge,
   Table,
+  Textarea,
   formatStatusLabel,
 } from "../../components/ui";
 import { breederNavigation } from "../navigation";
+import { OrderActivityPanel } from "../order-activity/OrderActivityPanel";
+import { PaymentReferencePanel } from "../payment-references/PaymentReferencePanel";
+import { SupportRequestFormPanel } from "../support-requests/SupportRequestFormPanel";
 import type {
   BreederOrderDetailErrorViewModel,
   BreederOrderDetailLoadingViewModel,
@@ -33,10 +40,16 @@ import type {
 } from "./breeder-order-detail.d.ts";
 
 export function BreederOrderDetail({
+  addCommentAction,
+  cancelOrderAction,
   confirmReceivedAction,
+  supportRequestAction,
   viewModel,
 }: Readonly<{
+  addCommentAction?: (formData: FormData) => Promise<void>;
+  cancelOrderAction?: (formData: FormData) => Promise<void>;
   confirmReceivedAction?: (formData: FormData) => Promise<void>;
+  supportRequestAction?: (formData: FormData) => Promise<void>;
   viewModel: BreederOrderDetailRenderableViewModel;
 }>) {
   if (viewModel.state === "LOADING") {
@@ -47,14 +60,28 @@ export function BreederOrderDetail({
     return <ErrorState viewModel={viewModel} />;
   }
 
-  return <ReadyOrderDetail confirmReceivedAction={confirmReceivedAction} viewModel={viewModel} />;
+  return (
+    <ReadyOrderDetail
+      addCommentAction={addCommentAction}
+      cancelOrderAction={cancelOrderAction}
+      confirmReceivedAction={confirmReceivedAction}
+      supportRequestAction={supportRequestAction}
+      viewModel={viewModel}
+    />
+  );
 }
 
 function ReadyOrderDetail({
+  addCommentAction,
+  cancelOrderAction,
   confirmReceivedAction,
+  supportRequestAction,
   viewModel,
 }: Readonly<{
+  addCommentAction?: (formData: FormData) => Promise<void>;
+  cancelOrderAction?: (formData: FormData) => Promise<void>;
   confirmReceivedAction?: (formData: FormData) => Promise<void>;
+  supportRequestAction?: (formData: FormData) => Promise<void>;
   viewModel: BreederOrderDetailViewModel;
 }>) {
   const sections = viewModel.sections;
@@ -104,12 +131,27 @@ function ReadyOrderDetail({
         />
 
         <CurrentStatus viewModel={viewModel} />
+        <CancellationSection cancelOrderAction={cancelOrderAction} viewModel={viewModel} />
         <SummarySection section={sections.orderSummary} />
+        <PaymentReferencePanel viewModel={viewModel.paymentReference} />
         <StatusHistorySection section={sections.statusHistory} />
         <ShipmentSection confirmReceivedAction={confirmReceivedAction} section={sections.shipments} />
         <DocumentsSection section={sections.documents} />
         <ProofEventsSection orderNumber={viewModel.order.orderNumber} section={sections.proofEvents} />
-        <SupportSection supportAction={viewModel.supportAction} />
+        <OrderActivityPanel
+          commentAction={addCommentAction}
+          orderId={viewModel.order.id ?? viewModel.order.orderNumber}
+          viewModel={sections.activity}
+        />
+        <SupportRequestFormPanel
+          action={supportRequestAction}
+          secondaryAction={(
+            <ButtonLink href={viewModel.supportAction.href} variant="ghost">
+              {viewModel.supportAction.label}
+            </ButtonLink>
+          )}
+          viewModel={viewModel.supportRequest}
+        />
       </div>
     </DashboardShell>
   );
@@ -125,13 +167,18 @@ function CurrentStatus({
   return (
     <Card aria-labelledby="current-status-heading">
       <SectionHeader
-        actions={<StatusBadge value={viewModel.currentStatus.status} />}
+        actions={<OrderStatusBadge value={viewModel.currentStatus.status} />}
         id="current-status-heading"
         title="Current status"
       />
       <div className="ct-data-panel">
         <span>Status movement</span>
         <strong>{formatStatus(viewModel.currentStatus.status)}</strong>
+        <StatusDescription
+          kind="order"
+          roleCode="BREEDER"
+          status={viewModel.currentStatus.status}
+        />
         {latest ? (
           <p>
             Latest movement: {formatStatus(latest.toStatus)} at {latest.changedAt}
@@ -141,6 +188,46 @@ function CurrentStatus({
           <p>No status movement has been recorded yet.</p>
         )}
       </div>
+    </Card>
+  );
+}
+
+function CancellationSection({
+  cancelOrderAction,
+  viewModel,
+}: Readonly<{
+  cancelOrderAction?: (formData: FormData) => Promise<void>;
+  viewModel: BreederOrderDetailViewModel;
+}>) {
+  const action = viewModel.cancellationAction;
+
+  if (!action) {
+    return null;
+  }
+
+  return (
+    <Card aria-labelledby="order-cancellation-heading">
+      <SectionHeader
+        id="order-cancellation-heading"
+        subtitle={action.description}
+        title={action.title}
+      />
+      <form action={cancelOrderAction} className="ct-form-grid">
+        <input name="orderId" type="hidden" value={action.orderId} />
+        <label className="ct-field" htmlFor="cancellation-reason">
+          <span>{action.reasonLabel}</span>
+          <Textarea
+            id="cancellation-reason"
+            name="reason"
+            placeholder="Explain why this order is being cancelled"
+            required
+            rows={4}
+          />
+        </label>
+        <Button type="submit" variant="danger">
+          {action.buttonLabel}
+        </Button>
+      </form>
     </Card>
   );
 }
@@ -185,8 +272,8 @@ function StatusHistorySection({
             {section.items.map((history) => (
               <tr key={history.id ?? `${history.toStatus}-${history.changedAt}`}>
                 <td>{history.changedAt}</td>
-                <td>{history.fromStatus ? <StatusBadge value={history.fromStatus} /> : "Start"}</td>
-                <td><StatusBadge value={history.toStatus} /></td>
+                <td>{history.fromStatus ? <OrderStatusBadge value={history.fromStatus} /> : "Start"}</td>
+                <td><OrderStatusBadge value={history.toStatus} /></td>
                 <td>{formatStatus(history.actorRoleCode)}</td>
                 <td>{history.reason ?? "Not recorded"}</td>
               </tr>
@@ -224,7 +311,7 @@ function ShipmentSection({
           <tbody>
             {section.items.map((shipment) => (
               <tr key={shipment.id ?? shipment.orderNumber}>
-                <td><StatusBadge value={shipment.status} /></td>
+                <td><ShipmentStatusBadge value={shipment.status} /></td>
                 <td>{shipment.providerName ?? "Not recorded"}</td>
                 <td>
                   {shipment.trackingUrl ? (

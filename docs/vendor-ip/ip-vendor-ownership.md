@@ -18,6 +18,9 @@ CoriTech should own or control:
 
 ## Vendor/IP Register
 
+The Phase 1 vendor register template lives in
+`docs/vendor-ip/vendor-register.md` and `docs/vendor-ip/vendor-register.csv`.
+
 | Area | Ownership requirement | Status |
 | --- | --- | --- |
 | Source code | CoriTech-owned or assigned to CoriTech | `[PENDING_CONFIRMATION]` |

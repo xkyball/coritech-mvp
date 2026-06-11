@@ -113,29 +113,39 @@ Core:
 - `Badge`
 - `StatusBadge`
 - `VerificationBadge`
+- `OrderStatusBadge`
+- `ShipmentStatusBadge`
+- `PaymentStatusBadge`
+- `VerificationLevelBadge`
+- `StatusDescription`
 - `MetricCard`
 - `DataPanel`
 - `DetailList`
 - `Table`
+- `PaginationControls`
 - `EmptyState`
 - `LoadingState`
 - `ErrorState`
 - `Alert`
 - `Notice`
 - `ProofEventList`
+- `ConfirmationDialog`
+- `ToastMessage`
 
 Forms:
 
 - `Field`
+- `SearchField`
 - `Input`
+- `DateInput`
 - `Select`
 - `Textarea`
+- `FormError`
 - `Checkbox`
 - `Toggle`
 
 Optional future primitives:
 
-- `Dialog` when a real destructive or confirmation workflow needs it.
 - `Tabs` when an implemented page has dense sibling views.
 
 ## 7. Component Usage Rules
@@ -145,16 +155,28 @@ Optional future primitives:
 - Use `Card` for bounded sections; avoid cards inside cards.
 - Use `DataPanel` and `DetailList` for key metadata.
 - Use `StatusBadge` for operational state.
-- Use `VerificationBadge` for verification levels.
+- Use the specific status badge component where the status family is known.
+- Use `VerificationLevelBadge` for verification levels.
+- Use `StatusDescription` when a card needs the shared plain-language status
+  explanation or role-specific next-action hint.
 - Use `ProofEventList` for proof events instead of raw tables.
 - Use `Alert` for validation or failure summaries.
+- Use `FormError` for field-level blocking form errors.
 - Use `Notice` for non-blocking unavailable workflow explanations.
+- Use `ConfirmationDialog` for destructive actions such as revocation and
+  cancellation; it does not replace server authorization.
+- Use `ToastMessage` only for non-blocking local status feedback.
+- Use `SearchField` and `PaginationControls` with the table-list helper for
+  searchable paginated list routes.
 
 ## 8. Data Display Rules
 
 - Metrics: use `MetricCard` in `ct-metric-grid`.
 - Tabular data: use `Table` with semantic `thead`, `tbody`, `th` and `td`.
 - Dense tables: use horizontal scroll on small screens.
+- Searchable tables: normalize `query`, `page`, `pageSize`, `sort` and
+  `direction` through the feature table-list helper before rendering.
+- Pagination: use `PaginationControls` and preserve the active filters in links.
 - Metadata: use `DetailList`.
 - Proof events: use event-list/timeline pattern.
 - Documents: show file name, type, linked object, visibility and created date.

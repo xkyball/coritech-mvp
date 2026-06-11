@@ -109,13 +109,19 @@ Current components:
 - `MetricCard`
 - `DataPanel`
 - `Field`
+- `SearchField`
 - `Input`
+- `DateInput`
 - `Select`
 - `Textarea`
+- `FormError`
 - `Table`
+- `PaginationControls`
 - `EmptyState`
 - `LoadingState`
 - `ErrorState`
+- `ConfirmationDialog`
+- `ToastMessage`
 
 Utility exports:
 
@@ -141,8 +147,10 @@ actions. Use `SectionHeader` inside cards for section titles and counts.
 Use `Card` for bounded content sections. Do not put card-like components inside
 other cards. Direct child data panels inside cards should remain visually flat.
 
-Use `Table` for tabular data and keep semantic table markup. Use `StatusBadge`
-for state values so color is not the only indicator.
+Use `Table` for tabular data and keep semantic table markup. Use `SearchField`
+and `PaginationControls` with feature-owned table-list query normalization for
+searchable lists. Use `StatusBadge` for state values so color is not the only
+indicator.
 
 ## Migration Approach
 
@@ -185,6 +193,7 @@ For future UI tasks:
 5. Preserve existing view-model and server-action behavior.
 6. Use accessible labels and semantic HTML.
 7. Use `StatusBadge` for statuses and `Table` for tabular data.
-8. Add empty, loading and error states through shared primitives.
-9. Do not create preview/demo routes unless the user explicitly asks for them.
-10. Document any route that cannot be migrated instead of inventing new scope.
+8. Use the table-list convention for searchable or paginated list routes.
+9. Add empty, loading and error states through shared primitives.
+10. Do not create preview/demo routes unless the user explicitly asks for them.
+11. Document any route that cannot be migrated instead of inventing new scope.

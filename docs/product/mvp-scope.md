@@ -10,13 +10,13 @@ documentation that generate trustworthy evidence.
 | Capability | Phase 1 intent | Status |
 | --- | --- | --- |
 | Breeder workflow | Search/list semen availability and place controlled orders | Breeder dashboard, semen catalog, draft order save/edit/cancel and controlled submit flow implemented for Phase 1.1 |
-| Breeding station workflow | Manage listings, receive and confirm orders, and update fulfillment status | Station dashboard and station order management implemented for scoped operational visibility, submitted-order receipt and controlled order status actions; listing management UI implemented for station-owned semen listings; shipment and document forms remain pending dedicated workflow tickets |
+| Breeding station workflow | Manage stallions/listings, receive and confirm orders, and update fulfillment status | Station dashboard, stallion management, listing management and station order management implemented for scoped operational visibility, station-owned catalog operations, submitted-order receipt and controlled order status actions; shipment and document forms remain pending dedicated workflow tickets |
 | Shipment tracking | Record shipment milestones and supporting references | `[PENDING_IMPLEMENTATION]` |
 | Evidence documents | Upload and control access to documents linked to orders, shipments or proof events | `[PENDING_IMPLEMENTATION]` |
 | Proof events | Generate audit-ready proof from workflow actions | `[PENDING_IMPLEMENTATION]` |
 | Verification level v1 | Assign simple reviewable verification levels to proof events | `[PENDING_IMPLEMENTATION]` |
 | Audit trail | Preserve who did what, when and why | `[PENDING_IMPLEMENTATION]` |
-| Managed access | Use managed auth and role-based permissions | Managed auth contract implemented by Ticket 2.1; RBAC middleware pending Ticket 2.2 |
+| Managed access | Use managed auth and role-based permissions | Managed auth, active context, RBAC middleware, admin identity management and invitation onboarding implemented for Phase 1.1 |
 
 ## Core Proof Narrative
 

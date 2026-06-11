@@ -107,6 +107,9 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
     return createListingManagementViewModel({
       ...input,
       selectedListingId: firstSearchParam(searchParams.listingId),
+      form: {
+        stallionId: firstSearchParam(searchParams.stallionId),
+      },
       validationIssues: parseErrorParam(firstSearchParam(searchParams.error)),
     });
   } catch (error) {

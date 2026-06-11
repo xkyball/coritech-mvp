@@ -28,6 +28,12 @@ traceability.
 | `AuditLog` | Operational audit entry for proof-relevant actions. |
 | `AccessPermission` | Object-level access grant. |
 | `Amendment` | Controlled correction/amendment evidence. |
+| `PaymentReference` | Reference-only external/manual payment status linked to a semen order; no card or bank credential fields. |
+
+The Phase 1 data-quality rule registry does not add a table. It evaluates the
+existing `SemenOrder`, `Shipment`, `Document` and `ProofEvent` records and can
+write failure evidence through `AuditLog` when a reporting or admin workflow
+explicitly records a failed quality check.
 
 ## Seed Coverage
 

@@ -13,6 +13,7 @@ import {
   createPrismaSemenOrderRepository,
   createPrismaSemenOrderTransaction,
 } from "../../../../features/order-creation/prisma-semen-order-repository";
+import { createNotificationService } from "../../../../features/notifications/notification-runtime";
 
 type NewOrderSearchParams =
   | Promise<Record<string, string | string[] | undefined>>
@@ -64,6 +65,7 @@ async function handleOrderAction(action: "draft" | "submit" | "cancel", formData
     breederOrganizationId: activeContext.organizationId,
     repository,
     transaction: createPrismaSemenOrderTransaction(),
+    notificationService: createNotificationService(),
     form,
     auditContext: {
       userAgent: (await headers()).get("user-agent"),

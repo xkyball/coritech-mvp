@@ -31,6 +31,7 @@ Current routes found:
 - `/app/catalog/[listingId]`
 - `/app/orders/new`
 - `/app/orders/[orderId]`
+- `/app/station/stallions`
 - `/app/station/listings`
 
 Routes requested for inspection but not currently implemented:
@@ -62,6 +63,7 @@ Active app files:
 - `apps/web/app/app/breeder/page.tsx` - protected breeder role route.
 - `apps/web/app/app/station/page.tsx` - protected station role route.
 - `apps/web/app/app/admin/page.tsx` - protected admin role route.
+- `apps/web/app/app/admin/proof/page.tsx` - admin proof timeline route.
 - `apps/web/app/app/no-role/page.tsx` - no active role fallback page.
 - `apps/web/app/app/select-role/page.tsx` - multi-role selection fallback page.
 - `apps/web/app/unauthorized/page.tsx` - unauthorized role fallback page.
@@ -77,6 +79,8 @@ Active app files:
 - `apps/web/app/app/orders/new/loading.tsx` - order creation loading UI.
 - `apps/web/app/app/orders/[orderId]/page.tsx` - breeder order detail page.
 - `apps/web/app/app/orders/[orderId]/loading.tsx` - order detail loading UI.
+- `apps/web/app/app/station/stallions/page.tsx` - station stallion management page.
+- `apps/web/app/app/station/stallions/loading.tsx` - stallion management loading UI.
 - `apps/web/app/app/station/listings/page.tsx` - station listing management page.
 - `apps/web/app/app/station/listings/loading.tsx` - listing management loading UI.
 
@@ -87,6 +91,8 @@ Active feature components:
 - `apps/web/features/catalog/SemenCatalog.tsx`
 - `apps/web/features/order-creation/SemenOrderCreation.tsx`
 - `apps/web/features/breeder-order-detail/BreederOrderDetail.tsx`
+- `apps/web/features/proof-timeline/ProofTimeline.tsx`
+- `apps/web/features/stallion-management/StallionManagement.tsx`
 - `apps/web/features/listing-management/ListingManagement.tsx`
 
 Feature view-model and demo-state modules are already separated from the React
@@ -210,6 +216,9 @@ Implemented after inspection:
 - Added `/app/station/listings` with station-owned create/edit,
   activation/deactivation, availability management, required-field validation
   and audited listing mutations through the existing catalog domain endpoints.
+- Added `/app/station/stallions` with station-owned stallion search,
+  create/edit, activate/inactivate actions, listing creation links and audited
+  stallion mutations through the existing catalog domain endpoints.
 - Wired the breeder catalog pages to the shared demo listing repository so
   inactive listings are hidden after station-side deactivation.
 - Preserved feature view-models, demo-state behavior, semantic tables, loading
