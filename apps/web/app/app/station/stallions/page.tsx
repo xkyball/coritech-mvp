@@ -1,11 +1,14 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import type {
+  Stallion,
+  StallionLike,
+} from "@coritech/domain/catalog/semen-catalog.d.ts";
+
+import { requireActiveContextActor } from "../../../../features/auth/active-context-server";
 import { StallionManagement } from "../../../../features/stallion-management/StallionManagement";
-import {
-  getStallionManagementDemoInput,
-  getStallionManagementDemoRepository,
-  stallionManagementStationOrganizationId,
-} from "../../../../features/stallion-management/demo-store";
+import { createPrismaCatalogRepository } from "../../../../features/listing-management/prisma-catalog-repository";
 import {
   createStallionManagementConfirmationViewModel,
   createStallionManagementErrorState,
@@ -58,15 +61,16 @@ async function handleStallionAction(
   statusOverride?: "ACTIVE" | "INACTIVE",
 ) {
   const form = formDataToStallionForm(formData);
-  const input = await getStallionManagementDemoInput();
+  const activeContext = await requireActiveContextActor("BREEDING_STATION");
+  const repository = createPrismaCatalogRepository();
   const result = await saveStallionFromForm({
-    actor: input.actor,
-    organizationId: stallionManagementStationOrganizationId,
-    repository: getStallionManagementDemoRepository(),
+    actor: activeContext,
+    organizationId: activeContext.organizationId,
+    repository,
     form,
     statusOverride,
     auditContext: {
-      userAgent: "coritech-demo-stallion-management",
+      userAgent: (await headers()).get("user-agent"),
     },
   });
 
@@ -87,11 +91,14 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
   const confirmationStallionId = firstSearchParam(searchParams.confirmationStallionId);
 
   try {
-    const input = await getStallionManagementDemoInput();
+    const activeContext = await requireActiveContextActor("BREEDING_STATION");
+    const repository = createPrismaCatalogRepository();
+    const requestedStallionId = firstSearchParam(searchParams.stallionId);
+    const validationIssues = parseErrorParam(firstSearchParam(searchParams.error));
+    let selectedStallionId = requestedStallionId;
 
     if (confirmationStallionId) {
-      const stallion = await getStallionManagementDemoRepository()
-        .findStallionById(confirmationStallionId);
+      const stallion = await repository.findStallionById(confirmationStallionId);
 
       if (!stallion) {
         throw new Error(`Stallion was not found: ${confirmationStallionId}`);
@@ -105,11 +112,25 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
       });
     }
 
+    if (requestedStallionId) {
+      const selectedStallion = await repository.findStallionById(requestedStallionId);
+
+      if (!selectedStallion) {
+        selectedStallionId = undefined;
+        validationIssues.push("Selected stallion is no longer available.");
+      }
+    }
+
     return createStallionManagementViewModel({
-      ...input,
-      selectedStallionId: firstSearchParam(searchParams.stallionId),
+      actor: activeContext,
+      organizationId: activeContext.organizationId,
+      organizationName: activeContext.organizationName,
+      stallions: toPersistedStallionRows(await repository.listStallions({
+        breedingStationOrganizationId: activeContext.organizationId,
+      })),
+      selectedStallionId,
       searchQuery: firstSearchParam(searchParams.q),
-      validationIssues: parseErrorParam(firstSearchParam(searchParams.error)),
+      validationIssues,
     });
   } catch (error) {
     return createStallionManagementErrorState(error);
@@ -165,6 +186,22 @@ function buildStallionManagementUrl(input: {
 
 function parseErrorParam(value: string | undefined) {
   return value ? value.split("\n").filter(Boolean) : [];
+}
+
+function toPersistedStallionRows(stallions: Stallion[]): StallionLike[] {
+  return stallions.flatMap((stallion) =>
+    stallion.id
+      ? [{
+        id: stallion.id,
+        name: stallion.name,
+        breed: stallion.breed,
+        ueln: stallion.ueln,
+        microchipNumber: stallion.microchipNumber,
+        breedingStationOrganizationId: stallion.breedingStationOrganizationId,
+        status: stallion.status,
+      }]
+      : []
+  );
 }
 
 function firstSearchParam(value: string | string[] | undefined) {

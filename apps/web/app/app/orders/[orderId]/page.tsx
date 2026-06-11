@@ -5,9 +5,6 @@ import { requireActiveContextActor } from "../../../../features/auth/active-cont
 import { createOrderService } from "@coritech/domain/orders/semen-order.mjs";
 import { BreederOrderDetail } from "../../../../features/breeder-order-detail/BreederOrderDetail";
 import {
-  breederOrderDetailDemoSupportEmail,
-} from "../../../../features/breeder-order-detail/demo-data";
-import {
   createBreederOrderDetailErrorState,
   createBreederOrderDetailViewModel,
 } from "../../../../features/breeder-order-detail/view-model";
@@ -218,7 +215,6 @@ async function createViewModel(input: {
         ? await paymentReferenceRepository.findLatestPaymentReferenceForOrder(order.id)
         : null,
       supportConfirmation: input.supportConfirmation,
-      supportEmail: breederOrderDetailDemoSupportEmail,
     });
   } catch (error) {
     return createBreederOrderDetailErrorState(error);

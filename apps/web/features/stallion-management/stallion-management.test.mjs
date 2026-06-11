@@ -92,6 +92,21 @@ test("station stallion management scopes rows and search to the active station",
   assert.doesNotMatch(html, /River Crown/);
 });
 
+test("station stallion edit keeps an owned selection even when search filters the list", () => {
+  const viewModel = createStallionManagementViewModel({
+    actor: stationActor,
+    organizationId: stationOrganizationId,
+    organizationName: "Station A",
+    selectedStallionId: "stallion-a",
+    stallions: [stallionA, inactiveStallion],
+    searchQuery: "quiet",
+  });
+
+  assert.deepEqual(viewModel.stallions.map((stallion) => stallion.id), ["stallion-inactive"]);
+  assert.equal(viewModel.selectedStallion?.id, "stallion-a");
+  assert.equal(viewModel.form.stallionId, "stallion-a");
+});
+
 test("station can create an own stallion with audit evidence", async () => {
   const repository = createInMemoryListingManagementRepository({
     stallions: [],

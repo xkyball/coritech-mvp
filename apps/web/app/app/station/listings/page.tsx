@@ -1,10 +1,14 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
+import type {
+  Stallion,
+  StallionLike,
+} from "@coritech/domain/catalog/semen-catalog.d.ts";
+
+import { requireActiveContextActor } from "../../../../features/auth/active-context-server";
 import { ListingManagement } from "../../../../features/listing-management/ListingManagement";
-import {
-  getListingManagementDemoInput,
-  getListingManagementDemoRepository,
-  listingManagementStationOrganizationId,
-} from "../../../../features/listing-management/demo-store";
+import { createPrismaCatalogRepository } from "../../../../features/listing-management/prisma-catalog-repository";
 import {
   createListingManagementConfirmationViewModel,
   createListingManagementErrorState,
@@ -57,15 +61,16 @@ async function handleListingAction(
   listingStatusOverride?: "ACTIVE" | "INACTIVE",
 ) {
   const form = formDataToListingForm(formData);
-  const input = await getListingManagementDemoInput();
+  const activeContext = await requireActiveContextActor("BREEDING_STATION");
+  const repository = createPrismaCatalogRepository();
   const result = await saveSemenListingFromForm({
-    actor: input.actor,
-    organizationId: listingManagementStationOrganizationId,
-    repository: getListingManagementDemoRepository(),
+    actor: activeContext,
+    organizationId: activeContext.organizationId,
+    repository,
     form,
     listingStatusOverride,
     auditContext: {
-      userAgent: "coritech-demo-listing-management",
+      userAgent: (await headers()).get("user-agent"),
     },
   });
 
@@ -86,11 +91,14 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
   const confirmationListingId = firstSearchParam(searchParams.confirmationListingId);
 
   try {
-    const input = await getListingManagementDemoInput();
+    const activeContext = await requireActiveContextActor("BREEDING_STATION");
+    const repository = createPrismaCatalogRepository();
+    const requestedListingId = firstSearchParam(searchParams.listingId);
+    const validationIssues = parseErrorParam(firstSearchParam(searchParams.error));
+    let selectedListingId = requestedListingId;
 
     if (confirmationListingId) {
-      const record = await getListingManagementDemoRepository()
-        .findSemenListingRecordById(confirmationListingId);
+      const record = await repository.findSemenListingRecordById(confirmationListingId);
 
       if (!record) {
         throw new Error(`Semen listing was not found: ${confirmationListingId}`);
@@ -104,13 +112,29 @@ async function createViewModel(searchParams: Record<string, string | string[] | 
       });
     }
 
+    if (requestedListingId) {
+      const selectedRecord = await repository.findSemenListingRecordById(requestedListingId);
+
+      if (!selectedRecord) {
+        selectedListingId = undefined;
+        validationIssues.push("Selected listing is no longer available.");
+      }
+    }
+
     return createListingManagementViewModel({
-      ...input,
-      selectedListingId: firstSearchParam(searchParams.listingId),
+      actor: activeContext,
+      organizationId: activeContext.organizationId,
+      organizationName: activeContext.organizationName,
+      listingRecords: await repository.listSemenListingRecords(),
+      stallions: toPersistedStallionOptions(await repository.listStallions({
+        breedingStationOrganizationId: activeContext.organizationId,
+        status: "ACTIVE",
+      })),
+      selectedListingId,
       form: {
         stallionId: firstSearchParam(searchParams.stallionId),
       },
-      validationIssues: parseErrorParam(firstSearchParam(searchParams.error)),
+      validationIssues,
     });
   } catch (error) {
     return createListingManagementErrorState(error);
@@ -165,6 +189,22 @@ function buildListingManagementUrl(input: {
 
 function parseErrorParam(value: string | undefined) {
   return value ? value.split("\n").filter(Boolean) : [];
+}
+
+function toPersistedStallionOptions(stallions: Stallion[]): StallionLike[] {
+  return stallions.flatMap((stallion) =>
+    stallion.id
+      ? [{
+        id: stallion.id,
+        name: stallion.name,
+        breed: stallion.breed,
+        ueln: stallion.ueln,
+        microchipNumber: stallion.microchipNumber,
+        breedingStationOrganizationId: stallion.breedingStationOrganizationId,
+        status: stallion.status,
+      }]
+      : []
+  );
 }
 
 function firstSearchParam(value: string | string[] | undefined) {

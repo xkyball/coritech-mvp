@@ -58,17 +58,18 @@ export function createStallionManagementViewModel(input) {
   const organizationContext = resolveStationOrganizationContext(input);
   const stationOrganizationId = organizationContext.organizationId;
   const searchQuery = normalizeOptionalString(input.searchQuery) ?? "";
-  const ownStallions = (input.stallions ?? [])
+  const ownStationStallions = (input.stallions ?? [])
     .filter((stallion) =>
       stallion?.breedingStationOrganizationId === stationOrganizationId &&
       canManageStationCatalog(input.actor, stallion.breedingStationOrganizationId)
-    )
+    );
+  const ownStallions = ownStationStallions
     .filter((stallion) => matchesSearch(stallion, searchQuery))
     .sort(compareStallions);
   const rows = ownStallions.map(toStallionRow);
   const selectedStallionId = normalizeOptionalString(input.selectedStallionId);
   const selectedStallion = selectedStallionId
-    ? ownStallions.find((stallion) => stallion.id === selectedStallionId)
+    ? ownStationStallions.find((stallion) => stallion.id === selectedStallionId)
     : null;
 
   if (selectedStallionId && !selectedStallion) {
