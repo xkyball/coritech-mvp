@@ -11,10 +11,20 @@ import {
   parseActiveContextCookie,
 } from "./active-context-runtime.mjs";
 import { AUTH_ROUTES } from "./auth-routes.mjs";
-import { resolveActiveRoleContext } from "./role-routing.mjs";
+import {
+  resolveActiveRoleContext,
+  resolveRequiredRoleContext,
+} from "./role-routing.mjs";
+import type { SupportedRoleCode } from "./role-routing.d.ts";
 import { readManagedAuthSessionFromCookieHeader } from "./server-session";
 
-export async function ActiveContextBar() {
+type ActiveContextBarProps = Readonly<{
+  requiredRoleCode?: SupportedRoleCode;
+}>;
+
+export async function ActiveContextBar({
+  requiredRoleCode,
+}: ActiveContextBarProps = {}) {
   const cookieStore = await cookies();
   const session = await readManagedAuthSessionFromCookieHeader(
     (await headers()).get("cookie"),
@@ -24,12 +34,18 @@ export async function ActiveContextBar() {
     return null;
   }
 
-  const resolution = resolveActiveRoleContext({
+  const input = {
     session,
     activeContext: parseActiveContextCookie(
       cookieStore.get(ACTIVE_CONTEXT_COOKIE_NAME)?.value,
     ),
-  });
+  };
+  const resolution = requiredRoleCode
+    ? resolveRequiredRoleContext({
+      ...input,
+      requiredRoleCode,
+    })
+    : resolveActiveRoleContext(input);
 
   if (resolution.status !== "resolved") {
     return null;

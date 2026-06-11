@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  getRequiredRoleForPath,
   resolveActiveRoleContext,
   resolveAppLanding,
+  resolveRequiredRoleContext,
   resolveRoleRoute,
 } from "./role-routing.mjs";
 
@@ -57,6 +59,21 @@ const multiRoleSession = {
     {
       organizationId: "org-station",
       organizationName: "North Station",
+      roles: ["BREEDING_STATION"],
+    },
+  ],
+};
+const multiStationSession = {
+  user: currentUser,
+  memberships: [
+    {
+      organizationId: "org-station-a",
+      organizationName: "North Station",
+      roles: ["BREEDING_STATION"],
+    },
+    {
+      organizationId: "org-station-b",
+      organizationName: "South Station",
       roles: ["BREEDING_STATION"],
     },
   ],
@@ -147,6 +164,79 @@ test("multi-role users without selected context receive role selection state", (
 
   assert.equal(result.status, "render");
   assert.equal(result.page, "ROLE_SELECTION");
+  assert.equal(result.availableContexts.length, 2);
+});
+
+test("role-specific routes infer a single matching context when no context is selected", () => {
+  assert.deepEqual(
+    resolveRequiredRoleContext({
+      session: multiRoleSession,
+      requiredRoleCode: "BREEDING_STATION",
+    }),
+    {
+      status: "resolved",
+      activeContext: expectedContext({
+        organizationId: "org-station",
+        organizationName: "North Station",
+        roleCode: "BREEDING_STATION",
+        roleLabel: "Breeding Station",
+      }),
+      availableContexts: [
+        expectedContext({
+          organizationId: "org-breeder",
+          organizationName: "Blue Hill Breeders",
+          roleCode: "BREEDER",
+          roleLabel: "Breeder",
+        }),
+        expectedContext({
+          organizationId: "org-station",
+          organizationName: "North Station",
+          roleCode: "BREEDING_STATION",
+          roleLabel: "Breeding Station",
+        }),
+      ],
+    },
+  );
+  assert.equal(
+    resolveRoleRoute({
+      session: multiRoleSession,
+      requiredRoleCode: "BREEDING_STATION",
+    }).destination,
+    "/station-dashboard",
+  );
+});
+
+test("role-specific inference does not override a selected active context", () => {
+  assert.deepEqual(
+    resolveRoleRoute({
+      session: multiRoleSession,
+      activeContext: {
+        organizationId: "org-breeder",
+        roleCode: "BREEDER",
+      },
+      requiredRoleCode: "BREEDING_STATION",
+    }),
+    {
+      status: "redirect",
+      destination: "/unauthorized",
+      reason: "ROLE_FORBIDDEN",
+      activeContext: expectedContext({
+        organizationId: "org-breeder",
+        organizationName: "Blue Hill Breeders",
+        roleCode: "BREEDER",
+        roleLabel: "Breeder",
+      }),
+    },
+  );
+});
+
+test("role-specific inference requires a single matching organization context", () => {
+  const result = resolveRequiredRoleContext({
+    session: multiStationSession,
+    requiredRoleCode: "BREEDING_STATION",
+  });
+
+  assert.equal(result.status, "multi-role-selection-required");
   assert.equal(result.availableContexts.length, 2);
 });
 
@@ -266,4 +356,12 @@ test("role routes cover station and admin redirects without auth loops", () => {
       }),
     },
   );
+});
+
+test("route paths map to the role needed for post-login context selection", () => {
+  assert.equal(getRequiredRoleForPath("/station-dashboard?orderId=1"), "BREEDING_STATION");
+  assert.equal(getRequiredRoleForPath("/breeder-dashboard"), "BREEDER");
+  assert.equal(getRequiredRoleForPath("/app/admin/orders"), "PLATFORM_ADMIN");
+  assert.equal(getRequiredRoleForPath("/app/catalog/listing-1"), "BREEDER");
+  assert.equal(getRequiredRoleForPath("/app/documents/upload"), null);
 });

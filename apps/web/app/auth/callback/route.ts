@@ -8,6 +8,10 @@ import {
   sanitizeReturnTo,
 } from "../../../features/auth/auth-routes.mjs";
 import {
+  ACTIVE_CONTEXT_COOKIE_NAME,
+  serializeActiveContextCookie,
+} from "../../../features/auth/active-context-runtime.mjs";
+import {
   exchangeGoogleAuthorizationCode,
   GoogleAuthRuntimeError,
   isGoogleManagedAuthConfig,
@@ -20,6 +24,10 @@ import {
   createManagedAuthSessionForIdentity,
   ManagedAuthSessionError,
 } from "../../../features/auth/server-session";
+import {
+  getRequiredRoleForPath,
+  resolveRequiredRoleContext,
+} from "../../../features/auth/role-routing.mjs";
 
 export const runtime = "nodejs";
 
@@ -96,6 +104,7 @@ export async function GET(request: NextRequest) {
       sameSite: "lax",
       secure: authRuntime.config.sessionCookie.secure,
     });
+    setRouteActiveContextCookie(request, response, managedSession.session, returnTo);
 
     return response;
   } catch (error) {
@@ -121,6 +130,43 @@ function redirectToAuthError(request: NextRequest, code: string, returnTo: strin
   clearAuthFlowCookies(response);
 
   return response;
+}
+
+function setRouteActiveContextCookie(
+  request: NextRequest,
+  response: NextResponse,
+  session: Awaited<ReturnType<typeof createManagedAuthSessionForIdentity>>["session"],
+  returnTo: string,
+) {
+  const requiredRoleCode = getRequiredRoleForPath(returnTo);
+
+  if (!requiredRoleCode) {
+    return;
+  }
+
+  const resolution = resolveRequiredRoleContext({
+    session,
+    requiredRoleCode,
+  });
+
+  if (
+    resolution.status !== "resolved" ||
+    resolution.activeContext.roleCode !== requiredRoleCode
+  ) {
+    return;
+  }
+
+  response.cookies.set(
+    ACTIVE_CONTEXT_COOKIE_NAME,
+    serializeActiveContextCookie(resolution.activeContext),
+    {
+      httpOnly: true,
+      maxAge: 8 * 60 * 60,
+      path: "/",
+      sameSite: "lax",
+      secure: request.nextUrl.protocol === "https:",
+    },
+  );
 }
 
 function clearAuthFlowCookies(response: NextResponse) {

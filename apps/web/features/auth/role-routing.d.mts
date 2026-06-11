@@ -79,5 +79,7 @@ export declare const ACTIVE_ROLE_PRIORITY: readonly SupportedRoleCode[];
 export declare function resolveAppLanding(input: RoleRoutingInput): RoleRoutingResult;
 export declare function resolveRoleRoute(input: RoleRouteInput): RoleRoutingResult;
 export declare function resolveActiveRoleContext(input: RoleRoutingInput): ActiveRoleContextResolution;
+export declare function resolveRequiredRoleContext(input: RoleRouteInput): ActiveRoleContextResolution;
+export declare function getRequiredRoleForPath(path: unknown): SupportedRoleCode | null;
 export declare function getDashboardRouteForRole(roleCode: SupportedRoleCode): string;
 export declare function getAppRouteForRole(roleCode: SupportedRoleCode): string;

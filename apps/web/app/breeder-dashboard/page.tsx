@@ -24,7 +24,7 @@ export default async function BreederDashboardPage() {
 
   return (
     <>
-      <ActiveContextBar />
+      <ActiveContextBar requiredRoleCode="BREEDER" />
       <BreederDashboard viewModel={viewModel} />
     </>
   );

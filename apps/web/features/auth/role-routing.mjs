@@ -25,6 +25,21 @@ export const ACTIVE_ROLE_PRIORITY = Object.freeze([
   "BREEDING_STATION",
   "PLATFORM_ADMIN",
 ]);
+const ACTIVE_ROLE_ROUTE_PREFIXES = Object.freeze({
+  BREEDER: Object.freeze([
+    ACTIVE_ROLE_ROUTE_TARGETS.BREEDER.dashboardRoute,
+    ACTIVE_ROLE_ROUTE_TARGETS.BREEDER.appRoute,
+    "/app/catalog",
+    "/app/orders",
+  ]),
+  BREEDING_STATION: Object.freeze([
+    ACTIVE_ROLE_ROUTE_TARGETS.BREEDING_STATION.dashboardRoute,
+    ACTIVE_ROLE_ROUTE_TARGETS.BREEDING_STATION.appRoute,
+  ]),
+  PLATFORM_ADMIN: Object.freeze([
+    ACTIVE_ROLE_ROUTE_TARGETS.PLATFORM_ADMIN.dashboardRoute,
+  ]),
+});
 
 /**
  * @param {import("./role-routing.d.ts").RoleRoutingInput} input
@@ -71,7 +86,7 @@ export function resolveAppLanding(input) {
  * @returns {import("./role-routing.d.ts").RoleRoutingResult}
  */
 export function resolveRoleRoute(input) {
-  const context = resolveActiveRoleContext(input);
+  const context = resolveRequiredRoleContext(input);
 
   if (context.status === "unauthenticated") {
     return {
@@ -182,6 +197,58 @@ export function resolveActiveRoleContext(input) {
 }
 
 /**
+ * @param {import("./role-routing.d.ts").RoleRouteInput} input
+ * @returns {import("./role-routing.d.ts").ActiveRoleContextResolution}
+ */
+export function resolveRequiredRoleContext(input) {
+  const context = resolveActiveRoleContext(input);
+
+  if (context.status !== "multi-role-selection-required") {
+    return context;
+  }
+
+  if (normalizeActiveContext(input.activeContext)) {
+    return context;
+  }
+
+  const matchingContexts = context.availableContexts.filter((availableContext) =>
+    availableContext.roleCode === input.requiredRoleCode
+  );
+
+  if (matchingContexts.length !== 1) {
+    return context;
+  }
+
+  return {
+    status: "resolved",
+    activeContext: matchingContexts[0],
+    availableContexts: context.availableContexts,
+  };
+}
+
+/**
+ * @param {unknown} path
+ * @returns {import("./role-routing.d.ts").SupportedRoleCode | null}
+ */
+export function getRequiredRoleForPath(path) {
+  const pathname = normalizeRoutePathname(path);
+
+  if (!pathname) {
+    return null;
+  }
+
+  for (const roleCode of ACTIVE_ROLE_PRIORITY) {
+    const prefixes = ACTIVE_ROLE_ROUTE_PREFIXES[roleCode] ?? [];
+
+    if (prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+      return roleCode;
+    }
+  }
+
+  return null;
+}
+
+/**
  * @param {import("./role-routing.d.ts").SupportedRoleCode} roleCode
  * @returns {string}
  */
@@ -261,6 +328,24 @@ function normalizeActiveContext(context) {
     organizationId,
     roleCode,
   };
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+function normalizeRoutePathname(value) {
+  const normalized = normalizeString(value);
+
+  if (!normalized || normalized.startsWith("//")) {
+    return null;
+  }
+
+  try {
+    return new URL(normalized, "https://coritech.local").pathname;
+  } catch {
+    return null;
+  }
 }
 
 /**

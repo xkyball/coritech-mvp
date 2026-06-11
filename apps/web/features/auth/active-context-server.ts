@@ -6,7 +6,10 @@ import {
   ACTIVE_CONTEXT_COOKIE_NAME,
   parseActiveContextCookie,
 } from "./active-context-runtime.mjs";
-import { resolveActiveRoleContext } from "./role-routing.mjs";
+import {
+  resolveActiveRoleContext,
+  resolveRequiredRoleContext,
+} from "./role-routing.mjs";
 import type {
   ResolvedActiveContext,
   SupportedRoleCode,
@@ -36,12 +39,18 @@ export async function requireActiveContextActor(
   const session = await readManagedAuthSessionFromCookieHeader(
     (await headers()).get("cookie"),
   );
-  const resolution = resolveActiveRoleContext({
+  const input = {
     session,
     activeContext: parseActiveContextCookie(
       cookieStore.get(ACTIVE_CONTEXT_COOKIE_NAME)?.value,
     ),
-  });
+  };
+  const resolution = requiredRoleCode
+    ? resolveRequiredRoleContext({
+      ...input,
+      requiredRoleCode,
+    })
+    : resolveActiveRoleContext(input);
 
   if (resolution.status !== "resolved") {
     throw new ActiveContextRequiredError("A validated active organization and role context is required.");

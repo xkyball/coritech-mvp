@@ -34,7 +34,7 @@ export default async function StationDashboardPage({
 
   return (
     <>
-      <ActiveContextBar />
+      <ActiveContextBar requiredRoleCode="BREEDING_STATION" />
       <StationDashboard viewModel={viewModel} />
     </>
   );
