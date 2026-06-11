@@ -178,6 +178,7 @@ export interface PrismaSemenOrderRepository extends SemenOrderRepository {
   listAllOrderStatusHistory(filters?: SemenOrderListFilters): Promise<OrderStatusHistory[]>;
   listProofEventsForOrder(orderId: string): Promise<ProofEvent[]>;
   listProofEvents(filters?: ProofEventListFilters): Promise<ProofEvent[]>;
+  listActiveSemenListingRecords(): Promise<SemenListingRecord[]>;
   listOrderableSemenListingRecords(): Promise<SemenListingRecord[]>;
   listOrganizationsByIds(organizationIds: string[]): Promise<{ organizationId: string; name: string }[]>;
   listStationOrganizations(): Promise<{ organizationId: string; name: string }[]>;
@@ -351,40 +352,17 @@ export function createPrismaSemenOrderRepository(
 
       return history.map(toOrderStatusHistory);
     },
+    async listActiveSemenListingRecords() {
+      return listSemenListingRecords(client, {
+        listingStatus: "ACTIVE",
+      });
+    },
     async listOrderableSemenListingRecords() {
-      const listings = await client.semenListing.findMany({
-        where: {
-          listingStatus: "ACTIVE",
-          availabilityStatus: {
-            in: ["AVAILABLE", "LIMITED"],
-          },
+      return listSemenListingRecords(client, {
+        listingStatus: "ACTIVE",
+        availabilityStatus: {
+          in: ["AVAILABLE", "LIMITED"],
         },
-        orderBy: [
-          { updatedAt: "desc" },
-          { id: "asc" },
-        ],
-      });
-      const stallionIds = [...new Set(listings.map((listing) => listing.stallionId))];
-      const stallions = await client.stallion.findMany({
-        where: {
-          id: {
-            in: stallionIds,
-          },
-        },
-      });
-      const stallionsById = new Map(stallions.map((stallion) => [stallion.id, stallion]));
-
-      return listings.flatMap((listing) => {
-        const stallion = stallionsById.get(listing.stallionId);
-
-        if (!stallion) {
-          return [];
-        }
-
-        return [{
-          listing: toSemenListing(listing),
-          stallion: toStallion(stallion),
-        }];
       });
     },
     async listOrganizationsByIds(organizationIds) {
@@ -439,6 +417,41 @@ export function createPrismaSemenOrderTransaction(
       operation(createPrismaSemenOrderRepository(tx))
     );
   };
+}
+
+async function listSemenListingRecords(
+  client: PrismaOrderClient,
+  where: unknown,
+): Promise<SemenListingRecord[]> {
+  const listings = await client.semenListing.findMany({
+    where,
+    orderBy: [
+      { updatedAt: "desc" },
+      { id: "asc" },
+    ],
+  });
+  const stallionIds = [...new Set(listings.map((listing) => listing.stallionId))];
+  const stallions = await client.stallion.findMany({
+    where: {
+      id: {
+        in: stallionIds,
+      },
+    },
+  });
+  const stallionsById = new Map(stallions.map((stallion) => [stallion.id, stallion]));
+
+  return listings.flatMap((listing) => {
+    const stallion = stallionsById.get(listing.stallionId);
+
+    if (!stallion) {
+      return [];
+    }
+
+    return [{
+      listing: toSemenListing(listing),
+      stallion: toStallion(stallion),
+    }];
+  });
 }
 
 function toPersistedChange(

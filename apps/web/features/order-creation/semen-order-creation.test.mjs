@@ -179,12 +179,39 @@ test("order creation view can load an existing draft for editing", async () => {
   assert.match(html, /value="cancel" formnovalidate/);
 });
 
-test("order creation rejects unavailable or invisible selected listings", () => {
+test("order creation surfaces stale selected listings without blocking the form", () => {
+  const viewModel = createSemenOrderCreationViewModel({
+    actor: breederActor,
+    selectedListingId: "listing-unavailable",
+    listingRecords,
+    stationOrganizations,
+  });
+
+  assert.equal(viewModel.state, "FORM");
+  assert.equal(viewModel.form.semenListingId, "");
+  assert.equal(viewModel.selectedListing, null);
+  assert.deepEqual(viewModel.validationIssues, [
+    "semenListingId must reference an active orderable listing visible to this breeder.",
+  ]);
+});
+
+test("order creation rejects drafts whose listing is no longer orderable", () => {
   assert.throws(
     () =>
       createSemenOrderCreationViewModel({
         actor: breederActor,
-        selectedListingId: "listing-unavailable",
+        draftOrder: {
+          id: "draft-inactive-listing",
+          orderNumber: "SO-20260609-000099",
+          semenListingId: "listing-unavailable",
+          breederOrganizationId,
+          breedingStationOrganizationId: stationOrganizationId,
+          status: "DRAFT",
+          createdByUserId: breederActor.userId,
+          updatedByUserId: breederActor.userId,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
         listingRecords,
         stationOrganizations,
       }),

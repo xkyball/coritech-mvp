@@ -1,10 +1,10 @@
 import { SemenCatalog } from "../../../features/catalog/SemenCatalog";
-import { semenCatalogDemoInput } from "../../../features/catalog/demo-data";
-import { getSemenCatalogDemoListingRecords } from "../../../features/listing-management/demo-store";
+import { requireActiveContextActor } from "../../../features/auth/active-context-server";
 import {
   createSemenCatalogErrorState,
   createSemenCatalogViewModel,
 } from "../../../features/catalog/view-model";
+import { createPrismaSemenOrderRepository } from "../../../features/order-creation/prisma-semen-order-repository";
 
 type CatalogSearchParams =
   | Promise<Record<string, string | string[] | undefined>>
@@ -23,9 +23,13 @@ export default async function SemenCatalogPage({
 
 async function createViewModel(searchParams: Record<string, string | string[] | undefined>) {
   try {
+    const activeContext = await requireActiveContextActor("BREEDER");
+    const repository = createPrismaSemenOrderRepository();
+
     return createSemenCatalogViewModel({
-      ...semenCatalogDemoInput,
-      listingRecords: await getSemenCatalogDemoListingRecords(),
+      actor: activeContext,
+      listingRecords: await repository.listActiveSemenListingRecords(),
+      stationOrganizations: await repository.listStationOrganizations(),
       filters: {
         stallion: firstSearchParam(searchParams.stallion),
         breed: firstSearchParam(searchParams.breed),

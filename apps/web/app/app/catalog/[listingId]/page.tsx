@@ -1,10 +1,10 @@
 import { SemenCatalog } from "../../../../features/catalog/SemenCatalog";
-import { semenCatalogDemoInput } from "../../../../features/catalog/demo-data";
-import { getSemenCatalogDemoListingRecords } from "../../../../features/listing-management/demo-store";
+import { requireActiveContextActor } from "../../../../features/auth/active-context-server";
 import {
   createSemenCatalogDetailViewModel,
   createSemenCatalogErrorState,
 } from "../../../../features/catalog/view-model";
+import { createPrismaSemenOrderRepository } from "../../../../features/order-creation/prisma-semen-order-repository";
 
 type CatalogDetailParams = Promise<{ listingId: string }> | { listingId: string };
 
@@ -21,9 +21,13 @@ export default async function SemenCatalogDetailPage({
 
 async function createViewModel(listingId: string) {
   try {
+    const activeContext = await requireActiveContextActor("BREEDER");
+    const repository = createPrismaSemenOrderRepository();
+
     return createSemenCatalogDetailViewModel({
-      ...semenCatalogDemoInput,
-      listingRecords: await getSemenCatalogDemoListingRecords(),
+      actor: activeContext,
+      listingRecords: await repository.listActiveSemenListingRecords(),
+      stationOrganizations: await repository.listStationOrganizations(),
       listingId,
     });
   } catch (error) {

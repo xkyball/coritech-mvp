@@ -80,19 +80,29 @@ export function createSemenOrderCreationViewModel(input) {
   const initialForm = draftOrder ? orderToFormInput(draftOrder) : {
     semenListingId: input.selectedListingId,
   };
-  const form = normalizeOrderCreationForm({
+  let form = normalizeOrderCreationForm({
     ...initialForm,
     ...(input.form ?? {}),
   });
   const selectableListings = buildSelectableListings(input, organizationContext.organizationId);
-  const selectedListing = form.semenListingId
+  let selectedListing = form.semenListingId
     ? selectableListings.find((listing) => listing.id === form.semenListingId) ?? null
     : null;
+  let validationIssues = input.validationIssues ?? [];
 
   if (form.semenListingId && !selectedListing) {
-    throw new SemenOrderCreationValidationError([
-      "semenListingId must reference an active orderable listing visible to this breeder.",
-    ]);
+    const issue = "semenListingId must reference an active orderable listing visible to this breeder.";
+
+    if (draftOrder) {
+      throw new SemenOrderCreationValidationError([issue]);
+    }
+
+    form = normalizeOrderCreationForm({
+      ...form,
+      semenListingId: "",
+    });
+    selectedListing = null;
+    validationIssues = [...validationIssues, issue];
   }
 
   return Object.freeze({
@@ -113,7 +123,7 @@ export function createSemenOrderCreationViewModel(input) {
     selectableListings: Object.freeze(selectableListings),
     selectedListing,
     form,
-    validationIssues: Object.freeze(input.validationIssues ?? []),
+    validationIssues: Object.freeze(validationIssues),
     navigation: buildNavigation(),
     requiredSubmitFields: REQUIRED_SUBMIT_FIELDS,
   });
