@@ -133,6 +133,26 @@ test("loadEnvironment rejects localhost base URLs outside local development", ()
   );
 });
 
+test("loadEnvironment rejects server bind hosts for browser-facing URLs", () => {
+  assert.throws(
+    () =>
+      loadEnvironment(
+        buildEnvironment({
+          APP_BASE_URL: "http://0.0.0.0:3000",
+          API_BASE_URL: "http://0.0.0.0:3000",
+        }),
+      ),
+    (error) =>
+      error instanceof EnvironmentConfigError &&
+      error.issues.includes(
+        "APP_BASE_URL must use a browser-facing host such as localhost, not 0.0.0.0.",
+      ) &&
+      error.issues.includes(
+        "API_BASE_URL must use a browser-facing host such as localhost, not 0.0.0.0.",
+      ),
+  );
+});
+
 test("loadEnvironment accepts non-local environments with concrete values", () => {
   const config = loadEnvironment(
     buildEnvironment({

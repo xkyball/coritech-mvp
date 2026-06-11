@@ -39,6 +39,17 @@ variables remain the highest-priority local override. `NODE_ENV` is intentionall
 left under the control of Next.js, npm commands and Docker runtime configuration
 rather than being imported from `.env`.
 
+Local browser-facing URLs and server bind hosts are separate concerns:
+
+| Setting | Local value | Purpose |
+| --- | --- | --- |
+| `APP_BASE_URL` | `http://localhost:3000` | Public browser app URL, auth logout return and generated app links |
+| `API_BASE_URL` | `http://localhost:3000` | Public callback/API origin used by browser/provider flows |
+| `SERVER_BIND_HOST` | `0.0.0.0` | Development server listen address only |
+
+`0.0.0.0` must never be used as a browser-facing base URL. The config loader
+rejects it for `APP_BASE_URL` and `API_BASE_URL`.
+
 ## Environment Separation
 
 | Environment | Purpose | Secret source | Placeholder policy |
@@ -76,6 +87,7 @@ rather than being imported from `.env`.
 | `LOGISTICS_PROVIDER_API_KEY` | Future logistics adapter credential | Placeholder only until the logistics adapter ticket |
 | `APP_BASE_URL` | Frontend/application public base URL | Must be an absolute URL |
 | `API_BASE_URL` | API public base URL | Must be an absolute URL |
+| `SERVER_BIND_HOST` | Local dev server listen host | Optional local-only bind value; not a browser-facing URL |
 | `AUDIT_LOG_RETENTION_DAYS` | Minimum retention policy for audit-aware logs | Positive integer only |
 
 ## Naming Conventions

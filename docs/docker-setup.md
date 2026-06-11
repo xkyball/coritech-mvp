@@ -48,11 +48,14 @@ Docker Compose uses:
 
 ```env
 WEB_PORT=3000
+SERVER_BIND_HOST=0.0.0.0
 POSTGRES_USER=coritech
 POSTGRES_PASSWORD=coritech_dev_password
 POSTGRES_DB=coritech_mvp
 POSTGRES_PORT=5432
 DATABASE_URL=postgresql://coritech:coritech_dev_password@db:5432/coritech_mvp?schema=public
+APP_BASE_URL=http://localhost:3000
+API_BASE_URL=http://localhost:3000
 OBJECT_STORAGE_PROVIDER=minio
 OBJECT_STORAGE_ENDPOINT=minio
 OBJECT_STORAGE_PORT=9000
@@ -76,6 +79,20 @@ Do not commit real `.env` files or production secrets.
 The `.dockerignore` file excludes real `.env` files from the image build
 context. Local secrets are injected at Compose runtime instead of being baked
 into the Docker image.
+
+`SERVER_BIND_HOST=0.0.0.0` is a container listen address only. Browser-facing
+settings such as `APP_BASE_URL`, `API_BASE_URL`, auth callbacks, logout returns
+and generated links must stay on `http://localhost:<port>` for local testing.
+
+Manual localhost verification:
+
+1. Start the app with `npm run docker:up`.
+2. Open `http://localhost:3000`.
+3. Log in through the configured managed auth flow.
+4. Navigate between protected app areas.
+5. Switch role/context if multiple contexts are available.
+6. Log out.
+7. Confirm the browser URL never changes to `0.0.0.0`.
 
 ## MinIO
 

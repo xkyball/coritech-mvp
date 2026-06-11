@@ -120,6 +120,8 @@ export function loadEnvironment(source = process.env) {
 
   validateUrl("APP_BASE_URL", values.APP_BASE_URL, issues);
   validateUrl("API_BASE_URL", values.API_BASE_URL, issues);
+  validateBrowserFacingUrl("APP_BASE_URL", values.APP_BASE_URL, issues);
+  validateBrowserFacingUrl("API_BASE_URL", values.API_BASE_URL, issues);
   validateUrl("EMAIL_PROVIDER_ENDPOINT", values.EMAIL_PROVIDER_ENDPOINT, issues);
   validateEmailProvider(values.EMAIL_PROVIDER, environmentName, issues);
   validateEmailAddress("EMAIL_FROM_ADDRESS", values.EMAIL_FROM_ADDRESS, issues);
@@ -292,6 +294,28 @@ function validateUrl(key, value, issues) {
     new URL(value);
   } catch {
     issues.push(`${key} must be a valid absolute URL.`);
+  }
+}
+
+/**
+ * @param {string} key
+ * @param {string | undefined} value
+ * @param {string[]} issues
+ * @returns {void}
+ */
+function validateBrowserFacingUrl(key, value, issues) {
+  if (!value) {
+    return;
+  }
+
+  try {
+    const url = new URL(value);
+
+    if (url.hostname === "0.0.0.0" || url.hostname === "::" || url.hostname === "[::]") {
+      issues.push(`${key} must use a browser-facing host such as localhost, not ${url.hostname}.`);
+    }
+  } catch {
+    // validateUrl reports URL parsing issues.
   }
 }
 

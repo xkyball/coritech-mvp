@@ -44,6 +44,12 @@ const AUTH_PAGE_PREFIXES = [
   AUTH_ROUTES.loggedOut,
   AUTH_ROUTES.passwordResetPage,
 ];
+const LOCALHOST_FALLBACK_ORIGIN = "http://localhost:3000";
+const SERVER_BIND_HOSTNAMES = Object.freeze([
+  "0.0.0.0",
+  "::",
+  "[::]",
+]);
 
 export const AUTH_ERROR_MESSAGES = Object.freeze({
   provider_not_configured: Object.freeze({
@@ -148,7 +154,7 @@ export function hasAuthenticatedSessionCookie(
   return sessionCookieNames.some((cookieName) => {
     const value = cookies.get(cookieName);
 
-    return typeof value === "string" && value.trim() !== "";
+    return isPotentialManagedSessionToken(value);
   });
 }
 
@@ -227,7 +233,9 @@ export function sanitizeReturnTo(value, options = {}) {
  * @returns {{ allowed: true; redirectTo: null } | { allowed: false; redirectTo: string }}
  */
 export function resolveProtectedRouteRequest(input) {
-  const currentOrigin = input.currentOrigin ?? "https://coritech.local";
+  const currentOrigin = resolvePublicAppOrigin({
+    requestOrigin: input.currentOrigin,
+  });
   const url = new URL(input.url, currentOrigin);
 
   if (hasAuthenticatedSessionCookie(input.cookieHeader ?? "")) {
@@ -238,15 +246,47 @@ export function resolveProtectedRouteRequest(input) {
   }
 
   const returnTo = sanitizeReturnTo(`${url.pathname}${url.search}`, {
-    currentOrigin: url.origin,
+    currentOrigin,
   });
-  const loginUrl = new URL(AUTH_ROUTES.loginPage, url.origin);
+  const loginUrl = createPublicAppUrl(AUTH_ROUTES.loginPage, {
+    requestOrigin: currentOrigin,
+  });
   loginUrl.searchParams.set("returnTo", returnTo);
 
   return {
     allowed: false,
     redirectTo: `${loginUrl.pathname}${loginUrl.search}`,
   };
+}
+
+/**
+ * @param {string} path
+ * @param {{ requestOrigin?: string | null; source?: Record<string, string | undefined> | NodeJS.ProcessEnv }} [options]
+ * @returns {URL}
+ */
+export function createPublicAppUrl(path, options = {}) {
+  return new URL(path, `${resolvePublicAppOrigin(options)}/`);
+}
+
+/**
+ * @param {{ requestOrigin?: string | null; source?: Record<string, string | undefined> | NodeJS.ProcessEnv }} [options]
+ * @returns {string}
+ */
+export function resolvePublicAppOrigin(options = {}) {
+  const requestOrigin = parseAbsoluteUrl(options.requestOrigin);
+
+  if (requestOrigin) {
+    return normalizePublicUrl(requestOrigin).origin;
+  }
+
+  const source = options.source ?? process.env;
+  const appBaseUrl = parseAbsoluteUrl(source.APP_BASE_URL);
+
+  if (appBaseUrl) {
+    return normalizePublicUrl(appBaseUrl).origin;
+  }
+
+  return LOCALHOST_FALLBACK_ORIGIN;
 }
 
 /**
@@ -309,6 +349,58 @@ function sanitizeFallback(value) {
  */
 function looksLikeAbsoluteUrl(value) {
   return /^[a-z][a-z\d+\-.]*:\/\//i.test(value);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {URL | null}
+ */
+function parseAbsoluteUrl(value) {
+  const normalized = normalizeOptionalString(value);
+
+  if (!normalized || !looksLikeAbsoluteUrl(normalized)) {
+    return null;
+  }
+
+  try {
+    return new URL(normalized);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {URL} url
+ * @returns {URL}
+ */
+function normalizePublicUrl(url) {
+  const normalized = new URL(url.href);
+
+  if (SERVER_BIND_HOSTNAMES.includes(normalized.hostname)) {
+    normalized.hostname = "localhost";
+  }
+
+  return normalized;
+}
+
+/**
+ * Middleware cannot perform full signed-session validation, but it should not
+ * treat legacy placeholders or empty values as authenticated sessions.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isPotentialManagedSessionToken(value) {
+  const token = normalizeOptionalString(value);
+
+  if (!token) {
+    return false;
+  }
+
+  const parts = token.split(".");
+
+  return parts.length === 2 &&
+    parts.every((part) => /^[A-Za-z0-9_-]+$/u.test(part));
 }
 
 /**

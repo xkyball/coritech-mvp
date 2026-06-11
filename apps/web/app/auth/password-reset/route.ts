@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { AUTH_ROUTES } from "../../../features/auth/auth-routes.mjs";
+import {
+  AUTH_ROUTES,
+  createPublicAppUrl,
+} from "../../../features/auth/auth-routes.mjs";
 import {
   getManagedAuthRuntime,
   prepareRuntimePasswordResetRequest,
@@ -11,7 +14,9 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const email = String(formData.get("email") ?? "").trim();
-  const redirectUrl = new URL(AUTH_ROUTES.passwordResetPage, request.url);
+  const redirectUrl = createPublicAppUrl(AUTH_ROUTES.passwordResetPage, {
+    requestOrigin: request.nextUrl.origin,
+  });
 
   if (!isEmailLike(email)) {
     redirectUrl.searchParams.set("status", "invalid-email");

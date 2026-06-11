@@ -99,6 +99,17 @@ Root npm scripts and workspace app/database scripts load the repository root
 `.env` automatically before starting Next.js or Prisma. Shell-provided
 environment variables still take precedence for one-off overrides.
 
+For local development, keep browser-facing values on `localhost`:
+
+```env
+APP_BASE_URL=http://localhost:3000
+API_BASE_URL=http://localhost:3000
+SERVER_BIND_HOST=0.0.0.0
+```
+
+`SERVER_BIND_HOST` is only for listening inside Docker or local dev servers.
+Do not use `0.0.0.0` in public app URLs, auth callback URLs or browser links.
+
 Start the full local stack:
 
 ```bash

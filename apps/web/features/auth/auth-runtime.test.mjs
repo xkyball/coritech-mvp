@@ -49,3 +49,20 @@ test("managed auth runtime reports safe local-dev issues when provider config is
   assert.ok(runtime.issues.some((issue) => issue.includes("AUTH_PROVIDER_CLIENT_ID")));
   assert.ok(!runtime.issues.some((issue) => issue.includes("local-secret")));
 });
+
+test("managed auth runtime does not enable browser redirects on bind-host public URLs", () => {
+  const runtime = getManagedAuthRuntime({
+    ...configuredEnvironment,
+    APP_BASE_URL: "http://0.0.0.0:3000",
+    API_BASE_URL: "http://0.0.0.0:3000",
+  });
+
+  assert.equal(runtime.enabled, false);
+  assert.equal(runtime.config, null);
+  assert.ok(runtime.issues.some((issue) =>
+    issue.includes("APP_BASE_URL must use a browser-facing host"),
+  ));
+  assert.ok(runtime.issues.some((issue) =>
+    issue.includes("API_BASE_URL must use a browser-facing host"),
+  ));
+});

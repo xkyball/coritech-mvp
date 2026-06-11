@@ -12,10 +12,10 @@ import {
 import {
   AUTH_ROUTES,
   getAuthErrorDisplay,
-  hasAuthenticatedSessionCookie,
   sanitizeReturnTo,
 } from "../../features/auth/auth-routes.mjs";
 import { getManagedAuthRuntime } from "../../features/auth/auth-runtime.mjs";
+import { readManagedAuthSessionFromCookieHeader } from "../../features/auth/server-session";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -28,7 +28,7 @@ export default async function LoginPage({
   const returnTo = sanitizeReturnTo(readParam(params.returnTo));
   const cookieHeader = (await headers()).get("cookie");
 
-  if (hasAuthenticatedSessionCookie(cookieHeader)) {
+  if (await readOptionalSession(cookieHeader)) {
     redirect(returnTo);
   }
 
@@ -109,4 +109,12 @@ export default async function LoginPage({
 
 function readParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+async function readOptionalSession(cookieHeader: string | null) {
+  try {
+    return await readManagedAuthSessionFromCookieHeader(cookieHeader);
+  } catch {
+    return null;
+  }
 }

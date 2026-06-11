@@ -3,10 +3,12 @@ import test from "node:test";
 
 import {
   AUTH_ROUTES,
+  createPublicAppUrl,
   getAuthCookieClearNames,
   getAuthErrorDisplay,
   hasAuthenticatedSessionCookie,
   isProtectedPath,
+  resolvePublicAppOrigin,
   resolveProtectedRouteRequest,
   sanitizeReturnTo,
 } from "./auth-routes.mjs";
@@ -33,7 +35,7 @@ test("unauthenticated protected requests redirect to login with a safe return ta
 test("authenticated protected requests are allowed by managed session cookie presence", () => {
   const result = resolveProtectedRouteRequest({
     url: "https://app.coritech.test/app/catalog",
-    cookieHeader: "__Host-coritech_session=session-1",
+    cookieHeader: "__Host-coritech_session=payload.signature",
   });
 
   assert.deepEqual(result, {
@@ -60,10 +62,50 @@ test("return targets reject open redirects and auth loops", () => {
   );
 });
 
-test("session detection only accepts non-empty managed session cookies", () => {
+test("local public app origin never exposes the server bind host", () => {
+  assert.equal(
+    resolvePublicAppOrigin({
+      requestOrigin: "http://0.0.0.0:3000",
+      source: {
+        APP_BASE_URL: "http://localhost:3000",
+      },
+    }),
+    "http://localhost:3000",
+  );
+  assert.equal(
+    createPublicAppUrl("/auth/callback", {
+      requestOrigin: "http://0.0.0.0:3004",
+    }).href,
+    "http://localhost:3004/auth/callback",
+  );
+  assert.equal(
+    createPublicAppUrl("/logged-out", {
+      source: {
+        APP_BASE_URL: "http://0.0.0.0:3000",
+      },
+    }).href,
+    "http://localhost:3000/logged-out",
+  );
+});
+
+test("protected route redirects normalize local bind host to localhost", () => {
+  const result = resolveProtectedRouteRequest({
+    url: "http://0.0.0.0:3000/app/catalog",
+    currentOrigin: "http://0.0.0.0:3000",
+  });
+
+  assert.deepEqual(result, {
+    allowed: false,
+    redirectTo: "/login?returnTo=%2Fapp%2Fcatalog",
+  });
+});
+
+test("session detection only accepts shaped managed session cookies", () => {
   assert.equal(hasAuthenticatedSessionCookie("foo=bar"), false);
   assert.equal(hasAuthenticatedSessionCookie("__Host-coritech_session="), false);
-  assert.equal(hasAuthenticatedSessionCookie("coritech_session=session-2"), true);
+  assert.equal(hasAuthenticatedSessionCookie("coritech_session=session-2"), false);
+  assert.equal(hasAuthenticatedSessionCookie("coritech_session=payload.signature"), true);
+  assert.equal(hasAuthenticatedSessionCookie("__Host-coritech_session=payload.signature"), true);
 });
 
 test("logout clearing includes session and auth-flow cookies", () => {

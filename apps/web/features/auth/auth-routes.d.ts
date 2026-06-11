@@ -50,6 +50,17 @@ export declare function sanitizeReturnTo(
   value: unknown,
   options?: { fallback?: string; currentOrigin?: string },
 ): string;
+export declare function createPublicAppUrl(
+  path: string,
+  options?: {
+    requestOrigin?: string | null;
+    source?: Record<string, string | undefined> | NodeJS.ProcessEnv;
+  },
+): URL;
+export declare function resolvePublicAppOrigin(options?: {
+  requestOrigin?: string | null;
+  source?: Record<string, string | undefined> | NodeJS.ProcessEnv;
+}): string;
 export declare function resolveProtectedRouteRequest(input: {
   url: string;
   cookieHeader?: string | null;

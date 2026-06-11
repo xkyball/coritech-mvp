@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import {
   AUTH_ROUTES,
+  createPublicAppUrl,
   hasAuthenticatedSessionCookie,
+  resolvePublicAppOrigin,
   sanitizeReturnTo,
 } from "./features/auth/auth-routes.mjs";
 
@@ -11,13 +13,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const loginUrl = request.nextUrl.clone();
-  loginUrl.pathname = AUTH_ROUTES.loginPage;
-  loginUrl.search = "";
+  const currentOrigin = resolvePublicAppOrigin({
+    requestOrigin: request.nextUrl.origin,
+  });
+  const loginUrl = createPublicAppUrl(AUTH_ROUTES.loginPage, {
+    requestOrigin: currentOrigin,
+  });
   loginUrl.searchParams.set(
     "returnTo",
     sanitizeReturnTo(`${request.nextUrl.pathname}${request.nextUrl.search}`, {
-      currentOrigin: request.nextUrl.origin,
+      currentOrigin,
     }),
   );
 

@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   AUTH_FLOW_COOKIE_NAMES,
   AUTH_ROUTES,
+  createPublicAppUrl,
+  resolvePublicAppOrigin,
   sanitizeReturnTo,
 } from "../../../features/auth/auth-routes.mjs";
 import {
@@ -22,17 +24,22 @@ import {
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  const currentOrigin = resolvePublicAppOrigin({
+    requestOrigin: request.nextUrl.origin,
+  });
   const providerError = request.nextUrl.searchParams.get("error");
   const returnTo = sanitizeReturnTo(
     request.cookies.get(AUTH_FLOW_COOKIE_NAMES.returnTo)?.value,
     {
-      currentOrigin: request.nextUrl.origin,
+      currentOrigin,
     },
   );
 
   if (providerError) {
     if (providerError.toLowerCase().includes("verif")) {
-      const verificationUrl = new URL(AUTH_ROUTES.emailVerificationPage, request.url);
+      const verificationUrl = createPublicAppUrl(AUTH_ROUTES.emailVerificationPage, {
+        requestOrigin: currentOrigin,
+      });
       const response = NextResponse.redirect(verificationUrl, 302);
       clearAuthFlowCookies(response);
 
@@ -77,7 +84,9 @@ export async function GET(request: NextRequest) {
       identity,
       authRuntime.config,
     );
-    const response = NextResponse.redirect(new URL(returnTo, request.url), 302);
+    const response = NextResponse.redirect(createPublicAppUrl(returnTo, {
+      requestOrigin: currentOrigin,
+    }), 302);
 
     clearAuthFlowCookies(response);
     response.cookies.set(managedSession.cookieName, managedSession.cookieValue, {
@@ -103,7 +112,9 @@ export async function GET(request: NextRequest) {
 }
 
 function redirectToAuthError(request: NextRequest, code: string, returnTo: string) {
-  const errorUrl = new URL(AUTH_ROUTES.error, request.url);
+  const errorUrl = createPublicAppUrl(AUTH_ROUTES.error, {
+    requestOrigin: request.nextUrl.origin,
+  });
   errorUrl.searchParams.set("code", code);
   errorUrl.searchParams.set("returnTo", returnTo);
   const response = NextResponse.redirect(errorUrl, 302);

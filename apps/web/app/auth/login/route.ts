@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   AUTH_FLOW_COOKIE_NAMES,
   AUTH_ROUTES,
+  createPublicAppUrl,
+  resolvePublicAppOrigin,
   sanitizeReturnTo,
 } from "../../../features/auth/auth-routes.mjs";
 import {
@@ -15,8 +17,11 @@ export const runtime = "nodejs";
 const AUTH_FLOW_MAX_AGE_SECONDS = 10 * 60;
 
 export function GET(request: NextRequest) {
+  const currentOrigin = resolvePublicAppOrigin({
+    requestOrigin: request.nextUrl.origin,
+  });
   const returnTo = sanitizeReturnTo(request.nextUrl.searchParams.get("returnTo"), {
-    currentOrigin: request.nextUrl.origin,
+    currentOrigin,
   });
   const authRuntime = getManagedAuthRuntime();
 
@@ -42,7 +47,9 @@ export function GET(request: NextRequest) {
 }
 
 function redirectToAuthError(request: NextRequest, code: string, returnTo: string) {
-  const errorUrl = new URL(AUTH_ROUTES.error, request.url);
+  const errorUrl = createPublicAppUrl(AUTH_ROUTES.error, {
+    requestOrigin: request.nextUrl.origin,
+  });
   errorUrl.searchParams.set("code", code);
   errorUrl.searchParams.set("returnTo", returnTo);
 

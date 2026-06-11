@@ -8,8 +8,8 @@ import {
 } from "../components/ui";
 import {
   AUTH_ROUTES,
-  hasAuthenticatedSessionCookie,
 } from "../features/auth/auth-routes.mjs";
+import { readManagedAuthSessionFromCookieHeader } from "../features/auth/server-session";
 
 const proofSteps = [
   "Trigger",
@@ -41,7 +41,7 @@ const foundation = [
 export default async function Home() {
   const cookieHeader = (await headers()).get("cookie");
 
-  if (hasAuthenticatedSessionCookie(cookieHeader)) {
+  if (await readOptionalSession(cookieHeader)) {
     redirect(AUTH_ROUTES.appHome);
   }
 
@@ -98,4 +98,12 @@ export default async function Home() {
       </section>
     </main>
   );
+}
+
+async function readOptionalSession(cookieHeader: string | null) {
+  try {
+    return await readManagedAuthSessionFromCookieHeader(cookieHeader);
+  } catch {
+    return null;
+  }
 }

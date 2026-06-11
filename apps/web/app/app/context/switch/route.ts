@@ -6,6 +6,7 @@ import {
 } from "../../../../features/auth/active-context-runtime.mjs";
 import {
   AUTH_ROUTES,
+  createPublicAppUrl,
 } from "../../../../features/auth/auth-routes.mjs";
 import { readManagedAuthSessionFromCookieHeader } from "../../../../features/auth/server-session";
 
@@ -16,7 +17,9 @@ export async function POST(request: NextRequest) {
   const session = await readManagedAuthSessionFromCookieHeader(request.headers.get("cookie"));
 
   if (!session) {
-    return NextResponse.redirect(new URL(AUTH_ROUTES.loginPage, request.url), 303);
+    return NextResponse.redirect(createPublicAppUrl(AUTH_ROUTES.loginPage, {
+      requestOrigin: request.nextUrl.origin,
+    }), 303);
   }
 
   const result = resolveActiveContextSwitch({
@@ -24,7 +27,9 @@ export async function POST(request: NextRequest) {
     selectedContextKey: formData.get("activeContextKey"),
   });
 
-  const redirectUrl = new URL(result.redirectTo, request.url);
+  const redirectUrl = createPublicAppUrl(result.redirectTo, {
+    requestOrigin: request.nextUrl.origin,
+  });
   redirectUrl.searchParams.set("reason", result.reason);
   const response = NextResponse.redirect(redirectUrl, 303);
 
