@@ -8,7 +8,7 @@ import { isActiveRoleAssignment } from "@coritech/domain/identity/role-model.mjs
 import {
   formatStatusDisplayLabel,
   getStatusDescription,
-} from "../status-display/status-display.mjs";
+} from "../status-display/status-display-registry.mjs";
 
 export const PAYMENT_REFERENCE_ROUTES = Object.freeze({
   stationOrders: "/app/station/orders",

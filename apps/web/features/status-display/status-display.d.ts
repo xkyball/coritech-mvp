@@ -1,7 +1,3 @@
-import type { SemenOrderStatus } from "@coritech/domain/orders/semen-order.d.ts";
-import type { ShipmentStatus } from "@coritech/domain/shipments/shipment.d.ts";
-import type { ActivePhase1VerificationLevel } from "@coritech/domain/proof/verification-level.d.ts";
-
 export type PaymentReferenceStatus =
   | "NOT_REQUIRED"
   | "PENDING"
@@ -28,6 +24,33 @@ export type StatusDisplayRoleCode =
   | "BREEDER"
   | "BREEDING_STATION"
   | "PLATFORM_ADMIN";
+
+export type SemenOrderStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "RECEIVED"
+  | "CONFIRMED"
+  | "REJECTED"
+  | "IN_FULFILMENT"
+  | "SHIPPED"
+  | "DELIVERED"
+  | "COMPLETED"
+  | "CANCELLED";
+
+export type ShipmentStatus =
+  | "PREPARED"
+  | "DISPATCHED"
+  | "IN_TRANSIT"
+  | "DELIVERED"
+  | "DELAYED"
+  | "FAILED"
+  | "CANCELLED";
+
+export type ActivePhase1VerificationLevel =
+  | "SELF_REPORTED"
+  | "SYSTEM_RECORDED"
+  | "STATION_CONFIRMED"
+  | "ADMIN_REVIEWED";
 
 export type StatusDisplayCode =
   | SemenOrderStatus
