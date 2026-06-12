@@ -29,7 +29,7 @@ object storage and a web-only app container once provider choices are finalized.
 | `Dockerfile.all-in-one` | Builds Node, PostgreSQL, MinIO and the app into one image. |
 | `scripts/start-all-in-one.sh` | Starts PostgreSQL, starts MinIO, creates the private bucket, runs migrations and starts Next.js. |
 | `docker-compose.all-in-one.yml` | Runs a single `coritech` service with a persistent `/var/lib/coritech` volume. |
-| `.env.all-in-one.example` | Example variable contract for the all-in-one container. |
+| `.env.all-in-one.example` | Example variable contract to copy into the VM's real `.env`. |
 
 ## Azure VM Preparation
 
@@ -47,8 +47,8 @@ object storage and a web-only app container once provider choices are finalized.
 Create the real all-in-one env file on the VM:
 
 ```bash
-cp .env.all-in-one.example .env.all-in-one
-nano .env.all-in-one
+cp .env.all-in-one.example .env
+nano .env
 ```
 
 For a domain-backed VM, set:
@@ -100,11 +100,21 @@ Keep it `false` for production-like environments.
 Build and start the single-container stack:
 
 ```bash
-docker compose --env-file .env.all-in-one -f docker-compose.all-in-one.yml up -d --build
+docker compose --env-file .env -f docker-compose.all-in-one.yml up -d --build
 ```
 
-The compose file reads `.env.all-in-one` by default. To use a different file
-name, set `CORITECH_ALL_IN_ONE_ENV_FILE=/path/to/env-file`.
+The compose file reads `.env` into the running container by default. This is
+important: Docker Compose uses `.env` for command interpolation, but the app
+only receives the values because `docker-compose.all-in-one.yml` also lists it
+as the service `env_file`.
+
+To keep the all-in-one values in a separate file instead, set
+`CORITECH_ALL_IN_ONE_ENV_FILE=.env.all-in-one` and pass the same file to
+Compose:
+
+```bash
+CORITECH_ALL_IN_ONE_ENV_FILE=.env.all-in-one docker compose --env-file .env.all-in-one -f docker-compose.all-in-one.yml up -d --build
+```
 
 Check status and logs:
 
@@ -123,14 +133,19 @@ If a deployed VM redirects back to `localhost` after login, confirm that the
 running container received the public URL values:
 
 ```bash
-docker compose -f docker-compose.all-in-one.yml exec coritech printenv APP_BASE_URL API_BASE_URL CORITECH_ENVIRONMENT
+docker compose -f docker-compose.all-in-one.yml exec coritech printenv APP_BASE_URL API_BASE_URL CORITECH_ENVIRONMENT AUTH_PROVIDER_DOMAIN
 ```
 
-After editing `.env.all-in-one`, recreate the container so Docker applies the
-new values:
+Also run the same validation command the app uses:
 
 ```bash
-docker compose --env-file .env.all-in-one -f docker-compose.all-in-one.yml up -d --build --force-recreate
+docker compose -f docker-compose.all-in-one.yml exec coritech node packages/config/src/environment.mjs
+```
+
+After editing `.env`, recreate the container so Docker applies the new values:
+
+```bash
+docker compose --env-file .env -f docker-compose.all-in-one.yml up -d --build --force-recreate
 ```
 
 ## Persistent Data
@@ -158,7 +173,7 @@ From the repository directory on the VM:
 
 ```bash
 git pull
-docker compose --env-file .env.all-in-one -f docker-compose.all-in-one.yml up -d --build
+docker compose --env-file .env -f docker-compose.all-in-one.yml up -d --build
 ```
 
 The container runs Prisma migrations on startup. Demo seeding only runs when

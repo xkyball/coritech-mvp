@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.all-in-one
     env_file:
-      - ${CORITECH_ALL_IN_ONE_ENV_FILE:-.env.all-in-one}
+      - ${CORITECH_ALL_IN_ONE_ENV_FILE:-.env}
     environment:
       NODE_ENV: production
     ports:

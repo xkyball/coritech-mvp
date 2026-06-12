@@ -74,6 +74,13 @@ export default async function LoginPage({
               The login route is available, but provider redirects remain disabled until the
               managed auth environment values are configured.
             </p>
+            {runtime.issues.length > 0 ? (
+              <ul>
+                {runtime.issues.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
+            ) : null}
           </Alert>
         ) : null}
 
