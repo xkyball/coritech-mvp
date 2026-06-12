@@ -273,17 +273,17 @@ export function createPublicAppUrl(path, options = {}) {
  * @returns {string}
  */
 export function resolvePublicAppOrigin(options = {}) {
-  const requestOrigin = parseAbsoluteUrl(options.requestOrigin);
-
-  if (requestOrigin) {
-    return normalizePublicUrl(requestOrigin).origin;
-  }
-
   const source = options.source ?? process.env;
   const appBaseUrl = parseAbsoluteUrl(source.APP_BASE_URL);
 
   if (appBaseUrl) {
     return normalizePublicUrl(appBaseUrl).origin;
+  }
+
+  const requestOrigin = parseAbsoluteUrl(options.requestOrigin);
+
+  if (requestOrigin) {
+    return normalizePublicUrl(requestOrigin).origin;
   }
 
   return LOCALHOST_FALLBACK_ORIGIN;

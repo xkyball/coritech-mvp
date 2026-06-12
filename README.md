@@ -79,7 +79,11 @@ packages/database/        Prisma schema, migration and seed data
 docs/                     Product, architecture, data, proof, RBAC and Docker docs
 docker-compose.yml        Local development stack
 Dockerfile                Node.js app image for web and migrate-seed services
+Dockerfile.all-in-one     Single-container VM/demo image with web, PostgreSQL and MinIO
 ```
+
+The single-container VM/demo deployment path is documented in
+`docs/deployment/azure-vm-all-in-one-container.md`.
 
 ## Run Locally
 

@@ -5,6 +5,7 @@
 !.env.local.example
 !.env.staging.example
 !.env.production.example
+!.env.all-in-one.example
 
 # Operating system files
 .DS_Store

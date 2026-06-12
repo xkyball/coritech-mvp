@@ -8,6 +8,8 @@ not configure infrastructure.
 Detailed setup, environment-variable and secret-handling guidance is documented
 in `docs/deployment/staging-production-setup.md` and
 `docs/deployment/environment-configuration.md`.
+The small-VM all-in-one container variant is documented in
+`docs/deployment/azure-vm-all-in-one-container.md`.
 Backup and restore readiness is documented in
 `docs/deployment/backup-restore-baseline.md`.
 

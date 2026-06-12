@@ -1,0 +1,87 @@
+FROM node:22-bookworm-slim AS base
+
+ARG TARGETARCH=amd64
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PATH="/usr/lib/postgresql/15/bin:${PATH}"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      gosu \
+      postgresql-15 \
+      postgresql-client-15 \
+      tini \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+      amd64|arm64) minio_arch="${TARGETARCH}" ;; \
+      *) echo "Unsupported MinIO architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://dl.min.io/server/minio/release/linux-${minio_arch}/minio" -o /usr/local/bin/minio; \
+    curl -fsSL "https://dl.min.io/client/mc/release/linux-${minio_arch}/mc" -o /usr/local/bin/mc; \
+    chmod +x /usr/local/bin/minio /usr/local/bin/mc
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+COPY apps/web/package.json ./apps/web/package.json
+COPY packages/config/package.json ./packages/config/package.json
+COPY packages/domain/package.json ./packages/domain/package.json
+COPY packages/database/package.json ./packages/database/package.json
+
+RUN npm ci
+
+COPY . .
+
+ENV CORITECH_ENVIRONMENT=local \
+    NODE_ENV=production \
+    NEXT_PUBLIC_APP_NAME="CoriTech MVP" \
+    APP_BASE_URL=http://localhost:3000 \
+    API_BASE_URL=http://localhost:3000 \
+    WEB_PORT=3000 \
+    APP_INTERNAL_PORT=3000 \
+    POSTGRES_USER=coritech \
+    POSTGRES_PASSWORD=coritech_dev_password \
+    POSTGRES_DB=coritech_mvp \
+    POSTGRES_PORT=5432 \
+    DATABASE_URL=postgresql://coritech:coritech_dev_password@127.0.0.1:5432/coritech_mvp?schema=public \
+    AUDIT_LOG_RETENTION_DAYS=30 \
+    AUTH_PROVIDER_CLIENT_ID=docker-build-managed-auth-client \
+    AUTH_PROVIDER_CLIENT_SECRET=docker-build-managed-auth-secret \
+    AUTH_PROVIDER_DOMAIN=https://accounts.google.com \
+    AUTH_SESSION_SECRET=docker-build-session-secret \
+    EMAIL_PROVIDER=console \
+    EMAIL_PROVIDER_API_KEY=docker-build-email-placeholder \
+    EMAIL_PROVIDER_ENDPOINT=http://localhost:3000/api/dev-email \
+    EMAIL_FROM_ADDRESS=support@local.coritech.test \
+    EMAIL_FROM_NAME="CoriTech Local" \
+    MONITORING_PROVIDER=console \
+    MONITORING_ENDPOINT=http://localhost:3000/api/dev-monitoring \
+    ERROR_TRACKING_DSN=docker-build-error-tracking-disabled \
+    OBJECT_STORAGE_PROVIDER=minio \
+    OBJECT_STORAGE_ENDPOINT=127.0.0.1 \
+    OBJECT_STORAGE_PORT=9000 \
+    OBJECT_STORAGE_USE_SSL=false \
+    OBJECT_STORAGE_BUCKET=coritech-local-dev \
+    OBJECT_STORAGE_REGION=local-dev \
+    OBJECT_STORAGE_ACCESS_KEY=coritech_minio_dev \
+    OBJECT_STORAGE_SECRET_KEY=coritech_minio_dev_password \
+    OBJECT_STORAGE_CONSOLE_PORT=9001 \
+    PAYMENT_PROVIDER_SECRET=docker-build-payment-placeholder \
+    LOGISTICS_PROVIDER_API_KEY=docker-build-logistics-placeholder
+
+RUN npm run db:generate
+RUN npm run build
+RUN chmod +x scripts/start-all-in-one.sh \
+    && mkdir -p /var/lib/coritech/postgres /var/lib/coritech/minio \
+    && chown -R postgres:postgres /var/lib/coritech/postgres
+
+VOLUME ["/var/lib/coritech"]
+
+EXPOSE 3000 5432 9000 9001
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/app/scripts/start-all-in-one.sh"]

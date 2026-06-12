@@ -88,6 +88,27 @@ test("local public app origin never exposes the server bind host", () => {
   );
 });
 
+test("configured public app origin wins over local proxy request origin", () => {
+  assert.equal(
+    resolvePublicAppOrigin({
+      requestOrigin: "http://localhost:3000",
+      source: {
+        APP_BASE_URL: "https://demo.coritech.example",
+      },
+    }),
+    "https://demo.coritech.example",
+  );
+  assert.equal(
+    createPublicAppUrl("/app/catalog", {
+      requestOrigin: "http://localhost:3000",
+      source: {
+        APP_BASE_URL: "https://demo.coritech.example",
+      },
+    }).href,
+    "https://demo.coritech.example/app/catalog",
+  );
+});
+
 test("protected route redirects normalize local bind host to localhost", () => {
   const result = resolveProtectedRouteRequest({
     url: "http://0.0.0.0:3000/app/catalog",
